@@ -9,6 +9,9 @@ Por favor, aprendam a usar o git corretamente:
 https://www.youtube.com/watch?v=Zwv9qRyVeU4
 
 
+conventional commits:
+https://www.conventionalcommits.org/pt-br/v1.0.0/
+
 ## Setup
 
 Instale as dependencias:
