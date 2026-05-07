@@ -1,0 +1,7 @@
+#!/usr/bin/env sh
+
+STAGED_FILES=$(git diff --staged --name-only --diff-filter=d | grep -E '\.(js|ts|tsx|jsx|json)$' || true)
+if [ -n "$STAGED_FILES" ]; then
+  bun biome check --write $STAGED_FILES
+  git add $STAGED_FILES
+fi

@@ -1,0 +1,11 @@
+#!/usr/bin/env sh
+
+# Get the commit message from the file passed as an argument
+commit_msg_file="$1"
+commit_msg=$(cat "$commit_msg_file")
+
+# Regex to match common Conventional Commit prefixes with optional scope
+if ! echo "$commit_msg" | grep -qE '^(feat|fix|chore|delete|refactor|refac|docs|test|build|ci|perf|style|revert)(\([^)]+\))?: .*$'; then
+  echo "Invalid commit message format. Must start with an allowed type like 'feat: ...' or include an optional scope like 'feat(scope): ...'"
+  exit 1
+fi
