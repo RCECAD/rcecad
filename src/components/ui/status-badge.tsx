@@ -4,14 +4,13 @@ import type { LucideIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
-export type StatusBadgeTone = "teal" | "yellow" | "blue" | "slate" | "rose";
+export type StatusBadgeTone = "teal" | "yellow" | "blue" | "slate";
 
 const toneClasses: Record<StatusBadgeTone, string> = {
   teal: "border-teal-200 bg-teal-50 text-teal-700",
   yellow: "border-yellow-200 bg-yellow-50 text-yellow-700",
   blue: "border-blue-200 bg-blue-50 text-blue-700",
   slate: "border-slate-200 bg-slate-100 text-slate-700",
-  rose: "border-rose-200 bg-rose-50 text-rose-700",
 };
 
 type StatusBadgeProps = {

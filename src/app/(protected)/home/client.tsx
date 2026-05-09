@@ -2,7 +2,7 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import { LayoutGrid, Search, Undo2 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { HomeProjectCard } from "@/components/home/home-project-card";
 import { HomeProjectsSummary } from "@/components/home/home-projects-summary";
 import { HomeProjectsTable } from "@/components/home/home-projects-table";
@@ -18,16 +18,27 @@ type HomeClientProps = {
 export function HomeClient({ payload }: Readonly<HomeClientProps>) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [query, setQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedQuery(query);
+    }, 250);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [query]);
 
   const filteredProjects = useMemo(
-    () => filterHomeProjects(payload.projects, query),
-    [payload.projects, query],
+    () => filterHomeProjects(payload.projects, debouncedQuery),
+    [payload.projects, debouncedQuery],
   );
 
   return (
     <motion.section
-      initial={{ opacity: 0, y: 16, filter: "blur(6px)" }}
-      animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
       className="mx-auto flex w-full max-w-5xl flex-col gap-5 px-6 pb-16 pt-10"
     >
@@ -42,8 +53,8 @@ export function HomeClient({ payload }: Readonly<HomeClientProps>) {
             </p>
           </div>
 
-          <div className="relative min-h-9 md:min-w-[28rem]">
-            <AnimatePresence initial={false} mode="sync">
+          <div className="relative min-h-9 md:w-[28rem] md:flex-none">
+            <AnimatePresence initial={false} mode="wait">
               {isExpanded ? (
                 <motion.div
                   key="expanded-controls"
@@ -67,7 +78,6 @@ export function HomeClient({ payload }: Readonly<HomeClientProps>) {
               ) : (
                 <motion.div
                   key="compact-action"
-                  layoutId="home-view-all"
                   initial={{ opacity: 0, x: 12 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: 12 }}
@@ -99,15 +109,12 @@ export function HomeClient({ payload }: Readonly<HomeClientProps>) {
             {isExpanded ? (
               <motion.div
                 key="expanded-state"
-                layout
-                layoutId="home-projects-panel"
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -12 }}
                 transition={{
                   opacity: { duration: 0.22 },
                   y: { duration: 0.28 },
-                  layout: { duration: 0.42, ease: [0.22, 1, 0.36, 1] },
                 }}
                 className="rounded-xl border border-border bg-card p-6 shadow-xs"
               >
@@ -127,15 +134,12 @@ export function HomeClient({ payload }: Readonly<HomeClientProps>) {
             ) : (
               <motion.div
                 key="compact-state"
-                layout
-                layoutId="home-projects-panel"
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -12 }}
                 transition={{
                   opacity: { duration: 0.22 },
                   y: { duration: 0.28 },
-                  layout: { duration: 0.42, ease: [0.22, 1, 0.36, 1] },
                 }}
                 className="grid gap-3 md:grid-cols-3"
               >

@@ -4,11 +4,7 @@ import {
   ClipboardList,
   PackageCheck,
 } from "lucide-react";
-import type {
-  HomeProject,
-  HomeProjectStatus,
-  HomeProjectsStatusSummary,
-} from "@/domain/entities";
+import type { HomeProject, HomeProjectStatus } from "@/domain/entities";
 
 export function formatHomeProjectDate(value: string) {
   return new Intl.DateTimeFormat("pt-BR", {
@@ -44,27 +40,6 @@ export function filterHomeProjects(
   );
 }
 
-export function getRecentProjects(projects: HomeProject[], count = 3) {
-  return [...projects].slice(0, count);
-}
-
-export function getProjectStatusCounts(
-  projects: HomeProject[],
-): HomeProjectsStatusSummary {
-  return projects.reduce<HomeProjectsStatusSummary>(
-    (acc, project) => {
-      acc[project.status] += 1;
-      return acc;
-    },
-    {
-      pending: 0,
-      inProgress: 0,
-      validated: 0,
-      exported: 0,
-    },
-  );
-}
-
 export function getStatusMeta(status: HomeProjectStatus) {
   const statuses = {
     pending: {
@@ -96,7 +71,7 @@ export function getStatusMeta(status: HomeProjectStatus) {
     {
       label: string;
       shortLabel: string;
-      tone: "teal" | "yellow" | "blue" | "slate" | "rose";
+      tone: "teal" | "yellow" | "blue" | "slate";
       icon: typeof ClipboardList;
     }
   >;
