@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: rcecad-postgres
+    environment:
+      POSTGRES_DB: rcecad
+      POSTGRES_USER: rcecad
+      POSTGRES_PASSWORD: rcecad
+    ports:
+      - "5432:5432"
+    volumes:
+      - rcecad-postgres-data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  rcecad-postgres-data:
