@@ -1,5 +1,6 @@
 export * from "@/domain/entities/example";
 export * from "@/domain/entities/example-2";
+export * from "@/domain/entities/user";
 
 /*  A cada entity nova, exportar ela aqui, pois ao utilizar as entities em outros lugares,
     
