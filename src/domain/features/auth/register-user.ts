@@ -51,18 +51,23 @@ export const registerUser: Setup = async (input) => {
 
     const clerkUserId = clerkUser.id;
 
-    const db = await getDb();
+    try {
+      const db = await getDb();
 
-    const toInsert: NewUser = {
-      clerkUserId,
-      name: input.name,
-      cnpj: input.cnpj,
-      email: input.email,
-    } as NewUser;
+      const toInsert: NewUser = {
+        clerkUserId,
+        name: input.name,
+        cnpj: input.cnpj,
+        email: input.email,
+      };
 
-    const [created] = await db.insert(users).values(toInsert).returning();
+      const [created] = await db.insert(users).values(toInsert).returning();
 
-    return created as Output;
+      return created as Output;
+    } catch (dbErr) {
+      await client.users.deleteUser(clerkUserId);
+      throw dbErr;
+    }
   } catch (err) {
     return DomainError({ msg: "An error occurred while creating user", err });
   }
