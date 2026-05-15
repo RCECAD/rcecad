@@ -7,10 +7,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { type RegisterFormValues, registerSchema } from "@/schemas/register";
+import { registerUserAction } from "./actions";
 
 export function RegisterForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
   const {
     register,
@@ -29,25 +31,28 @@ export function RegisterForm() {
   });
 
   async function onSubmit(values: RegisterFormValues) {
-    try {
-      setIsLoading(true);
-      setError(null);
+    setIsLoading(true);
+    setError(null);
+    setSuccess(null);
 
-      // TODO: Chamar a feature de register-user aqui
-      console.log("Form values:", values);
+    const result = await registerUserAction(values);
 
-      // Exemplo temporário
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+    if (!result.ok) {
+      const fieldError =
+        result.fieldErrors?.email?.[0] ||
+        result.fieldErrors?.name?.[0] ||
+        result.fieldErrors?.cnpj?.[0] ||
+        result.fieldErrors?.password?.[0] ||
+        result.fieldErrors?.confirmPassword?.[0];
 
-      alert("Conta criada com sucesso!");
-      reset();
-    } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Erro ao registrar conta";
-      setError(message);
-    } finally {
+      setError(fieldError ?? result.message);
       setIsLoading(false);
+      return;
     }
+
+    reset();
+    setSuccess("Conta criada com sucesso!");
+    setIsLoading(false);
   }
 
   return (
@@ -55,6 +60,12 @@ export function RegisterForm() {
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
           {error}
+        </div>
+      )}
+
+      {success && (
+        <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded">
+          {success}
         </div>
       )}
 
