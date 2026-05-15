@@ -13,6 +13,7 @@
   "dependencies": {
     "@clerk/localizations": "^4.6.0",
     "@clerk/nextjs": "^7.3.1",
+    "@clerk/ui": "^1.10.0",
     "@hookform/resolvers": "^5.2.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
