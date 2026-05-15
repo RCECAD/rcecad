@@ -2,10 +2,15 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
+import {
+  Field,
+  FieldDescription,
+  FieldError,
+  FieldLabel,
+} from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { type RegisterFormValues, registerSchema } from "@/schemas/register";
 import { registerUserAction } from "./actions";
 
@@ -14,12 +19,7 @@ export function RegisterForm() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-    reset,
-  } = useForm<RegisterFormValues>({
+  const { handleSubmit, control, reset } = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
       name: "",
@@ -70,81 +70,119 @@ export function RegisterForm() {
       )}
 
       {/* Campo: Nome da Empresa */}
-      <div className="space-y-1.5">
-        <Label htmlFor="name">Nome da Empresa</Label>
-        <Input
-          {...register("name")}
-          id="name"
-          type="text"
-          placeholder="Sua Empresa LTDA"
-          disabled={isLoading}
-        />
-        {errors.name && (
-          <p className="mt-1 text-sm text-red-600">{errors.name.message}</p>
+      <Controller
+        name="name"
+        control={control}
+        render={({ field, fieldState }) => (
+          <Field data-invalid={fieldState.invalid}>
+            <FieldLabel htmlFor={field.name}>Nome da Empresa</FieldLabel>
+            <Input
+              {...field}
+              id={field.name}
+              type="text"
+              placeholder="Sua Empresa LTDA"
+              disabled={isLoading}
+              aria-invalid={fieldState.invalid}
+            />
+            <FieldDescription>
+              Nome oficial da empresa para identificação no sistema.
+            </FieldDescription>
+            {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+          </Field>
         )}
-      </div>
+      />
 
       {/* Campo: CNPJ */}
-      <div className="space-y-1.5">
-        <Label htmlFor="cnpj">CNPJ</Label>
-        <Input
-          {...register("cnpj")}
-          id="cnpj"
-          type="text"
-          placeholder="12345678901234"
-          disabled={isLoading}
-        />
-        {errors.cnpj && (
-          <p className="mt-1 text-sm text-red-600">{errors.cnpj.message}</p>
+      <Controller
+        name="cnpj"
+        control={control}
+        render={({ field, fieldState }) => (
+          <Field data-invalid={fieldState.invalid}>
+            <FieldLabel htmlFor={field.name}>CNPJ</FieldLabel>
+            <Input
+              {...field}
+              id={field.name}
+              type="text"
+              placeholder="12345678901234"
+              disabled={isLoading}
+              aria-invalid={fieldState.invalid}
+            />
+            <FieldDescription>
+              Informe apenas os 14 dígitos do CNPJ.
+            </FieldDescription>
+            {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+          </Field>
         )}
-      </div>
+      />
 
       {/* Campo: Email */}
-      <div className="space-y-1.5">
-        <Label htmlFor="email">Email</Label>
-        <Input
-          {...register("email")}
-          id="email"
-          type="email"
-          placeholder="seu.email@empresa.com"
-          disabled={isLoading}
-        />
-        {errors.email && (
-          <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
+      <Controller
+        name="email"
+        control={control}
+        render={({ field, fieldState }) => (
+          <Field data-invalid={fieldState.invalid}>
+            <FieldLabel htmlFor={field.name}>Email</FieldLabel>
+            <Input
+              {...field}
+              id={field.name}
+              type="email"
+              placeholder="seu.email@empresa.com"
+              disabled={isLoading}
+              aria-invalid={fieldState.invalid}
+            />
+            <FieldDescription>
+              Este email será usado para acessar a conta.
+            </FieldDescription>
+            {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+          </Field>
         )}
-      </div>
+      />
 
       {/* Campo: Senha */}
-      <div className="space-y-1.5">
-        <Label htmlFor="password">Senha</Label>
-        <Input
-          {...register("password")}
-          id="password"
-          type="password"
-          placeholder="••••••••"
-          disabled={isLoading}
-        />
-        {errors.password && (
-          <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>
+      <Controller
+        name="password"
+        control={control}
+        render={({ field, fieldState }) => (
+          <Field data-invalid={fieldState.invalid}>
+            <FieldLabel htmlFor={field.name}>Senha</FieldLabel>
+            <Input
+              {...field}
+              id={field.name}
+              type="password"
+              placeholder="••••••••"
+              disabled={isLoading}
+              aria-invalid={fieldState.invalid}
+            />
+            <FieldDescription>
+              Mínimo 8 caracteres, com 1 letra maiúscula e 1 número.
+            </FieldDescription>
+            {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+          </Field>
         )}
-      </div>
+      />
 
       {/* Campo: Confirmar Senha */}
-      <div className="space-y-1.5">
-        <Label htmlFor="confirmPassword">Confirmar Senha</Label>
-        <Input
-          {...register("confirmPassword")}
-          id="confirmPassword"
-          type="password"
-          placeholder="••••••••"
-          disabled={isLoading}
-        />
-        {errors.confirmPassword && (
-          <p className="mt-1 text-sm text-red-600">
-            {errors.confirmPassword.message}
-          </p>
+      <Controller
+        name="confirmPassword"
+        control={control}
+        render={({ field, fieldState }) => (
+          <Field data-invalid={fieldState.invalid}>
+            <FieldLabel htmlFor={field.name}>Confirmar Senha</FieldLabel>
+            <Input
+              {...field}
+              id={field.name}
+              type="password"
+              placeholder="••••••••"
+              disabled={isLoading}
+              aria-invalid={fieldState.invalid}
+            />
+            <FieldDescription>
+              Repita a senha para confirmar o cadastro.
+            </FieldDescription>
+            {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+          </Field>
         )}
-      </div>
+      />
 
       {/* Botão Enviar */}
       <Button type="submit" disabled={isLoading} className="w-full">
