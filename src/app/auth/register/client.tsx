@@ -1,7 +1,8 @@
 "use client";
 
+import { useSignUp } from "@clerk/nextjs";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useState } from "react";
+import { router } from "next/client";
 import { Controller, useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,13 +13,8 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { type RegisterFormValues, registerSchema } from "@/schemas/register";
-import { registerUserAction } from "./actions";
 
 export function RegisterForm() {
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
-
   const { handleSubmit, control, reset } = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
@@ -30,45 +26,37 @@ export function RegisterForm() {
     },
   });
 
+  const { signUp, setActive, isLoaded } = useSignUp();
+
   async function onSubmit(values: RegisterFormValues) {
-    setIsLoading(true);
-    setError(null);
-    setSuccess(null);
+    if (!isLoaded) return;
 
-    const result = await registerUserAction(values);
+    const result = await signUp.create({
+      firstName: values.name,
+      emailAddress: values.email,
+      password: values.password,
+    });
 
-    if (!result.ok) {
-      const fieldError =
-        result.fieldErrors?.email?.[0] ||
-        result.fieldErrors?.name?.[0] ||
-        result.fieldErrors?.cnpj?.[0] ||
-        result.fieldErrors?.password?.[0] ||
-        result.fieldErrors?.confirmPassword?.[0];
-
-      setError(fieldError ?? result.message);
-      setIsLoading(false);
-      return;
+    if (result.error) {
+      throw new Error("Erro ao criar conta. Por favor, tente novamente.");
     }
 
+    await createUserInDb({
+      clerkId: result.userId,
+      name: values.name,
+      cnpj: values.cnpj,
+      email: values.email,
+    });
+
+    await setActive({ session: result.createdSessionId });
+
+    router.push("/home");
+
     reset();
-    setSuccess("Conta criada com sucesso!");
-    setIsLoading(false);
   }
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-          {error}
-        </div>
-      )}
-
-      {success && (
-        <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded">
-          {success}
-        </div>
-      )}
-
       {/* Campo: Nome da Empresa */}
       <Controller
         name="name"
@@ -81,7 +69,6 @@ export function RegisterForm() {
               id={field.name}
               type="text"
               placeholder="Sua Empresa LTDA"
-              disabled={isLoading}
               aria-invalid={fieldState.invalid}
             />
             <FieldDescription>
@@ -104,7 +91,6 @@ export function RegisterForm() {
               id={field.name}
               type="text"
               placeholder="12345678901234"
-              disabled={isLoading}
               aria-invalid={fieldState.invalid}
             />
             <FieldDescription>
@@ -127,7 +113,6 @@ export function RegisterForm() {
               id={field.name}
               type="email"
               placeholder="seu.email@empresa.com"
-              disabled={isLoading}
               aria-invalid={fieldState.invalid}
             />
             <FieldDescription>
@@ -150,7 +135,6 @@ export function RegisterForm() {
               id={field.name}
               type="password"
               placeholder="••••••••"
-              disabled={isLoading}
               aria-invalid={fieldState.invalid}
             />
             <FieldDescription>
@@ -173,7 +157,6 @@ export function RegisterForm() {
               id={field.name}
               type="password"
               placeholder="••••••••"
-              disabled={isLoading}
               aria-invalid={fieldState.invalid}
             />
             <FieldDescription>
@@ -185,8 +168,8 @@ export function RegisterForm() {
       />
 
       {/* Botão Enviar */}
-      <Button type="submit" disabled={isLoading} className="w-full">
-        {isLoading ? "Criando conta..." : "Criar Conta"}
+      <Button type="submit" className="w-full">
+        Criar Conta
       </Button>
     </form>
   );
