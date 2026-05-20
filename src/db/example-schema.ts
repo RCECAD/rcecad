@@ -1,11 +1,9 @@
 import { pgTable, timestamp, uuid, varchar } from "drizzle-orm/pg-core";
 
-export const users = pgTable("users", {
+export const examples = pgTable("examples", {
   id: uuid("id").defaultRandom().primaryKey(),
-  clerkUserId: varchar("clerk_user_id", { length: 255 }).notNull().unique(),
   name: varchar("name", { length: 120 }).notNull(),
-  cnpj: varchar("cnpj", { length: 14 }).notNull().unique(),
-  email: varchar("email", { length: 255 }).notNull().unique(),
+  description: varchar("description", { length: 255 }),
   createdAt: timestamp("created_at", { withTimezone: true })
     .defaultNow()
     .notNull(),
@@ -14,5 +12,5 @@ export const users = pgTable("users", {
     .notNull(),
 });
 
-export type User = typeof users.$inferSelect;
-export type NewUser = typeof users.$inferInsert;
+export type Example = typeof examples.$inferSelect;
+export type NewExample = typeof examples.$inferInsert;
