@@ -2,16 +2,16 @@
 
 import { type Domain, DomainError } from "@/domain";
 import type {
-  HomeProject,
   HomeProjectsPayload,
-  HomeProjectsStatusSummary,
+  Project,
+  ProjectsStatusSummary,
 } from "@/domain/entities";
 
 type Input = Record<string, never>;
 type Output = HomeProjectsPayload;
 type Setup = Domain<Input, Output>;
 
-const projectRows: Array<HomeProject> = [
+const projectRows: Array<Project> = [
   {
     id: "home-project-1",
     name: "Projeto 1",
@@ -110,8 +110,8 @@ const projectRows: Array<HomeProject> = [
   },
 ];
 
-function buildSummary(projects: Array<HomeProject>): HomeProjectsStatusSummary {
-  return projects.reduce<HomeProjectsStatusSummary>(
+function buildSummary(projects: Array<Project>): ProjectsStatusSummary {
+  return projects.reduce<ProjectsStatusSummary>(
     (acc, project) => {
       acc[project.status] += 1;
       return acc;

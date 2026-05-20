@@ -4,7 +4,7 @@ import {
   ClipboardList,
   PackageCheck,
 } from "lucide-react";
-import type { HomeProject, HomeProjectStatus } from "@/domain/entities";
+import type { Project, ProjectStatus } from "@/domain/entities";
 
 export function formatHomeProjectDate(value: string) {
   return new Intl.DateTimeFormat("pt-BR", {
@@ -22,10 +22,7 @@ export function formatHomeProjectDateLong(value: string) {
   }).format(new Date(value));
 }
 
-export function filterHomeProjects(
-  projects: Array<HomeProject>,
-  query: string,
-) {
+export function filterHomeProjects(projects: Array<Project>, query: string) {
   const normalizedQuery = query.trim().toLowerCase();
 
   if (!normalizedQuery) {
@@ -40,7 +37,7 @@ export function filterHomeProjects(
   );
 }
 
-export function getStatusMeta(status: HomeProjectStatus) {
+export function getStatusMeta(status: ProjectStatus) {
   const statuses = {
     pending: {
       label: "com pendências",
@@ -67,7 +64,7 @@ export function getStatusMeta(status: HomeProjectStatus) {
       icon: PackageCheck,
     },
   } satisfies Record<
-    HomeProjectStatus,
+    ProjectStatus,
     {
       label: string;
       shortLabel: string;

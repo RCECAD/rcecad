@@ -2,13 +2,10 @@
 
 import { motion } from "framer-motion";
 import { StatusBadge } from "@/components/ui/status-badge";
-import type {
-  HomeProjectStatus,
-  HomeProjectsStatusSummary,
-} from "@/domain/entities";
+import type { ProjectStatus, ProjectsStatusSummary } from "@/domain/entities";
 import { getStatusMeta } from "@/utils";
 
-const orderedStatuses: Array<HomeProjectStatus> = [
+const orderedStatuses: Array<ProjectStatus> = [
   "inProgress",
   "pending",
   "validated",
@@ -16,7 +13,7 @@ const orderedStatuses: Array<HomeProjectStatus> = [
 ];
 
 type HomeProjectsSummaryProps = {
-  summary: HomeProjectsStatusSummary;
+  summary: ProjectsStatusSummary;
 };
 
 export function HomeProjectsSummary({

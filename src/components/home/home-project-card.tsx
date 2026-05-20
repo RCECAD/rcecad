@@ -9,11 +9,11 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/status-badge";
-import type { HomeProject } from "@/domain/entities";
+import type { Project } from "@/domain/entities";
 import { formatHomeProjectDate, getStatusMeta } from "@/utils";
 
 type HomeProjectCardProps = {
-  project: HomeProject;
+  project: Project;
   index: number;
 };
 
@@ -33,7 +33,7 @@ export function HomeProjectCard({
     >
       <Card
         size="sm"
-        className="h-full min-h-[152px] rounded-lg border border-border bg-card py-0 shadow-none transition-colors hover:bg-muted/40"
+        className="h-full min-h-38 rounded-lg border border-border bg-card py-0 shadow-none transition-colors hover:bg-muted/40"
       >
         <CardHeader className="gap-4 px-4 py-4">
           <div className="flex items-start justify-between gap-4">

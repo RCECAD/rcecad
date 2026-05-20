@@ -5,7 +5,7 @@ import { ArrowUpDown, MoreHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { StatusBadge } from "@/components/ui/status-badge";
-import type { HomeProject } from "@/domain/entities";
+import type { Project } from "@/domain/entities";
 import { formatHomeProjectDateLong, getStatusMeta } from "@/utils";
 
 function SortableHeader({
@@ -31,7 +31,7 @@ function SortableHeader({
   );
 }
 
-export function createHomeColumns(): Array<ColumnDef<HomeProject>> {
+export function createHomeColumns(): Array<ColumnDef<Project>> {
   return [
     {
       id: "select",

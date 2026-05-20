@@ -1,5 +1,5 @@
-import type { HomeProject } from "@/domain/entities/home-project";
-import type { HomeProjectStatus } from "@/domain/entities/home-project-status";
+import type { HomeProject } from "@/domain/entities/home/home-project";
+import type { HomeProjectStatus } from "@/domain/entities/home/home-project-status";
 
 export type HomeProjectsStatusSummary = Record<HomeProjectStatus, number>;
 

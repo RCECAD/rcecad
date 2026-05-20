@@ -11,10 +11,10 @@ import { useMemo, useState } from "react";
 import { DataLayer } from "@/components/data-layer/data-layer";
 import { DataTable } from "@/components/data-layer/data-table/data-table";
 import { createHomeColumns } from "@/components/home/home-columns";
-import type { HomeProject } from "@/domain/entities";
+import type { Project } from "@/domain/entities";
 
 type HomeProjectsTableProps = {
-  projects: Array<HomeProject>;
+  projects: Array<Project>;
 };
 
 export function HomeProjectsTable({

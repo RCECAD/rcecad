@@ -1,11 +1,10 @@
 export * from "@/domain/entities/example";
 export * from "@/domain/entities/example-2";
-export * from "@/domain/entities/home-project";
-export * from "@/domain/entities/home-project-status";
+export * from "@/domain/entities/project";
 export * from "@/domain/entities/user";
 
 /*  A cada entity nova, exportar ela aqui, pois ao utilizar as entities em outros lugares,
-    
+
     ao invés de ficar assim:
     import type { Example } from "@/domain/entities/example"
 
