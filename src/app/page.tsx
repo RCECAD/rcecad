@@ -39,12 +39,12 @@ export default function Home() {
         </div>
         <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
           <Show when={"signed-out"}>
-            <SignInButton>
+            <Link href="/auth/login">
               <Button>Login</Button>
-            </SignInButton>
-            <SignUpButton>
+            </Link>
+            <Link href="/auth/register">
               <Button>Cadastrar</Button>
-            </SignUpButton>
+            </Link>
           </Show>
           <Show when={"signed-in"}>
             <UserButton showName />

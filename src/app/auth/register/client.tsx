@@ -2,8 +2,10 @@
 
 import { useSignUp } from "@clerk/nextjs";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { router } from "next/client";
+import { useRouter } from "next/navigation";
 import { Controller, useForm } from "react-hook-form";
+import { toast } from "sonner";
+import { email } from "zod";
 import { Button } from "@/components/ui/button";
 import {
   Field,
@@ -12,6 +14,7 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { createUserOnDb } from "@/domain/features/auth/create-user-on-db";
 import { type RegisterFormValues, registerSchema } from "@/schemas/register";
 
 export function RegisterForm() {
@@ -24,32 +27,49 @@ export function RegisterForm() {
       password: "",
       confirmPassword: "",
     },
+    mode: "onSubmit",
+    reValidateMode: "onChange",
   });
 
-  const { signUp, setActive, isLoaded } = useSignUp();
+  const { signUp, fetchStatus, errors } = useSignUp();
+  const router = useRouter();
 
   async function onSubmit(values: RegisterFormValues) {
-    if (!isLoaded) return;
+    if (fetchStatus === "fetching") return;
 
     const result = await signUp.create({
       firstName: values.name,
       emailAddress: values.email,
       password: values.password,
+      unsafeMetadata: {
+        cnpj: values.cnpj,
+      },
     });
 
+    console.log({ errors });
+
     if (result.error) {
-      throw new Error("Erro ao criar conta. Por favor, tente novamente.");
+      toast.error("Erro ao criar o seu usuário, teste novamente.");
+      console.error("signup error: ", result.error);
+      return;
     }
 
-    await createUserInDb({
-      clerkId: result.userId,
-      name: values.name,
+    if (!signUp.createdUserId) return;
+
+    const { success } = await createUserOnDb({
+      clerkUserId: signUp.createdUserId,
       cnpj: values.cnpj,
+      name: values.name,
       email: values.email,
     });
 
-    await setActive({ session: result.createdSessionId });
+    if (!success) {
+      toast.error("Erro ao salvar no banco");
+    }
 
+    toast.success("Usuário criado com sucesso!");
+    console.log(signUp.createdUserId);
+    console.log(signUp.status);
     router.push("/home");
 
     reset();
@@ -166,7 +186,7 @@ export function RegisterForm() {
           </Field>
         )}
       />
-
+      <div id="clerk-captcha" />
       {/* Botão Enviar */}
       <Button type="submit" className="w-full">
         Criar Conta

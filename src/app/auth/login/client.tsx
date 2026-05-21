@@ -1,7 +1,10 @@
 "use client";
 
+import { useSignIn } from "@clerk/nextjs";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useRouter } from "next/navigation";
 import { Controller, useForm } from "react-hook-form";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   Field,
@@ -21,61 +24,99 @@ export function LoginForm() {
     },
   });
 
+  const router = useRouter();
+
+  const { signIn, fetchStatus } = useSignIn();
+
   async function onSubmit(values: LoginFormValues) {
-    console.log(values);
-    reset();
+    if (fetchStatus === "fetching") return null;
+
+    const { error } = await signIn.password({
+      emailAddress: values.email,
+      password: values.password,
+    });
+
+    if (error) {
+      toast.error("Erro ao logar no sistema, por favor, tente novamente.");
+      console.error("Erro celrk ai mano: ", error);
+      return;
+    }
+
+    console.log(signIn.status);
+
+    if (signIn.status === "complete") {
+      toast.success("Login realizado com sucesso");
+      await signIn.finalize({
+        navigate: ({ session, decorateUrl }) => {
+          if (session?.currentTask) {
+            console.log(session?.currentTask);
+            return;
+          }
+
+          const url = decorateUrl("/home");
+          if (url.startsWith("http")) {
+            window.location.href = url;
+          } else {
+            router.push(url);
+            reset();
+          }
+        },
+      });
+    } else {
+      console.error("Error at signin: ", signIn);
+    }
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-      {/* Campo: Email */}
-      <Controller
-        name="email"
-        control={control}
-        render={({ field, fieldState }) => (
-          <Field data-invalid={fieldState.invalid}>
-            <FieldLabel htmlFor={field.name}>Email</FieldLabel>
-            <Input
-              {...field}
-              id={field.name}
-              type="email"
-              placeholder="seu.email@empresa.com"
-              aria-invalid={fieldState.invalid}
-            />
-            <FieldDescription>
-              Este email será usado para acessar a conta.
-            </FieldDescription>
-            {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
-          </Field>
-        )}
-      />
+    <div>
+      signIn
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <Controller
+          name="email"
+          control={control}
+          render={({ field, fieldState }) => (
+            <Field data-invalid={fieldState.invalid}>
+              <FieldLabel htmlFor={field.name}>Email</FieldLabel>
+              <Input
+                {...field}
+                id={field.name}
+                type="email"
+                placeholder="seu.email@empresa.com"
+                aria-invalid={fieldState.invalid}
+              />
+              <FieldDescription>
+                Este email será usado para acessar a conta.
+              </FieldDescription>
+              {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+            </Field>
+          )}
+        />
 
-      {/* Campo: Senha */}
-      <Controller
-        name="password"
-        control={control}
-        render={({ field, fieldState }) => (
-          <Field data-invalid={fieldState.invalid}>
-            <FieldLabel htmlFor={field.name}>Senha</FieldLabel>
-            <Input
-              {...field}
-              id={field.name}
-              type="password"
-              placeholder="••••••••"
-              aria-invalid={fieldState.invalid}
-            />
-            <FieldDescription>
-              Digite sua senha para acessar a conta.
-            </FieldDescription>
-            {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
-          </Field>
-        )}
-      />
+        <Controller
+          name="password"
+          control={control}
+          render={({ field, fieldState }) => (
+            <Field data-invalid={fieldState.invalid}>
+              <FieldLabel htmlFor={field.name}>Senha</FieldLabel>
+              <Input
+                {...field}
+                id={field.name}
+                type="password"
+                placeholder="••••••••"
+                aria-invalid={fieldState.invalid}
+              />
+              <FieldDescription>
+                Digite sua senha para acessar a conta.
+              </FieldDescription>
+              {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+            </Field>
+          )}
+        />
 
-      {/* Botão Enviar */}
-      <Button type="submit" className="w-full">
-        Entrar
-      </Button>
-    </form>
+        <Button type="submit" className="w-full">
+          Entrar
+        </Button>
+      </form>
+    </div>
   );
 }
