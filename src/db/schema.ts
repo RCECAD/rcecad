@@ -7,10 +7,12 @@ import {
   varchar,
 } from "drizzle-orm/pg-core";
 
-export const examples = pgTable("examples", {
+export const users = pgTable("users", {
   id: uuid("id").defaultRandom().primaryKey(),
+  clerkUserId: varchar("clerk_user_id", { length: 255 }).notNull().unique(),
   name: varchar("name", { length: 120 }).notNull(),
-  description: varchar("description", { length: 255 }),
+  cnpj: varchar("cnpj", { length: 14 }).notNull().unique(),
+  email: varchar("email", { length: 255 }).notNull().unique(),
   createdAt: timestamp("created_at", { withTimezone: true })
     .defaultNow()
     .notNull(),
@@ -19,6 +21,8 @@ export const examples = pgTable("examples", {
     .notNull(),
 });
 
+export type User = typeof users.$inferSelect;
+export type NewUser = typeof users.$inferInsert;
 export const projects = pgTable("projects", {
   id: uuid("id").defaultRandom().primaryKey(),
   name: varchar("name", { length: 200 }).notNull(),

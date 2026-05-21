@@ -1,3 +1,5 @@
+export type ProjectStatus = "pending" | "inProgress" | "validated" | "exported";
+
 export type Project = {
   id: string;
   name: string;
@@ -6,6 +8,10 @@ export type Project = {
   originalDxf: string | null;
   createdAt: Date;
   updatedAt: Date;
+  location: string;
+  owner: string;
+  status: ProjectStatus;
+  cnpj: string;
 };
 
 export type ProjectListItem = {
@@ -14,6 +20,14 @@ export type ProjectListItem = {
   contractor: string | null;
   createdAt: Date;
   totalSegments: number;
+};
+
+export type ProjectsStatusSummary = Record<ProjectStatus, number>;
+
+export type HomeProjectsPayload = {
+  recentProjects: Array<Project>;
+  projects: Array<Project>;
+  statusSummary: ProjectsStatusSummary;
 };
 
 export type SegmentWithNodes = {
