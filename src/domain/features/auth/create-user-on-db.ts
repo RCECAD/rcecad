@@ -5,15 +5,23 @@ import { users } from "@/db/schema";
 import type { Domain } from "@/domain";
 import type { User } from "@/domain/entities";
 
-type Input = Omit<User, "id">;
-type Output = undefined;
+type Input = Omit<User, "id" | "createdAt" | "updatedAt">;
+type Output =
+  | {
+      success: false;
+    }
+  | {
+      success: true;
+    };
 
 type Setup = Domain<Input, Output>;
 
-export const createUserInDb: Setup = async (input: Input) => {
+export const createUserOnDb: Setup = async (input: Input) => {
   const [created] = await db.insert(users).values(input).returning();
 
-  if (!created) throw new Error("Ocorreu um erro ao criar o usuário");
+  if (!created.id) {
+    return { success: false };
+  }
 
-  return undefined;
+  return { success: true };
 };
