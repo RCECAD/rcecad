@@ -7,10 +7,11 @@ import { type Domain, DomainError } from "@/domain";
 import type {
   HydraulicNode,
   NodeType,
+  Project,
   SegmentWithNodes,
 } from "@/domain/entities";
 
-type Input = { id: string };
+type Input = Pick<Project, "id">;
 
 export type ProjectDetailOutput = {
   project: {
@@ -87,16 +88,16 @@ export const getProject: Setup = async ({ id }) => {
         updatedAt: dbProject.updatedAt,
         hasOriginalDxf: dbProject.originalDxf !== null,
       },
-      nodes: nodeRows.map((n) => ({
-        id: n.id,
-        projectId: n.projectId,
-        code: n.code,
-        type: n.type as NodeType,
-        x: n.x,
-        y: n.y,
-        invertElevation: n.invertElevation,
-        terrainElevation: n.terrainElevation,
-        angle: n.angle,
+      nodes: nodeRows.map((node) => ({
+        id: node.id,
+        projectId: node.projectId,
+        code: node.code,
+        type: node.type as NodeType,
+        x: node.x,
+        y: node.y,
+        invertElevation: node.invertElevation,
+        terrainElevation: node.terrainElevation,
+        angle: node.angle,
       })),
       segments: segmentRows,
     };

@@ -67,8 +67,9 @@ export async function finalFlow(
   accumulatedFlow: number,
   params: Pick<GlobalParams, "peakDailyFactor" | "peakHourlyFactor">,
 ): Promise<number> {
-  const qf = accumulatedFlow * params.peakDailyFactor * params.peakHourlyFactor;
-  return Math.max(qf, 1.5);
+  const finalFlowLps =
+    accumulatedFlow * params.peakDailyFactor * params.peakHourlyFactor;
+  return Math.max(finalFlowLps, 1.5);
 }
 
 // ---------------------------------------------------------------------------
@@ -140,20 +141,21 @@ export async function waterDepthRatio(flowRatio: number): Promise<number> {
   if (flowRatio <= 0) return 0;
   if (flowRatio >= 1) return 1;
 
-  let yD = 0.5;
-  for (let i = 0; i < 50; i++) {
-    const theta = 2 * Math.acos(1 - 2 * yD);
-    const area = (theta - Math.sin(theta)) / 8;
-    const perimeter = theta / 2;
-    const r = area / perimeter;
-    const q = area * r ** (2 / 3); // normalizado: Q / (Q_plena × n × D^(8/3) × S^(1/2))
-    const qFull = (Math.PI / 4) * (1 / 4) ** (2 / 3);
-    const ratio = q / qFull;
-    if (Math.abs(ratio - flowRatio) < 1e-6) break;
-    yD += (flowRatio - ratio) * 0.3;
-    yD = Math.max(0.01, Math.min(0.99, yD));
+  let depthRatio = 0.5;
+  for (let iteration = 0; iteration < 50; iteration++) {
+    const centralAngle = 2 * Math.acos(1 - 2 * depthRatio);
+    const partialArea = (centralAngle - Math.sin(centralAngle)) / 8;
+    const wettedPerimeter = centralAngle / 2;
+    const partialHydraulicRadius = partialArea / wettedPerimeter;
+    // normalizado: Q / (Q_plena × n × D^(8/3) × S^(1/2))
+    const partialFlowNorm = partialArea * partialHydraulicRadius ** (2 / 3);
+    const fullFlowNorm = (Math.PI / 4) * (1 / 4) ** (2 / 3);
+    const computedFlowRatio = partialFlowNorm / fullFlowNorm;
+    if (Math.abs(computedFlowRatio - flowRatio) < 1e-6) break;
+    depthRatio += (flowRatio - computedFlowRatio) * 0.3;
+    depthRatio = Math.max(0.01, Math.min(0.99, depthRatio));
   }
-  return yD;
+  return depthRatio;
 }
 
 // ---------------------------------------------------------------------------
@@ -174,13 +176,17 @@ export async function selectDiameter(
   manning: number,
   maxDepthRatio = 0.75,
 ): Promise<number | null> {
-  const qMs = designFlowLps / 1000;
+  const designFlowMs = designFlowLps / 1000;
 
-  for (const diamMm of COMMERCIAL_DIAMETERS_MM) {
-    const d = diamMm / 1000;
-    const qFull = await fullSectionFlow(d, slope, manning);
-    const ratio = qMs / qFull;
-    if (ratio <= maxDepthRatio) return diamMm;
+  for (const diameterMm of COMMERCIAL_DIAMETERS_MM) {
+    const diameterMeters = diameterMm / 1000;
+    const fullCapacityMs = await fullSectionFlow(
+      diameterMeters,
+      slope,
+      manning,
+    );
+    const flowRatio = designFlowMs / fullCapacityMs;
+    if (flowRatio <= maxDepthRatio) return diameterMm;
   }
   return null;
 }
@@ -208,19 +214,19 @@ export async function verifySegment(
   designFlowLps: number,
   manning: number,
 ): Promise<VerificationResult> {
-  const qFull = await fullSectionFlow(diameterMeters, slope, manning);
-  const ratio = designFlowLps / 1000 / qFull;
-  const yD = waterDepthRatio(ratio);
-  const tau = tractiveTension(diameterMeters, slope);
-  const vFull = fullSectionVelocity(diameterMeters, slope, manning);
-  const sMin = await minimumSlopeByCriticalTension(diameterMeters);
+  const fullCapacityMs = await fullSectionFlow(diameterMeters, slope, manning);
+  const flowRatio = designFlowLps / 1000 / fullCapacityMs;
+  const depthRatio = waterDepthRatio(flowRatio);
+  const tractiveTensionPa = tractiveTension(diameterMeters, slope);
+  const fullVelocityMs = fullSectionVelocity(diameterMeters, slope, manning);
+  const minimumSlope = await minimumSlopeByCriticalTension(diameterMeters);
 
   return {
-    passesMinSlope: slope >= sMin,
-    passesMaxDepth: (await yD) <= 0.75,
-    passesMinVelocity: (await vFull) >= 0.6, // NBR 9649 §5.5 — V mínima 0,6 m/s
-    tractiveTensionPa: tau,
-    depthRatio: yD,
-    fullVelocityMs: vFull,
+    passesMinSlope: slope >= minimumSlope,
+    passesMaxDepth: (await depthRatio) <= 0.75,
+    passesMinVelocity: (await fullVelocityMs) >= 0.6, // NBR 9649 §5.5 — V mínima 0,6 m/s
+    tractiveTensionPa,
+    depthRatio,
+    fullVelocityMs,
   };
 }

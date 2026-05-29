@@ -24,12 +24,12 @@ export const listProjects: Setup = async () => {
       .groupBy(projects.id)
       .orderBy(desc(projects.createdAt));
 
-    return rows.map((r) => ({
-      id: r.id,
-      name: r.name,
-      contractor: r.contractor,
-      createdAt: r.createdAt,
-      totalSegments: Number(r.totalSegments),
+    return rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      contractor: row.contractor,
+      createdAt: row.createdAt,
+      totalSegments: Number(row.totalSegments),
     }));
   } catch (err) {
     console.error(err);
