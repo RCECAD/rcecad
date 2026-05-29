@@ -29,18 +29,3 @@ export type HomeProjectsPayload = {
   projects: Array<Project>;
   statusSummary: ProjectsStatusSummary;
 };
-
-export type SegmentWithNodes = {
-  id: string;
-  code: string;
-  upstreamNode: string;
-  downstreamNode: string;
-  upstreamInvert: number;
-  downstreamInvert: number;
-  length: number;
-  slope: number;
-  pavementType: string | null;
-  diameter: number | null;
-  material: string | null;
-  manning: number | null;
-};
