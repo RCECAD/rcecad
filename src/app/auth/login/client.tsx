@@ -68,55 +68,52 @@ export function LoginForm() {
   }
 
   return (
-    <div>
-      signIn
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-        <Controller
-          name="email"
-          control={control}
-          render={({ field, fieldState }) => (
-            <Field data-invalid={fieldState.invalid}>
-              <FieldLabel htmlFor={field.name}>Email</FieldLabel>
-              <Input
-                {...field}
-                id={field.name}
-                type="email"
-                placeholder="seu.email@empresa.com"
-                aria-invalid={fieldState.invalid}
-              />
-              <FieldDescription>
-                Este email será usado para acessar a conta.
-              </FieldDescription>
-              {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
-            </Field>
-          )}
-        />
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      <Controller
+        name="email"
+        control={control}
+        render={({ field, fieldState }) => (
+          <Field data-invalid={fieldState.invalid}>
+            <FieldLabel htmlFor={field.name}>E-mail</FieldLabel>
+            <Input
+              {...field}
+              id={field.name}
+              type="email"
+              placeholder="seu.email@empresa.com"
+              aria-invalid={fieldState.invalid}
+            />
+            <FieldDescription>
+              Este e-mail será usado para acessar a conta.
+            </FieldDescription>
+            {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+          </Field>
+        )}
+      />
 
-        <Controller
-          name="password"
-          control={control}
-          render={({ field, fieldState }) => (
-            <Field data-invalid={fieldState.invalid}>
-              <FieldLabel htmlFor={field.name}>Senha</FieldLabel>
-              <Input
-                {...field}
-                id={field.name}
-                type="password"
-                placeholder="••••••••"
-                aria-invalid={fieldState.invalid}
-              />
-              <FieldDescription>
-                Digite sua senha para acessar a conta.
-              </FieldDescription>
-              {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
-            </Field>
-          )}
-        />
+      <Controller
+        name="password"
+        control={control}
+        render={({ field, fieldState }) => (
+          <Field data-invalid={fieldState.invalid}>
+            <FieldLabel htmlFor={field.name}>Senha</FieldLabel>
+            <Input
+              {...field}
+              id={field.name}
+              type="password"
+              placeholder="••••••••"
+              aria-invalid={fieldState.invalid}
+            />
+            <FieldDescription>
+              Digite sua senha para acessar a conta.
+            </FieldDescription>
+            {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+          </Field>
+        )}
+      />
 
-        <Button type="submit" className="w-full">
-          Entrar
-        </Button>
-      </form>
-    </div>
+      <Button type="submit" className="w-full">
+        Entrar
+      </Button>
+    </form>
   );
 }
