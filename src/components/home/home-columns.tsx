@@ -2,6 +2,7 @@
 
 import type { ColumnDef } from "@tanstack/react-table";
 import { ArrowUpDown, MoreHorizontal } from "lucide-react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -61,7 +62,12 @@ export function createHomeColumns(): Array<ColumnDef<Project>> {
         <SortableHeader column={column} label="Nome do projeto" />
       ),
       cell: ({ row }) => (
-        <span className="font-medium text-foreground">{row.original.name}</span>
+        <Link
+          href={`/project/${row.original.id}`}
+          className="font-medium text-foreground hover:underline hover:text-primary transition-colors"
+        >
+          {row.original.name}
+        </Link>
       ),
     },
     {

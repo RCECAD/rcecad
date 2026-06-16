@@ -7,7 +7,7 @@ export type Project = {
   location: string;
   owner: string;
   status: ProjectStatus;
-  cnpj: string;
+  cnpj?: string;
 };
 
 export type ProjectsStatusSummary = Record<ProjectStatus, number>;

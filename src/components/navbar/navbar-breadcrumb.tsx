@@ -22,11 +22,20 @@ const segmentLabels: Record<string, string> = {
   account: "Conta",
   dashboard: "Painel",
   edit: "Editar",
-  home: "Início",
+  home: "Home",
   profile: "Perfil",
-  project: "Projeto",
+  project: "Projetos",
   reports: "Relatórios",
   settings: "Configurações",
+  overview: "Visão Geral",
+  "general-data": "Dados Gerais",
+  hydraulics: "Hidráulica",
+  flows: "Vazões",
+  paving: "Pavimentação",
+  sizing: "Dimensionamento",
+  validation: "Validação",
+  results: "Resultados",
+  export: "Exportação",
 };
 
 const homeBreadcrumb: BreadcrumbItemData = {

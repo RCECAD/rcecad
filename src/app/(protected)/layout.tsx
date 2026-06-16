@@ -9,7 +9,7 @@ export default function Layout({
   children,
 }: Readonly<{ children: ReactNode }>) {
   return (
-    <div className="flex min-h-svh min-w-0 flex-1 flex-col overflow-hidden">
+    <div className="flex h-svh min-w-0 flex-1 flex-col overflow-hidden">
       <NavbarContainer>
         <NavbarContent betweenItems={false}>
           <NavbarLogo />
