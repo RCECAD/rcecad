@@ -265,6 +265,7 @@ export function DadosGeraisClient() {
                       id={field.name}
                       placeholder="Digite suas observações aqui..."
                       aria-invalid={fieldState.invalid}
+                      className="bg-background"
                     />
                     {fieldState.invalid && (
                       <FieldError errors={[fieldState.error]} />
