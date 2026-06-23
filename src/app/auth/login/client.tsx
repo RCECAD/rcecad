@@ -1,6 +1,5 @@
 "use client";
 
-import { useSignIn } from "@clerk/nextjs";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import { Controller, useForm } from "react-hook-form";
@@ -13,10 +12,17 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { ApiError } from "@/lib/api";
+import { useAuth } from "@/providers/auth-provider";
 import { type LoginFormValues, loginSchema } from "@/schemas/login";
 
 export function LoginForm() {
-  const { handleSubmit, control, reset } = useForm<LoginFormValues>({
+  const {
+    handleSubmit,
+    control,
+    reset,
+    formState: { isSubmitting },
+  } = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
       email: "",
@@ -25,45 +31,21 @@ export function LoginForm() {
   });
 
   const router = useRouter();
-
-  const { signIn, fetchStatus } = useSignIn();
+  const { login } = useAuth();
 
   async function onSubmit(values: LoginFormValues) {
-    if (fetchStatus === "fetching") return null;
-
-    const { error } = await signIn.password({
-      emailAddress: values.email,
-      password: values.password,
-    });
-
-    if (error) {
-      toast.error("Erro ao logar no sistema, por favor, tente novamente.");
-      console.error("Erro celrk ai mano: ", error);
-      return;
-    }
-
-    console.log(signIn.status);
-
-    if (signIn.status === "complete") {
+    try {
+      await login(values.email, values.password);
       toast.success("Login realizado com sucesso");
-      await signIn.finalize({
-        navigate: ({ session, decorateUrl }) => {
-          if (session?.currentTask) {
-            console.log(session?.currentTask);
-            return;
-          }
-
-          const url = decorateUrl("/home");
-          if (url.startsWith("http")) {
-            window.location.href = url;
-          } else {
-            router.push(url);
-            reset();
-          }
-        },
-      });
-    } else {
-      console.error("Error at signin: ", signIn);
+      reset();
+      router.push("/home");
+    } catch (error) {
+      const message =
+        error instanceof ApiError && error.status === 401
+          ? "E-mail ou senha inválidos."
+          : "Erro ao logar no sistema, por favor, tente novamente.";
+      toast.error(message);
+      console.error("Login error: ", error);
     }
   }
 
@@ -111,8 +93,8 @@ export function LoginForm() {
         )}
       />
 
-      <Button type="submit" className="w-full">
-        Entrar
+      <Button type="submit" className="w-full" disabled={isSubmitting}>
+        {isSubmitting ? "Entrando..." : "Entrar"}
       </Button>
     </form>
   );

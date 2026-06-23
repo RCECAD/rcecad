@@ -1,12 +1,11 @@
-import { ClerkProvider } from "@clerk/nextjs";
-import { shadcn } from "@clerk/ui/themes";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { ptBR } from "@clerk/localizations";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { getServerSession } from "@/lib/auth/session";
 import { cn } from "@/lib/utils";
+import { AuthProvider } from "@/providers/auth-provider";
 import { QueryClientProvider } from "@/providers/query-client-provider";
 
 const geistSans = Geist({
@@ -24,11 +23,13 @@ export const metadata: Metadata = {
   description: "Engenharia",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const session = await getServerSession();
+
   return (
     <html
       lang="en"
@@ -40,11 +41,11 @@ export default function RootLayout({
       )}
     >
       <body className={cn("min-h-full flex flex-col", geistSans.className)}>
-        <ClerkProvider localization={ptBR} appearance={{ theme: shadcn }}>
+        <AuthProvider initialSession={session}>
           <TooltipProvider delayDuration={0}>
             <QueryClientProvider>{children}</QueryClientProvider>
           </TooltipProvider>
-        </ClerkProvider>
+        </AuthProvider>
         <Toaster />
       </body>
     </html>
