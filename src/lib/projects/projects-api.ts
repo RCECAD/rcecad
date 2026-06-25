@@ -104,3 +104,61 @@ export function updateProject(
     token,
   });
 }
+
+// --- DXF import (PENDING API Phase 2) -------------------------------------
+// Intended contract: the front uploads the raw DXF and the back-end parses it,
+// builds the topology (NBR domain) and persists project + nodes + segments.
+// The endpoint POST /api/projects/import-dxf does not exist yet.
+
+export type ApiNodeType = "PV" | "TA" | "TQ" | "terminal";
+
+export type ApiHydraulicNode = {
+  id: string;
+  projectId: string;
+  code: string;
+  type: ApiNodeType;
+  x: number;
+  y: number;
+  invertElevation: number;
+  terrainElevation: number | null;
+  angle: number | null;
+};
+
+export type ApiSegment = {
+  id: string;
+  projectId: string;
+  code: string;
+  upstreamNodeId: string;
+  downstreamNodeId: string;
+  length: number;
+  slope: number;
+  upstreamInvert: number;
+  downstreamInvert: number;
+  pavementType: string | null;
+  diameter: number | null;
+  material: string | null;
+  manning: number | null;
+};
+
+export type ApiImportDxfResult = {
+  project: ApiProject;
+  nodes: ApiHydraulicNode[];
+  segments: ApiSegment[];
+};
+
+export function importDxf(
+  name: string,
+  dxf: string,
+  token?: string | null,
+): Promise<ApiImportDxfResult> {
+  return apiFetch<ApiImportDxfResult>("/api/projects/import-dxf", {
+    method: "POST",
+    body: { name, dxf },
+    token,
+  });
+}
+
+/** Absolute URL of the DXF export endpoint (PENDING API Phase 2). */
+export function exportDxfUrl(id: string): string {
+  return `/api/projects/${id}/export-dxf`;
+}
