@@ -1,6 +1,5 @@
 "use client";
 
-import { useSignUp } from "@clerk/nextjs";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import { Controller, useForm } from "react-hook-form";
@@ -13,11 +12,18 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { createUserOnDb } from "@/domain/features/auth/create-user-on-db";
+import { ApiError } from "@/lib/api";
+import { registerCompany } from "@/lib/auth/auth-api";
+import { useAuth } from "@/providers/auth-provider";
 import { type RegisterFormValues, registerSchema } from "@/schemas/register";
 
 export function RegisterForm() {
-  const { handleSubmit, control, reset } = useForm<RegisterFormValues>({
+  const {
+    handleSubmit,
+    control,
+    reset,
+    formState: { isSubmitting },
+  } = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
       name: "",
@@ -30,48 +36,33 @@ export function RegisterForm() {
     reValidateMode: "onChange",
   });
 
-  const { signUp, fetchStatus, errors } = useSignUp();
   const router = useRouter();
+  const { login } = useAuth();
 
+  // NOTE (Phase 2): this calls the intended public endpoint
+  // `POST /api/auth/register`, which does not exist on the API yet. Until the
+  // backend ships it, submitting will surface the API error. See auth-api.ts.
   async function onSubmit(values: RegisterFormValues) {
-    if (fetchStatus === "fetching") return;
-
-    const result = await signUp.create({
-      firstName: values.name,
-      emailAddress: values.email,
-      password: values.password,
-      unsafeMetadata: {
+    try {
+      await registerCompany({
+        name: values.name,
         cnpj: values.cnpj,
-      },
-    });
+        email: values.email,
+        password: values.password,
+      });
 
-    console.log({ errors });
-
-    if (result.error) {
-      toast.error("Erro ao criar o seu usuário, teste novamente.");
-      console.error("signup error: ", result.error);
-      return;
+      await login(values.email, values.password);
+      toast.success("Usuário criado com sucesso!");
+      reset();
+      router.push("/home");
+    } catch (error) {
+      const message =
+        error instanceof ApiError
+          ? error.message
+          : "Erro ao criar o seu usuário, tente novamente.";
+      toast.error(message);
+      console.error("Register error: ", error);
     }
-
-    if (!signUp.createdUserId) return;
-
-    const { success } = await createUserOnDb({
-      clerkUserId: signUp.createdUserId,
-      cnpj: values.cnpj,
-      name: values.name,
-      email: values.email,
-    });
-
-    if (!success) {
-      toast.error("Erro ao salvar no banco");
-    }
-
-    toast.success("Usuário criado com sucesso!");
-    console.log(signUp.createdUserId);
-    console.log(signUp.status);
-    router.push("/home");
-
-    reset();
   }
 
   return (
@@ -185,10 +176,9 @@ export function RegisterForm() {
           </Field>
         )}
       />
-      <div id="clerk-captcha" />
       {/* Botão Enviar */}
-      <Button type="submit" className="w-full">
-        Criar Conta
+      <Button type="submit" className="w-full" disabled={isSubmitting}>
+        {isSubmitting ? "Criando..." : "Criar Conta"}
       </Button>
     </form>
   );
