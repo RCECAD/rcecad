@@ -1,3 +1,5 @@
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=
-CLERK_SECRET_KEY=
+# RCECAD Spring API base URL (auth + future data endpoints)
+NEXT_PUBLIC_API_URL="http://localhost:8080"
+# Front-end Postgres — still used by the legacy project/DXF features until they
+# migrate to the API (Phase 2).
 DATABASE_URL="postgresql://postgres:postgres@localhost:5432/rcecad"

@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import Link from "next/link";
 import {
   Card,
   CardContent,
@@ -31,27 +32,29 @@ export function HomeProjectCard({
       whileHover={{ y: -4 }}
       className="h-full"
     >
-      <Card
-        size="sm"
-        className="h-full min-h-38 rounded-lg border border-border bg-card py-0 shadow-none transition-colors hover:bg-muted/40"
-      >
-        <CardHeader className="gap-4 px-4 py-4">
-          <div className="flex items-start justify-between gap-4">
-            <CardTitle className="text-lg font-semibold text-foreground">
-              {project.name}
-            </CardTitle>
-            <span className="text-sm text-muted-foreground">
-              {formatHomeProjectDate(project.updatedAt)}
-            </span>
-          </div>
-        </CardHeader>
-        <CardContent className="px-4 pt-0 text-sm text-muted-foreground">
-          {project.owner} • {project.location}
-        </CardContent>
-        <CardFooter className="px-4 pt-0 pb-4">
-          <StatusBadge tone={status.tone} label={status.shortLabel} />
-        </CardFooter>
-      </Card>
+      <Link href={`/project/${project.id}`} className="block h-full">
+        <Card
+          size="sm"
+          className="h-full min-h-38 rounded-lg border border-border bg-card py-0 shadow-none transition-colors hover:bg-muted/40"
+        >
+          <CardHeader className="gap-4 px-4 py-4">
+            <div className="flex items-start justify-between gap-4">
+              <CardTitle className="text-lg font-semibold text-foreground">
+                {project.name}
+              </CardTitle>
+              <span className="text-sm text-muted-foreground">
+                {formatHomeProjectDate(project.updatedAt)}
+              </span>
+            </div>
+          </CardHeader>
+          <CardContent className="px-4 pt-0 text-sm text-muted-foreground">
+            {project.owner} • {project.location}
+          </CardContent>
+          <CardFooter className="px-4 pt-0 pb-4">
+            <StatusBadge tone={status.tone} label={status.shortLabel} />
+          </CardFooter>
+        </Card>
+      </Link>
     </motion.div>
   );
 }

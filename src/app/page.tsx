@@ -1,9 +1,11 @@
-import { Show, SignInButton, SignUpButton, UserButton } from "@clerk/nextjs";
 import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { getServerSession } from "@/lib/auth/session";
 
-export default function Home() {
+export default async function Home() {
+  const session = await getServerSession();
+
   return (
     <div className="flex flex-col flex-1 items-center justify-center bg-slate-50 font-sans dark:bg-black">
       <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
@@ -38,20 +40,20 @@ export default function Home() {
           </p>
         </div>
         <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <Show when={"signed-out"}>
-            <Link href="/auth/login">
-              <Button>Login</Button>
-            </Link>
-            <Link href="/auth/register">
-              <Button>Cadastrar</Button>
-            </Link>
-          </Show>
-          <Show when={"signed-in"}>
-            <UserButton showName />
+          {session ? (
             <Link href="/home">
               <Button>Ir para o início</Button>
             </Link>
-          </Show>
+          ) : (
+            <>
+              <Link href="/auth/login">
+                <Button>Login</Button>
+              </Link>
+              <Link href="/auth/register">
+                <Button>Cadastrar</Button>
+              </Link>
+            </>
+          )}
         </div>
       </main>
     </div>

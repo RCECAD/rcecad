@@ -1,6 +1,5 @@
 "use client";
 
-import { useUser } from "@clerk/nextjs";
 import { AnimatePresence, motion } from "framer-motion";
 import { LayoutGrid, Search, Undo2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -20,9 +19,6 @@ export function HomeClient({ payload }: Readonly<HomeClientProps>) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
-
-  const user = useUser();
-  console.log("isSignedIn: ", user.isSignedIn);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
