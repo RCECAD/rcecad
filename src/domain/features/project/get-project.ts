@@ -1,15 +1,13 @@
 "use server";
-import { eq } from "drizzle-orm";
-import { alias } from "drizzle-orm/pg-core";
-import { db } from "@/db";
-import { hydraulicNodes, projects, segments } from "@/db/schema";
 import { type Domain, DomainError } from "@/domain";
 import type {
   HydraulicNode,
-  NodeType,
   Project,
   SegmentWithNodes,
 } from "@/domain/entities";
+import { ApiError } from "@/lib/api";
+import { getServerSession } from "@/lib/auth/session";
+import { getProject as getProjectApi } from "@/lib/projects/projects-api";
 
 type Input = Pick<Project, "id">;
 
@@ -29,79 +27,31 @@ export type ProjectDetailOutput = {
 
 type Setup = Domain<Input, ProjectDetailOutput>;
 
-const upstream = alias(hydraulicNodes, "upstream");
-const downstream = alias(hydraulicNodes, "downstream");
-
 export const getProject: Setup = async ({ id }) => {
   try {
-    const [dbProject] = await db
-      .select({
-        id: projects.id,
-        name: projects.name,
-        contractor: projects.contractor,
-        technicalManager: projects.technicalManager,
-        createdAt: projects.createdAt,
-        updatedAt: projects.updatedAt,
-        originalDxf: projects.originalDxf,
-      })
-      .from(projects)
-      .where(eq(projects.id, id))
-      .limit(1);
-
-    if (!dbProject) return null;
-
-    const [nodeRows, segmentRows] = await Promise.all([
-      db
-        .select()
-        .from(hydraulicNodes)
-        .where(eq(hydraulicNodes.projectId, id))
-        .orderBy(hydraulicNodes.code),
-      db
-        .select({
-          id: segments.id,
-          code: segments.code,
-          upstreamNode: upstream.code,
-          downstreamNode: downstream.code,
-          upstreamInvert: segments.upstreamInvert,
-          downstreamInvert: segments.downstreamInvert,
-          length: segments.length,
-          slope: segments.slope,
-          pavementType: segments.pavementType,
-          diameter: segments.diameter,
-          material: segments.material,
-          manning: segments.manning,
-        })
-        .from(segments)
-        .innerJoin(upstream, eq(segments.upstreamNodeId, upstream.id))
-        .innerJoin(downstream, eq(segments.downstreamNodeId, downstream.id))
-        .where(eq(segments.projectId, id))
-        .orderBy(segments.code),
-    ]);
+    const session = await getServerSession();
+    const project = await getProjectApi(id, session?.token);
 
     return {
       project: {
-        id: dbProject.id,
-        name: dbProject.name,
-        contractor: dbProject.contractor,
-        technicalManager: dbProject.technicalManager,
-        createdAt: dbProject.createdAt,
-        updatedAt: dbProject.updatedAt,
-        hasOriginalDxf: dbProject.originalDxf !== null,
+        id: project.id,
+        name: project.name,
+        contractor: project.contractor,
+        technicalManager: project.technicalManager,
+        createdAt: new Date(project.createdAt),
+        updatedAt: new Date(project.updatedAt),
+        // PENDING (API Phase 2): originalDxf is not exposed by GET /api/projects/{id} yet.
+        hasOriginalDxf: false,
       },
-      nodes: nodeRows.map((node) => ({
-        id: node.id,
-        projectId: node.projectId,
-        code: node.code,
-        type: node.type as NodeType,
-        x: node.x,
-        y: node.y,
-        invertElevation: node.invertElevation,
-        terrainElevation: node.terrainElevation,
-        angle: node.angle,
-      })),
-      segments: segmentRows,
+      // PENDING (API Phase 2): hydraulic nodes/segments endpoints are not implemented yet,
+      // so the detail comes back empty until the back-end DXF/topology slices land.
+      nodes: [],
+      segments: [],
     };
   } catch (err) {
+    if (err instanceof ApiError && err.status === 404) {
+      return null;
+    }
     console.error(err);
     return DomainError({ msg: "Error fetching project", err });
   }

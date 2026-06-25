@@ -6,7 +6,7 @@ import {
 } from "lucide-react";
 import type { Project, ProjectStatus } from "@/domain/entities";
 
-export function formatHomeProjectDate(value: string) {
+export function formatHomeProjectDate(value: string | Date) {
   return new Intl.DateTimeFormat("pt-BR", {
     day: "2-digit",
     month: "short",
@@ -14,7 +14,7 @@ export function formatHomeProjectDate(value: string) {
   }).format(new Date(value));
 }
 
-export function formatHomeProjectDateLong(value: string) {
+export function formatHomeProjectDateLong(value: string | Date) {
   return new Intl.DateTimeFormat("pt-BR", {
     day: "numeric",
     month: "long",
