@@ -36,7 +36,7 @@ export function ImportDxfDialog({ index }: Readonly<ImportDxfDialogProps>) {
 
   useEffect(() => {
     if (state.status === "success") {
-      router.push(`/projects/${state.project.id}`);
+      router.push(`/project/${state.project.id}/sizing`);
     }
   }, [state, router]);
 
