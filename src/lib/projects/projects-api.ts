@@ -64,11 +64,18 @@ export function listProjects(
   );
 }
 
+/** Response of GET /api/projects/{id}: the project plus its hydraulic topology. */
+export type ApiProjectDetail = {
+  project: ApiProject;
+  nodes: ApiHydraulicNode[];
+  segments: ApiSegment[];
+};
+
 export function getProject(
   id: string,
   token?: string | null,
-): Promise<ApiProject> {
-  return apiFetch<ApiProject>(`/api/projects/${id}`, { token });
+): Promise<ApiProjectDetail> {
+  return apiFetch<ApiProjectDetail>(`/api/projects/${id}`, { token });
 }
 
 export type CreateProjectBody = {

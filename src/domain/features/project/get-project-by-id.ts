@@ -15,7 +15,7 @@ type Setup = Domain<Input, Output>;
 export const getProjectById: Setup = async ({ projectId }) => {
   try {
     const session = await getServerSession();
-    const project = await getProject(projectId, session?.token);
+    const { project } = await getProject(projectId, session?.token);
 
     return {
       id: project.id,
