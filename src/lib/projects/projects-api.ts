@@ -169,3 +169,75 @@ export function importDxf(
 export function exportDxfUrl(id: string): string {
   return `/api/projects/${id}/export-dxf`;
 }
+
+// --- Design parameters -----------------------------------------------------
+
+export type ApiProjectParameters = {
+  initialPopulation: number;
+  finalPopulation: number;
+  returnCoefficient: number;
+  perCapitaFlow: number;
+  infiltrationRate: number;
+  peakDailyFactor: number;
+  peakHourlyFactor: number;
+  manningCoefficient: number;
+};
+
+export function getParameters(
+  id: string,
+  token?: string | null,
+): Promise<ApiProjectParameters> {
+  return apiFetch<ApiProjectParameters>(`/api/projects/${id}/parameters`, {
+    token,
+  });
+}
+
+export function updateParameters(
+  id: string,
+  body: ApiProjectParameters,
+  token?: string | null,
+): Promise<ApiProjectParameters> {
+  return apiFetch<ApiProjectParameters>(`/api/projects/${id}/parameters`, {
+    method: "PUT",
+    body,
+    token,
+  });
+}
+
+// --- Calculations ----------------------------------------------------------
+
+/** A computed NBR 9649 row per segment (critical velocity omitted). */
+export type ApiSegmentCalculation = {
+  code: string;
+  upstreamNodeCode: string;
+  downstreamNodeCode: string;
+  length: number;
+  terrainUpstream: number | null;
+  terrainDownstream: number | null;
+  invertUpstream: number;
+  invertDownstream: number;
+  waterLevelUpstream: number;
+  waterLevelDownstream: number;
+  depthUpstream: number | null;
+  depthDownstream: number | null;
+  diameter: number;
+  slope: number;
+  contributionInitial: number;
+  contributionFinal: number;
+  designInitial: number;
+  designFinal: number;
+  velocityInitial: number;
+  velocityFinal: number;
+  tractiveTension: number;
+  depthRatioInitial: number;
+  depthRatioFinal: number;
+};
+
+export function getCalculations(
+  id: string,
+  token?: string | null,
+): Promise<ApiSegmentCalculation[]> {
+  return apiFetch<ApiSegmentCalculation[]>(`/api/projects/${id}/calculations`, {
+    token,
+  });
+}

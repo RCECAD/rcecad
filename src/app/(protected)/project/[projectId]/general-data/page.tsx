@@ -1,6 +1,14 @@
 import { notFound } from "next/navigation";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { getProjectParameters } from "@/domain/features/calculations/get-parameters";
 import { getProjectById } from "@/domain/features/project/get-project-by-id";
+import { ParametersForm } from "./parameters-form";
 
 interface PageProps {
   params: Promise<{ projectId: string }>;
@@ -14,6 +22,8 @@ export default async function GeneralDataPage({ params }: Readonly<PageProps>) {
     notFound();
   }
 
+  const parameters = await getProjectParameters(projectId);
+
   return (
     <div className="space-y-6">
       <div>
@@ -21,18 +31,19 @@ export default async function GeneralDataPage({ params }: Readonly<PageProps>) {
           Dados Gerais
         </h1>
         <p className="text-muted-foreground mt-1">
-          Configurações gerais do projeto {project.name}
+          Parâmetros de projeto {project.name}
         </p>
       </div>
       <Card>
         <CardHeader>
-          <CardTitle>Configurações Gerais</CardTitle>
+          <CardTitle>Parâmetros de dimensionamento (NBR 9649)</CardTitle>
+          <CardDescription>
+            População, coeficientes K1/K2, consumo, retorno, infiltração e
+            Manning — usados pelos cálculos.
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground">
-            Configure informações cadastrais, localidade, responsáveis e outras
-            propriedades administrativas do projeto.
-          </p>
+          <ParametersForm projectId={projectId} initial={parameters} />
         </CardContent>
       </Card>
     </div>
