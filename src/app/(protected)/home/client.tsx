@@ -103,7 +103,6 @@ export function HomeClient({ payload }: Readonly<HomeClientProps>) {
           transition={{
             layout: { duration: 0.42, ease: [0.22, 1, 0.36, 1] },
           }}
-          className="overflow-hidden"
         >
           <AnimatePresence mode="popLayout" initial={false}>
             {isExpanded ? (
