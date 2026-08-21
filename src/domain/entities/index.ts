@@ -1,6 +1,8 @@
 export * from "@/domain/entities/example";
 export * from "@/domain/entities/example-2";
+export * from "@/domain/entities/hydraulic-node";
 export * from "@/domain/entities/project";
+export * from "@/domain/entities/segment";
 export * from "@/domain/entities/user";
 
 /*  A cada entity nova, exportar ela aqui, pois ao utilizar as entities em outros lugares,

@@ -22,6 +22,13 @@
       "when": 1779205827717,
       "tag": "0002_majestic_the_stranger",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1780016897074,
+      "tag": "0003_adorable_solo",
+      "breakpoints": true
     }
   ]
 }
