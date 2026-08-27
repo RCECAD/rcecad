@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { Fragment, useMemo } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { Fragment, type MouseEvent, useMemo } from "react";
+import { useUnsavedChanges } from "@/components/project/unsaved-changes-provider";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -98,7 +99,28 @@ function buildBreadcrumbItems(pathname: string) {
 
 export function NavbarBreadcrumb() {
   const pathname = usePathname();
+  const router = useRouter();
+  const { requestNavigation } = useUnsavedChanges();
   const items = useMemo(() => buildBreadcrumbItems(pathname), [pathname]);
+
+  const handleNavigation = (
+    event: MouseEvent<HTMLAnchorElement>,
+    href: string,
+  ) => {
+    if (
+      event.defaultPrevented ||
+      event.button !== 0 ||
+      event.metaKey ||
+      event.altKey ||
+      event.ctrlKey ||
+      event.shiftKey
+    ) {
+      return;
+    }
+
+    event.preventDefault();
+    requestNavigation(() => router.push(href));
+  };
 
   return (
     <Breadcrumb>
@@ -111,7 +133,12 @@ export function NavbarBreadcrumb() {
                 <BreadcrumbPage>{item.label}</BreadcrumbPage>
               ) : (
                 <BreadcrumbLink asChild>
-                  <Link href={item.href}>{item.label}</Link>
+                  <Link
+                    href={item.href}
+                    onClick={(event) => handleNavigation(event, item.href)}
+                  >
+                    {item.label}
+                  </Link>
                 </BreadcrumbLink>
               )}
             </BreadcrumbItem>

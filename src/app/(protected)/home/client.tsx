@@ -8,6 +8,7 @@ import { HomeProjectsSummary } from "@/components/home/home-projects-summary";
 import { HomeProjectsTable } from "@/components/home/home-projects-table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { EmptyState } from "@/components/ui/page-state";
 import type { HomeProjectsPayload } from "@/domain/entities";
 import { filterHomeProjects } from "@/utils";
 
@@ -119,8 +120,12 @@ export function HomeClient({ payload }: Readonly<HomeClientProps>) {
               >
                 <div className="mb-5 flex flex-col gap-4">
                   <div className="relative max-w-md">
+                    <label htmlFor="project-search" className="sr-only">
+                      Buscar projetos
+                    </label>
                     <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
                     <Input
+                      id="project-search"
                       value={query}
                       onChange={(event) => setQuery(event.target.value)}
                       className="h-10 pl-9"
@@ -128,7 +133,14 @@ export function HomeClient({ payload }: Readonly<HomeClientProps>) {
                     />
                   </div>
                 </div>
-                <HomeProjectsTable projects={filteredProjects} />
+                <HomeProjectsTable
+                  projects={filteredProjects}
+                  emptyText={
+                    debouncedQuery
+                      ? "Nenhum projeto corresponde à busca."
+                      : "Nenhum projeto encontrado."
+                  }
+                />
               </motion.div>
             ) : (
               <motion.div
@@ -142,13 +154,22 @@ export function HomeClient({ payload }: Readonly<HomeClientProps>) {
                 }}
                 className="grid gap-3 md:grid-cols-3"
               >
-                {payload.recentProjects.map((project, index) => (
-                  <HomeProjectCard
-                    key={project.id}
-                    project={project}
-                    index={index}
-                  />
-                ))}
+                {payload.recentProjects.length > 0 ? (
+                  payload.recentProjects.map((project, index) => (
+                    <HomeProjectCard
+                      key={project.id}
+                      project={project}
+                      index={index}
+                    />
+                  ))
+                ) : (
+                  <div className="md:col-span-3">
+                    <EmptyState
+                      title="Nenhum projeto encontrado"
+                      description="Quando houver projetos disponíveis, eles aparecerão aqui."
+                    />
+                  </div>
+                )}
               </motion.div>
             )}
           </AnimatePresence>

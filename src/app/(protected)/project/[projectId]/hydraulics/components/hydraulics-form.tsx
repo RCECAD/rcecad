@@ -14,6 +14,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
+import { useUnsavedChanges } from "@/components/project/unsaved-changes-provider";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -22,6 +23,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { ErrorState } from "@/components/ui/error-state";
 import { Input } from "@/components/ui/input";
 import {
   InputGroup,
@@ -29,6 +31,7 @@ import {
   InputGroupInput,
 } from "@/components/ui/input-group";
 import { Label } from "@/components/ui/label";
+import { PageLoading } from "@/components/ui/page-state";
 import { Textarea } from "@/components/ui/textarea";
 import {
   type HydraulicsFormValues,
@@ -43,9 +46,14 @@ interface HydraulicsFormProps {
 export function HydraulicsForm({ projectId }: Readonly<HydraulicsFormProps>) {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const { requestNavigation, setHasUnsavedChanges } = useUnsavedChanges();
 
-  // TanStack Query to fetch form data
-  const { data: hydraulicData, isLoading } = useQuery<HydraulicsFormValues>({
+  const {
+    data: hydraulicData,
+    isError,
+    isLoading,
+    refetch,
+  } = useQuery<HydraulicsFormValues>({
     queryKey: ["projectHydraulics", projectId],
     queryFn: async () => {
       const response = await fetch(`/api/projects/${projectId}/hydraulics`);
@@ -56,7 +64,8 @@ export function HydraulicsForm({ projectId }: Readonly<HydraulicsFormProps>) {
 
       return (await response.json()) as HydraulicsFormValues;
     },
-    enabled: !!projectId,
+    enabled: Boolean(projectId),
+    retry: false,
   });
 
   // React Hook Form initialization
@@ -110,6 +119,16 @@ export function HydraulicsForm({ projectId }: Readonly<HydraulicsFormProps>) {
     },
   });
 
+  useEffect(() => {
+    setHasUnsavedChanges(isDirty && !saveMutation.isPending);
+  }, [isDirty, saveMutation.isPending, setHasUnsavedChanges]);
+
+  useEffect(() => {
+    return () => {
+      setHasUnsavedChanges(false);
+    };
+  }, [setHasUnsavedChanges]);
+
   // Watch current form state to calculate default changes status
   const currentValues = watch();
 
@@ -137,18 +156,34 @@ export function HydraulicsForm({ projectId }: Readonly<HydraulicsFormProps>) {
   };
 
   if (isLoading) {
+    return <PageLoading label="Carregando parâmetros hidráulicos" />;
+  }
+
+  if (isError) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-      </div>
+      <ErrorState
+        title="Não foi possível carregar a hidráulica"
+        description="Não altere os parâmetros até conseguirmos carregar os dados do projeto."
+        onRetry={() => {
+          void refetch();
+        }}
+      />
     );
   }
 
   return (
     <form
       onSubmit={handleSubmit(onSubmit)}
+      aria-busy={saveMutation.isPending}
       className="max-w-4xl mx-auto space-y-6"
     >
+      <p aria-live="polite" className="sr-only">
+        {saveMutation.isPending
+          ? "Salvando alterações."
+          : isDirty
+            ? "Existem alterações não salvas."
+            : "Nenhuma alteração pendente."}
+      </p>
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-foreground">
@@ -182,6 +217,12 @@ export function HydraulicsForm({ projectId }: Readonly<HydraulicsFormProps>) {
                   id="return-coef"
                   type="text"
                   aria-invalid={!!errors.returnCoefficient}
+                  aria-describedby={
+                    errors.returnCoefficient ? "return-coef-error" : undefined
+                  }
+                  aria-errormessage={
+                    errors.returnCoefficient ? "return-coef-error" : undefined
+                  }
                   {...register("returnCoefficient")}
                 />
                 <InputGroupAddon
@@ -192,7 +233,11 @@ export function HydraulicsForm({ projectId }: Readonly<HydraulicsFormProps>) {
                 </InputGroupAddon>
               </InputGroup>
               {errors.returnCoefficient && (
-                <p className="text-xs text-destructive font-medium mt-1">
+                <p
+                  id="return-coef-error"
+                  role="alert"
+                  className="text-xs text-destructive font-medium mt-1"
+                >
                   {errors.returnCoefficient.message}
                 </p>
               )}
@@ -214,6 +259,16 @@ export function HydraulicsForm({ projectId }: Readonly<HydraulicsFormProps>) {
                   id="consumption"
                   type="text"
                   aria-invalid={!!errors.consumptionPerCapita}
+                  aria-describedby={
+                    errors.consumptionPerCapita
+                      ? "consumption-error"
+                      : undefined
+                  }
+                  aria-errormessage={
+                    errors.consumptionPerCapita
+                      ? "consumption-error"
+                      : undefined
+                  }
                   {...register("consumptionPerCapita")}
                 />
                 <InputGroupAddon
@@ -224,7 +279,11 @@ export function HydraulicsForm({ projectId }: Readonly<HydraulicsFormProps>) {
                 </InputGroupAddon>
               </InputGroup>
               {errors.consumptionPerCapita && (
-                <p className="text-xs text-destructive font-medium mt-1">
+                <p
+                  id="consumption-error"
+                  role="alert"
+                  className="text-xs text-destructive font-medium mt-1"
+                >
                   {errors.consumptionPerCapita.message}
                 </p>
               )}
@@ -246,6 +305,12 @@ export function HydraulicsForm({ projectId }: Readonly<HydraulicsFormProps>) {
                   id="infiltration"
                   type="text"
                   aria-invalid={!!errors.infiltrationRate}
+                  aria-describedby={
+                    errors.infiltrationRate ? "infiltration-error" : undefined
+                  }
+                  aria-errormessage={
+                    errors.infiltrationRate ? "infiltration-error" : undefined
+                  }
                   {...register("infiltrationRate")}
                 />
                 <InputGroupAddon
@@ -256,7 +321,11 @@ export function HydraulicsForm({ projectId }: Readonly<HydraulicsFormProps>) {
                 </InputGroupAddon>
               </InputGroup>
               {errors.infiltrationRate && (
-                <p className="text-xs text-destructive font-medium mt-1">
+                <p
+                  id="infiltration-error"
+                  role="alert"
+                  className="text-xs text-destructive font-medium mt-1"
+                >
                   {errors.infiltrationRate.message}
                 </p>
               )}
@@ -280,6 +349,12 @@ export function HydraulicsForm({ projectId }: Readonly<HydraulicsFormProps>) {
                   id="min-flow"
                   type="text"
                   aria-invalid={!!errors.minFlowCoefficient}
+                  aria-describedby={
+                    errors.minFlowCoefficient ? "min-flow-error" : undefined
+                  }
+                  aria-errormessage={
+                    errors.minFlowCoefficient ? "min-flow-error" : undefined
+                  }
                   {...register("minFlowCoefficient")}
                 />
                 <InputGroupAddon
@@ -290,7 +365,11 @@ export function HydraulicsForm({ projectId }: Readonly<HydraulicsFormProps>) {
                 </InputGroupAddon>
               </InputGroup>
               {errors.minFlowCoefficient && (
-                <p className="text-xs text-destructive font-medium mt-1">
+                <p
+                  id="min-flow-error"
+                  role="alert"
+                  className="text-xs text-destructive font-medium mt-1"
+                >
                   {errors.minFlowCoefficient.message}
                 </p>
               )}
@@ -312,6 +391,12 @@ export function HydraulicsForm({ projectId }: Readonly<HydraulicsFormProps>) {
                   id="max-flow"
                   type="text"
                   aria-invalid={!!errors.maxFlowCoefficient}
+                  aria-describedby={
+                    errors.maxFlowCoefficient ? "max-flow-error" : undefined
+                  }
+                  aria-errormessage={
+                    errors.maxFlowCoefficient ? "max-flow-error" : undefined
+                  }
                   {...register("maxFlowCoefficient")}
                 />
                 <InputGroupAddon
@@ -322,7 +407,11 @@ export function HydraulicsForm({ projectId }: Readonly<HydraulicsFormProps>) {
                 </InputGroupAddon>
               </InputGroup>
               {errors.maxFlowCoefficient && (
-                <p className="text-xs text-destructive font-medium mt-1">
+                <p
+                  id="max-flow-error"
+                  role="alert"
+                  className="text-xs text-destructive font-medium mt-1"
+                >
                   {errors.maxFlowCoefficient.message}
                 </p>
               )}
@@ -389,10 +478,20 @@ export function HydraulicsForm({ projectId }: Readonly<HydraulicsFormProps>) {
                 type="text"
                 className="bg-card text-foreground border-border/80"
                 aria-invalid={!!errors.calculationRule}
+                aria-describedby={
+                  errors.calculationRule ? "calc-rule-error" : undefined
+                }
+                aria-errormessage={
+                  errors.calculationRule ? "calc-rule-error" : undefined
+                }
                 {...register("calculationRule")}
               />
               {errors.calculationRule && (
-                <p className="text-xs text-destructive font-medium mt-1">
+                <p
+                  id="calc-rule-error"
+                  role="alert"
+                  className="text-xs text-destructive font-medium mt-1"
+                >
                   {errors.calculationRule.message}
                 </p>
               )}
@@ -410,10 +509,20 @@ export function HydraulicsForm({ projectId }: Readonly<HydraulicsFormProps>) {
                 type="text"
                 className="bg-card text-foreground border-border/80"
                 aria-invalid={!!errors.regulatoryProfile}
+                aria-describedby={
+                  errors.regulatoryProfile ? "normative-error" : undefined
+                }
+                aria-errormessage={
+                  errors.regulatoryProfile ? "normative-error" : undefined
+                }
                 {...register("regulatoryProfile")}
               />
               {errors.regulatoryProfile && (
-                <p className="text-xs text-destructive font-medium mt-1">
+                <p
+                  id="normative-error"
+                  role="alert"
+                  className="text-xs text-destructive font-medium mt-1"
+                >
                   {errors.regulatoryProfile.message}
                 </p>
               )}
@@ -483,7 +592,9 @@ export function HydraulicsForm({ projectId }: Readonly<HydraulicsFormProps>) {
           type="button"
           variant="outline"
           size="lg"
-          onClick={() => router.push("/home")}
+          onClick={() => {
+            requestNavigation(() => router.push("/home"));
+          }}
           className="h-12 px-8 font-semibold rounded-lg border-border hover:bg-muted bg-card cursor-pointer flex items-center justify-center gap-2 transition-all"
         >
           <Undo2 className="size-4" />

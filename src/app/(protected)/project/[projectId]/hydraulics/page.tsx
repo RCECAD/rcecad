@@ -1,6 +1,7 @@
 "use client";
 
 import { useParams } from "next/navigation";
+import { PageLoading } from "@/components/ui/page-state";
 import { HydraulicsForm } from "./components/hydraulics-form";
 
 export default function HydraulicsPage() {
@@ -9,11 +10,7 @@ export default function HydraulicsPage() {
     typeof params.projectId === "string" ? params.projectId : undefined;
 
   if (!projectId) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-      </div>
-    );
+    return <PageLoading label="Carregando projeto" />;
   }
 
   return <HydraulicsForm projectId={projectId} />;

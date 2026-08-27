@@ -28,6 +28,7 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import type { Project } from "@/domain/entities";
+import { useUnsavedChanges } from "./unsaved-changes-provider";
 
 interface ProjectSidebarProps {
   currentProject: Project;
@@ -40,6 +41,7 @@ export function ProjectSidebar({
 }: Readonly<ProjectSidebarProps>) {
   const pathname = usePathname();
   const router = useRouter();
+  const { requestNavigation } = useUnsavedChanges();
 
   // Extract the tab from the current path.
   // Paths look like /project/[projectId]/[tab]
@@ -111,7 +113,9 @@ export function ProjectSidebar({
 
   const handleProjectChange = (projectId: string) => {
     // Preserve the current tab (e.g. hydraulics) when switching projects
-    router.push(`/project/${projectId}/${currentTab}`);
+    requestNavigation(() => {
+      router.push(`/project/${projectId}/${currentTab}`);
+    });
   };
 
   return (
@@ -161,7 +165,11 @@ export function ProjectSidebar({
                       ? "bg-sidebar-accent text-primary"
                       : "text-muted-foreground"
                   }`}
-                  onClick={() => router.push(item.href)}
+                  onClick={() => {
+                    if (!isActive) {
+                      requestNavigation(() => router.push(item.href));
+                    }
+                  }}
                 >
                   <Icon
                     className={`size-4 ${isActive ? "text-primary fill-primary/10" : ""}`}

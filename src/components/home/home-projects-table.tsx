@@ -14,10 +14,12 @@ import { createHomeColumns } from "@/components/home/home-columns";
 import type { Project } from "@/domain/entities";
 
 type HomeProjectsTableProps = {
+  emptyText?: string;
   projects: Array<Project>;
 };
 
 export function HomeProjectsTable({
+  emptyText,
   projects,
 }: Readonly<HomeProjectsTableProps>) {
   const [pagination, setPagination] = useState<PaginationState>({
@@ -52,7 +54,7 @@ export function HomeProjectsTable({
       <DataTable
         dataCount={projects.length}
         labels={{
-          emptyText: "Nenhum projeto encontrado.",
+          emptyText: emptyText ?? "Nenhum projeto encontrado.",
           totalText: "projeto(s) selecionados.",
         }}
         paginationLabels={{
