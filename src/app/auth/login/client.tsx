@@ -12,9 +12,8 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { ApiError } from "@/lib/api";
-import { useAuth } from "@/providers/auth-provider";
 import { type LoginFormValues, loginSchema } from "@/schemas/login";
+import { loginAction } from "../actions";
 
 export function LoginForm() {
   const {
@@ -31,22 +30,19 @@ export function LoginForm() {
   });
 
   const router = useRouter();
-  const { login } = useAuth();
 
   async function onSubmit(values: LoginFormValues) {
-    try {
-      await login(values.email, values.password);
-      toast.success("Login realizado com sucesso");
-      reset();
-      router.push("/home");
-    } catch (error) {
-      const message =
-        error instanceof ApiError && error.status === 401
-          ? "E-mail ou senha inválidos."
-          : "Erro ao logar no sistema, por favor, tente novamente.";
-      toast.error(message);
-      console.error("Login error: ", error);
+    const result = await loginAction(values);
+
+    if (!result.success) {
+      toast.error(result.message);
+      return;
     }
+
+    toast.success("Login realizado com sucesso");
+    reset();
+    router.push("/home");
+    router.refresh();
   }
 
   return (

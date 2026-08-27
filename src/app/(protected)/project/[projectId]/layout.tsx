@@ -1,9 +1,8 @@
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
+import { getHomeProjects, getProjectById } from "@/api/server/projects";
 import { ProjectSidebar } from "@/components/project/project-sidebar";
 import { SidebarProvider } from "@/components/ui/sidebar";
-import { getHomeProjects } from "@/domain/features/home/get-home-projects";
-import { getProjectById } from "@/domain/features/project/get-project-by-id";
 
 interface ProjectLayoutProps {
   children: ReactNode;
@@ -15,8 +14,8 @@ export default async function ProjectLayout({
   params,
 }: Readonly<ProjectLayoutProps>) {
   const { projectId } = await params;
-  const project = await getProjectById({ projectId });
-  const allProjectsPayload = await getHomeProjects({});
+  const project = await getProjectById(projectId);
+  const allProjectsPayload = await getHomeProjects();
 
   if (!project) {
     notFound();

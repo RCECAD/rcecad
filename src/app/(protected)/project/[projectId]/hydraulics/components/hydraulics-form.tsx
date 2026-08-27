@@ -43,21 +43,18 @@ interface HydraulicsFormProps {
 export function HydraulicsForm({ projectId }: Readonly<HydraulicsFormProps>) {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const localStorageKey = `rcecad_project_${projectId}_hydraulic_data`;
 
   // TanStack Query to fetch form data
   const { data: hydraulicData, isLoading } = useQuery<HydraulicsFormValues>({
     queryKey: ["projectHydraulics", projectId],
     queryFn: async () => {
-      const cached = localStorage.getItem(localStorageKey);
-      if (cached) {
-        try {
-          return JSON.parse(cached) as HydraulicsFormValues;
-        } catch (e) {
-          console.error("Error parsing cached hydraulic data", e);
-        }
+      const response = await fetch(`/api/projects/${projectId}/hydraulics`);
+
+      if (!response.ok) {
+        throw new Error("Erro ao carregar parametros hidraulicos.");
       }
-      return SYSTEM_DEFAULTS;
+
+      return (await response.json()) as HydraulicsFormValues;
     },
     enabled: !!projectId,
   });
@@ -84,8 +81,19 @@ export function HydraulicsForm({ projectId }: Readonly<HydraulicsFormProps>) {
   // TanStack Query Mutation to save form data
   const saveMutation = useMutation({
     mutationFn: async (values: HydraulicsFormValues) => {
-      localStorage.setItem(localStorageKey, JSON.stringify(values));
-      return values;
+      const response = await fetch(`/api/projects/${projectId}/hydraulics`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(values),
+      });
+
+      if (!response.ok) {
+        throw new Error("Erro ao salvar parametros hidraulicos.");
+      }
+
+      return (await response.json()) as HydraulicsFormValues;
     },
     onSuccess: (data) => {
       queryClient.setQueryData(["projectHydraulics", projectId], data);

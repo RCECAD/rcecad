@@ -12,10 +12,8 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { ApiError } from "@/lib/api";
-import { registerCompany } from "@/lib/auth/auth-api";
-import { useAuth } from "@/providers/auth-provider";
 import { type RegisterFormValues, registerSchema } from "@/schemas/register";
+import { registerAction } from "../actions";
 
 export function RegisterForm() {
   const {
@@ -37,32 +35,19 @@ export function RegisterForm() {
   });
 
   const router = useRouter();
-  const { login } = useAuth();
 
-  // NOTE (Phase 2): this calls the intended public endpoint
-  // `POST /api/auth/register`, which does not exist on the API yet. Until the
-  // backend ships it, submitting will surface the API error. See auth-api.ts.
   async function onSubmit(values: RegisterFormValues) {
-    try {
-      await registerCompany({
-        name: values.name,
-        cnpj: values.cnpj,
-        email: values.email,
-        password: values.password,
-      });
+    const result = await registerAction(values);
 
-      await login(values.email, values.password);
-      toast.success("Usuário criado com sucesso!");
-      reset();
-      router.push("/home");
-    } catch (error) {
-      const message =
-        error instanceof ApiError
-          ? error.message
-          : "Erro ao criar o seu usuário, tente novamente.";
-      toast.error(message);
-      console.error("Register error: ", error);
+    if (!result.success) {
+      toast.error(result.message);
+      return;
     }
+
+    toast.success("Usuário criado com sucesso!");
+    reset();
+    router.push("/home");
+    router.refresh();
   }
 
   return (

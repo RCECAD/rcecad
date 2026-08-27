@@ -3,9 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { getServerSession } from "@/lib/auth/session";
 import { cn } from "@/lib/utils";
-import { AuthProvider } from "@/providers/auth-provider";
 import { QueryClientProvider } from "@/providers/query-client-provider";
 
 const geistSans = Geist({
@@ -23,16 +21,14 @@ export const metadata: Metadata = {
   description: "Engenharia",
 };
 
-export default async function RootLayout({
+export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const session = await getServerSession();
-
   return (
     <html
-      lang="en"
+      lang="pt-BR"
       className={cn(
         "h-full",
         "antialiased",
@@ -41,11 +37,9 @@ export default async function RootLayout({
       )}
     >
       <body className={cn("min-h-full flex flex-col", geistSans.className)}>
-        <AuthProvider initialSession={session}>
-          <TooltipProvider delayDuration={0}>
-            <QueryClientProvider>{children}</QueryClientProvider>
-          </TooltipProvider>
-        </AuthProvider>
+        <TooltipProvider delayDuration={0}>
+          <QueryClientProvider>{children}</QueryClientProvider>
+        </TooltipProvider>
         <Toaster />
       </body>
     </html>

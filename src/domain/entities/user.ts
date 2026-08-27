@@ -1,3 +1,6 @@
-import type { User } from "@/db/schema";
-
-export type { User };
+export type User = {
+  id: string;
+  name: string;
+  email: string;
+  cnpj?: string;
+};

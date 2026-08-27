@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
+import { getProjectById } from "@/api/server/projects";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getProjectById } from "@/domain/features/project/get-project-by-id";
 
 interface PageProps {
   params: Promise<{ projectId: string }>;
@@ -8,7 +8,7 @@ interface PageProps {
 
 export default async function SizingPage({ params }: Readonly<PageProps>) {
   const { projectId } = await params;
-  const project = await getProjectById({ projectId });
+  const project = await getProjectById(projectId);
 
   if (!project) {
     notFound();
