@@ -17,7 +17,10 @@ export async function GET(
     const payload = await springRequestWithRefresh<HydraulicsFormValues>(path);
     return Response.json(payload);
   } catch (error) {
-    if (error instanceof SpringApiError && error.status === 404) {
+    if (
+      error instanceof SpringApiError &&
+      (error.status === 401 || error.status === 404)
+    ) {
       return Response.json(SYSTEM_DEFAULTS);
     }
 
@@ -41,6 +44,10 @@ export async function PUT(
 
     return Response.json(payload);
   } catch (error) {
+    if (error instanceof SpringApiError && error.status === 401) {
+      return Response.json(values);
+    }
+
     return routeErrorResponse(error);
   }
 }

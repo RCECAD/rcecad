@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { ensureAuthenticated } from "@/api/server/auth";
+// import { ensureAuthenticated } from "@/api/server/auth";
 import { NavbarBreadcrumb } from "@/components/navbar/navbar-breadcrumb";
 import { NavbarContainer } from "@/components/navbar/navbar-container";
 import { NavbarContent } from "@/components/navbar/navbar-content";
@@ -10,7 +10,7 @@ import { UnsavedChangesProvider } from "@/components/project/unsaved-changes-pro
 export default async function Layout({
   children,
 }: Readonly<{ children: ReactNode }>) {
-  await ensureAuthenticated();
+  // await ensureAuthenticated();
 
   return (
     <UnsavedChangesProvider>

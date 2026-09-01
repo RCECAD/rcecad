@@ -21,16 +21,19 @@ export default async function ProjectLayout({
     notFound();
   }
 
+  const allProjects = allProjectsPayload.projects.some(
+    (item) => item.id === project.id,
+  )
+    ? allProjectsPayload.projects
+    : [project, ...allProjectsPayload.projects];
+
   return (
     <SidebarProvider
       defaultOpen
       className="flex flex-1 flex-row min-h-0 h-full"
     >
       <div className="flex min-h-0 flex-1 flex-row w-full overflow-hidden">
-        <ProjectSidebar
-          currentProject={project}
-          allProjects={allProjectsPayload.projects}
-        />
+        <ProjectSidebar currentProject={project} allProjects={allProjects} />
         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-muted/10">
           <main className="flex-1 min-h-0 p-6 md:p-8">{children}</main>
         </div>

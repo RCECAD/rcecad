@@ -1,6 +1,5 @@
 import "server-only";
 
-import { redirect } from "next/navigation";
 import type {
   HomeProjectsPayload,
   Project,
@@ -13,6 +12,27 @@ import {
 } from "./spring-client";
 
 type ProjectsResponse = HomeProjectsPayload | Array<Project>;
+
+function createUnauthenticatedProject(projectId = "dev-project"): Project {
+  return {
+    id: projectId,
+    name: "Projeto sem login",
+    updatedAt: new Date().toISOString(),
+    location: "Ambiente local",
+    owner: "Usuário local",
+    status: "inProgress",
+  };
+}
+
+function createUnauthenticatedProjectsPayload(): HomeProjectsPayload {
+  const project = createUnauthenticatedProject();
+
+  return {
+    recentProjects: [project],
+    projects: [project],
+    statusSummary: buildSummary([project]),
+  };
+}
 
 function buildSummary(projects: Array<Project>): ProjectsStatusSummary {
   return projects.reduce<ProjectsStatusSummary>(
@@ -55,7 +75,7 @@ export async function getHomeProjects({
     return normalizeProjectsPayload(response);
   } catch (error) {
     if (error instanceof SpringApiError && error.status === 401) {
-      redirect("/auth/login");
+      return createUnauthenticatedProjectsPayload();
     }
 
     throw error;
@@ -80,7 +100,7 @@ export async function getProjectById(
     }
 
     if (error instanceof SpringApiError && error.status === 401) {
-      redirect("/auth/login");
+      return createUnauthenticatedProject(projectId);
     }
 
     throw error;
