@@ -37,9 +37,13 @@ type FieldErrorItem = {
 type FieldErrorProps = {
   errors?: ReadonlyArray<FieldErrorItem | undefined>;
   className?: string;
-};
+} & HTMLAttributes<HTMLParagraphElement>;
 
-export function FieldError({ errors, className }: Readonly<FieldErrorProps>) {
+export function FieldError({
+  errors,
+  className,
+  ...props
+}: Readonly<FieldErrorProps>) {
   const messages = (errors ?? [])
     .map((error) => error?.message)
     .filter((message): message is string => Boolean(message));
@@ -48,5 +52,9 @@ export function FieldError({ errors, className }: Readonly<FieldErrorProps>) {
     return null;
   }
 
-  return <p className={cn("text-sm text-red-600", className)}>{messages[0]}</p>;
+  return (
+    <p className={cn("text-sm text-red-600", className)} {...props}>
+      {messages[0]}
+    </p>
+  );
 }
