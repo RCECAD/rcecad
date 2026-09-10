@@ -1,32 +1,25 @@
+import { toGeneralDataFormValues } from "@/api/server/project-adapters";
+import { getProjectById, updateProject } from "@/api/server/projects";
 import { routeErrorResponse } from "@/api/server/route-errors";
-import {
-  SpringApiError,
-  springRequestWithRefresh,
-} from "@/api/server/spring-client";
-import {
-  GENERAL_DATA_DEFAULTS,
-  type GeneralDataFormValues,
-  generalDataSchema,
-} from "@/schemas/general-data";
+import { generalDataSchema } from "@/schemas/general-data";
 
 export async function GET(
   _request: Request,
   context: { params: Promise<{ projectId: string }> },
 ) {
-  const { projectId } = await context.params;
-  const path = `/projects/${encodeURIComponent(projectId)}/general-data`;
-
   try {
-    const payload = await springRequestWithRefresh<GeneralDataFormValues>(path);
-    return Response.json(payload);
-  } catch (error) {
-    if (
-      error instanceof SpringApiError &&
-      (error.status === 401 || error.status === 404)
-    ) {
-      return Response.json(GENERAL_DATA_DEFAULTS);
+    const { projectId } = await context.params;
+    const project = await getProjectById(projectId, { refresh: true });
+
+    if (!project) {
+      return Response.json(
+        { error: "Projeto não encontrado." },
+        { status: 404 },
+      );
     }
 
+    return Response.json(toGeneralDataFormValues(project));
+  } catch (error) {
     return routeErrorResponse(error);
   }
 }
@@ -35,33 +28,20 @@ export async function PUT(
   request: Request,
   context: { params: Promise<{ projectId: string }> },
 ) {
-  const { projectId } = await context.params;
   const parsed = generalDataSchema.safeParse(await request.json());
 
   if (!parsed.success) {
     return Response.json(
-      { error: "Revise os dados informados." },
+      { error: "Revise os dados informados.", issues: parsed.error.issues },
       { status: 400 },
     );
   }
 
-  const path = `/projects/${encodeURIComponent(projectId)}/general-data`;
-
   try {
-    const payload = await springRequestWithRefresh<GeneralDataFormValues>(
-      path,
-      {
-        method: "PUT",
-        body: JSON.stringify(parsed.data),
-      },
-    );
-
-    return Response.json(payload);
+    const { projectId } = await context.params;
+    const project = await updateProject(projectId, parsed.data);
+    return Response.json(toGeneralDataFormValues(project));
   } catch (error) {
-    if (error instanceof SpringApiError && error.status === 401) {
-      return Response.json(parsed.data);
-    }
-
     return routeErrorResponse(error);
   }
 }

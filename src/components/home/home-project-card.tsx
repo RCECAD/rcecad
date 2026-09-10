@@ -43,12 +43,13 @@ export function HomeProjectCard({
                 {project.name}
               </CardTitle>
               <span className="text-sm text-muted-foreground">
-                {formatHomeProjectDate(project.updatedAt)}
+                {formatHomeProjectDate(project.createdAt)}
               </span>
             </div>
           </CardHeader>
           <CardContent className="px-4 pt-0 text-sm text-muted-foreground">
-            {project.owner} • {project.location}
+            {project.contractor ?? "Contratante não informado"} •{" "}
+            {project.location ?? "Localidade não informada"}
           </CardContent>
           <CardFooter className="px-4 pt-0 pb-4">
             <StatusBadge tone={status.tone} label={status.shortLabel} />

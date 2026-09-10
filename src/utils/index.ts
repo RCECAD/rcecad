@@ -30,7 +30,13 @@ export function filterHomeProjects(projects: Array<Project>, query: string) {
   }
 
   return projects.filter((project) =>
-    [project.name, project.location, project.owner, project.status]
+    [
+      project.name,
+      project.location,
+      project.contractor,
+      project.owner,
+      project.status,
+    ]
       .join(" ")
       .toLowerCase()
       .includes(normalizedQuery),
@@ -75,5 +81,3 @@ export function getStatusMeta(status: ProjectStatus) {
 
   return statuses[status];
 }
-
-export * from "./constants";

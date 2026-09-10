@@ -71,13 +71,13 @@ export function createHomeColumns(): Array<ColumnDef<Project>> {
       ),
     },
     {
-      accessorKey: "updatedAt",
+      accessorKey: "createdAt",
       header: ({ column }) => (
-        <SortableHeader column={column} label="Última edição" />
+        <SortableHeader column={column} label="Criado em" />
       ),
       cell: ({ row }) => (
         <span className="text-foreground">
-          {formatHomeProjectDateLong(row.original.updatedAt)}
+          {formatHomeProjectDateLong(row.original.createdAt)}
         </span>
       ),
       sortingFn: (rowA, rowB, columnId) =>
@@ -91,8 +91,8 @@ export function createHomeColumns(): Array<ColumnDef<Project>> {
       ),
     },
     {
-      accessorKey: "owner",
-      header: "Responsável",
+      accessorKey: "contractor",
+      header: "Contratante",
     },
     {
       accessorKey: "status",

@@ -30,11 +30,11 @@ const fetchMock = vi.fn();
 
 const completeGeneralData: GeneralDataFormValues = {
   ...GENERAL_DATA_DEFAULTS,
-  systemType: "Esgotamento Sanitário",
-  horizonStage: "2024-2034, Fase 1",
-  basin: "Bacia do Rio Paraná",
-  sector: "Setor Central",
-  totalArea: "2.5km²",
+  name: "Projeto Centro",
+  contractor: "Prefeitura Municipal de Cascavel",
+  technicalManager: "Eng. João Silva",
+  location: "Cascavel, PR",
+  status: "inProgress",
 };
 
 function createJsonResponse(body: unknown, ok = true) {
@@ -87,7 +87,7 @@ describe("GeneralDataForm", () => {
     await user.click(screen.getByRole("button", { name: "Tentar novamente" }));
 
     expect(await screen.findByLabelText("Nome do Projeto")).toHaveValue(
-      GENERAL_DATA_DEFAULTS.projectName,
+      completeGeneralData.name,
     );
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
@@ -104,11 +104,8 @@ describe("GeneralDataForm", () => {
 
     expect(
       await screen.findByText("Informe o nome do projeto."),
-    ).toHaveAttribute("id", "projectName-error");
-    expect(projectName).toHaveAttribute(
-      "aria-describedby",
-      "projectName-error",
-    );
+    ).toHaveAttribute("id", "name-error");
+    expect(projectName).toHaveAttribute("aria-describedby", "name-error");
     expect(projectName).toHaveAttribute("aria-invalid", "true");
   });
 
@@ -116,7 +113,7 @@ describe("GeneralDataForm", () => {
     const user = userEvent.setup();
     const savedData: GeneralDataFormValues = {
       ...completeGeneralData,
-      projectName: "Projeto atualizado",
+      name: "Projeto atualizado",
     };
 
     fetchMock
@@ -127,20 +124,22 @@ describe("GeneralDataForm", () => {
 
     const projectName = await screen.findByLabelText("Nome do Projeto");
     await user.clear(projectName);
-    await user.type(projectName, savedData.projectName);
+    await user.type(projectName, savedData.name);
     await user.click(screen.getByRole("button", { name: "Salvar alterações" }));
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenLastCalledWith(
+      expect(mocks.toastSuccess).toHaveBeenCalledWith(
+        "Dados gerais salvos com sucesso!",
+      );
+    });
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
         "/api/projects/project-1/general-data",
         expect.objectContaining({
           method: "PUT",
         }),
       );
     });
-    expect(mocks.toastSuccess).toHaveBeenCalledWith(
-      "Dados gerais salvos com sucesso!",
-    );
   });
 
   it("confirms before leaving a dirty form", async () => {
@@ -149,9 +148,9 @@ describe("GeneralDataForm", () => {
 
     renderForm();
 
-    const city = await screen.findByLabelText("Município/Localidade");
-    await user.clear(city);
-    await user.type(city, "Cascavel");
+    const location = await screen.findByLabelText("Localidade (opcional)");
+    await user.clear(location);
+    await user.type(location, "Cascavel");
     await user.click(screen.getByRole("button", { name: "Voltar" }));
 
     expect(

@@ -1,14 +1,15 @@
 import "server-only";
 
+import type { z } from "zod";
+import { loginResponseSchema } from "@/api/contracts/spring";
 import {
   clearAuthSession,
   getAuthSession,
   setAuthSession,
 } from "@/api/server/session";
 
-type JsonRecord = Record<string, unknown>;
-
-type SpringRequestOptions = {
+type SpringRequestOptions<T> = {
+  schema: z.ZodType<T>;
   auth?: boolean;
   accessToken?: string;
 };
@@ -32,20 +33,28 @@ export class SpringApiError extends Error {
   }
 }
 
+export class SpringContractError extends SpringApiError {
+  constructor(payload: unknown) {
+    super(502, "A API retornou dados incompatíveis com o contrato.", payload);
+    this.name = "SpringContractError";
+  }
+}
+
+const refreshInFlight = new Map<string, Promise<SpringAuthTokens | null>>();
+
 function getSpringApiBaseUrl(): string {
   return process.env.SPRING_API_BASE_URL ?? "http://localhost:8080";
 }
 
 function buildSpringUrl(path: string): URL {
-  const baseUrl = getSpringApiBaseUrl();
-  const normalizedBase = baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`;
-  const normalizedPath = path.startsWith("/") ? path.slice(1) : path;
+  const base = new URL(getSpringApiBaseUrl());
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  const prefix = base.pathname.replace(/\/$/, "");
+  const apiPath = prefix.endsWith("/api")
+    ? `${prefix}${normalizedPath}`
+    : `/api${normalizedPath}`;
 
-  return new URL(normalizedPath, normalizedBase);
-}
-
-function isJsonRecord(value: unknown): value is JsonRecord {
-  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+  return new URL(apiPath, base.origin);
 }
 
 async function parseJsonResponse(response: Response): Promise<unknown> {
@@ -62,64 +71,25 @@ async function parseJsonResponse(response: Response): Promise<unknown> {
   }
 }
 
-function getStringField(record: JsonRecord, keys: Array<string>) {
-  for (const key of keys) {
-    const value = record[key];
-
-    if (typeof value === "string" && value.length > 0) {
-      return value;
-    }
-  }
-
-  return undefined;
-}
-
-function getNumberField(record: JsonRecord, keys: Array<string>) {
-  for (const key of keys) {
-    const value = record[key];
-
-    if (typeof value === "number") {
-      return value;
-    }
-  }
-
-  return undefined;
-}
-
 export function normalizeAuthTokens(payload: unknown): SpringAuthTokens {
-  if (!isJsonRecord(payload)) {
-    throw new SpringApiError(500, "Resposta de autenticacao invalida", payload);
-  }
+  const parsed = loginResponseSchema.safeParse(payload);
 
-  const accessToken = getStringField(payload, [
-    "accessToken",
-    "access_token",
-    "token",
-  ]);
-  const refreshToken = getStringField(payload, [
-    "refreshToken",
-    "refresh_token",
-  ]);
-
-  if (!accessToken || !refreshToken) {
-    throw new SpringApiError(500, "Tokens nao retornados pelo Spring", payload);
+  if (!parsed.success) {
+    throw new SpringApiError(500, "Resposta de autenticação inválida", payload);
   }
 
   return {
-    accessToken,
-    refreshToken,
-    expiresIn: getNumberField(payload, ["expiresIn", "expires_in"]),
-    refreshExpiresIn: getNumberField(payload, [
-      "refreshExpiresIn",
-      "refresh_expires_in",
-    ]),
+    accessToken: parsed.data.accessToken,
+    refreshToken: parsed.data.refreshToken,
+    expiresIn: parsed.data.expiresIn,
+    refreshExpiresIn: parsed.data.refreshExpiresIn,
   };
 }
 
 async function requestSpring<T>(
   path: string,
   init: RequestInit = {},
-  options: SpringRequestOptions = {},
+  options: SpringRequestOptions<T>,
 ): Promise<T> {
   const { auth = true } = options;
   const headers = new Headers(init.headers);
@@ -137,7 +107,7 @@ async function requestSpring<T>(
     const accessToken = options.accessToken ?? session.accessToken;
 
     if (!accessToken) {
-      throw new SpringApiError(401, "Sessao nao autenticada");
+      throw new SpringApiError(401, "Sessão não autenticada");
     }
 
     headers.set("Authorization", `Bearer ${accessToken}`);
@@ -159,32 +129,37 @@ async function requestSpring<T>(
     );
   }
 
-  return payload as T;
+  const parsed = options.schema.safeParse(payload);
+
+  if (!parsed.success) {
+    throw new SpringContractError({
+      issues: parsed.error.issues,
+      payload,
+    });
+  }
+
+  return parsed.data;
 }
 
 export async function springRequest<T>(
   path: string,
   init: RequestInit = {},
-  options: SpringRequestOptions = {},
+  options: SpringRequestOptions<T>,
 ): Promise<T> {
   return requestSpring<T>(path, init, options);
 }
 
-export async function refreshSpringSession(): Promise<SpringAuthTokens | null> {
-  const session = await getAuthSession();
-
-  if (!session.refreshToken) {
-    return null;
-  }
-
+async function refreshSession(
+  refreshToken: string,
+): Promise<SpringAuthTokens | null> {
   try {
-    const payload = await requestSpring<unknown>(
+    const payload = await requestSpring(
       "/auth/refresh",
       {
         method: "POST",
-        body: JSON.stringify({ refreshToken: session.refreshToken }),
+        body: JSON.stringify({ refreshToken }),
       },
-      { auth: false },
+      { auth: false, schema: loginResponseSchema },
     );
     const tokens = normalizeAuthTokens(payload);
     await setAuthSession(tokens);
@@ -196,10 +171,36 @@ export async function refreshSpringSession(): Promise<SpringAuthTokens | null> {
   }
 }
 
+export async function refreshSpringSession(): Promise<SpringAuthTokens | null> {
+  const session = await getAuthSession();
+  const refreshToken = session.refreshToken;
+
+  if (!refreshToken) {
+    return null;
+  }
+
+  const inFlight = refreshInFlight.get(refreshToken);
+
+  if (inFlight) {
+    return inFlight;
+  }
+
+  const refresh = refreshSession(refreshToken);
+  refreshInFlight.set(refreshToken, refresh);
+
+  try {
+    return await refresh;
+  } finally {
+    if (refreshInFlight.get(refreshToken) === refresh) {
+      refreshInFlight.delete(refreshToken);
+    }
+  }
+}
+
 export async function springRequestWithRefresh<T>(
   path: string,
   init: RequestInit = {},
-  options: SpringRequestOptions = {},
+  options: SpringRequestOptions<T>,
 ): Promise<T> {
   try {
     return await requestSpring<T>(path, init, options);
@@ -214,9 +215,17 @@ export async function springRequestWithRefresh<T>(
       throw error;
     }
 
-    return requestSpring<T>(path, init, {
-      ...options,
-      accessToken: tokens.accessToken,
-    });
+    try {
+      return await requestSpring<T>(path, init, {
+        ...options,
+        accessToken: tokens.accessToken,
+      });
+    } catch (retryError) {
+      if (retryError instanceof SpringApiError && retryError.status === 401) {
+        await clearAuthSession();
+      }
+
+      throw retryError;
+    }
   }
 }

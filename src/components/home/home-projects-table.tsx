@@ -29,7 +29,7 @@ export function HomeProjectsTable({
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [sorting, setSorting] = useState<SortingState>([
-    { id: "updatedAt", desc: true },
+    { id: "createdAt", desc: true },
   ]);
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
 

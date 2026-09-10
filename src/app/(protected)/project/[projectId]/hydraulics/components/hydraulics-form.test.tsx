@@ -3,7 +3,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { UnsavedChangesProvider } from "@/components/project/unsaved-changes-provider";
-import { SYSTEM_DEFAULTS } from "@/utils/constants";
+import type { HydraulicsFormValues } from "@/schemas/hydraulics";
 import { HydraulicsForm } from "./hydraulics-form";
 
 const mocks = vi.hoisted(() => ({
@@ -24,6 +24,17 @@ vi.mock("sonner", () => ({
 }));
 
 const fetchMock = vi.fn();
+
+const parameters: HydraulicsFormValues = {
+  initialPopulation: 312,
+  finalPopulation: 468,
+  returnCoefficient: 0.8,
+  perCapitaFlow: 220,
+  infiltrationRate: 0.0001,
+  peakDailyFactor: 1.25,
+  peakHourlyFactor: 1.6,
+  manningCoefficient: 0.01,
+};
 
 function createJsonResponse(body: unknown, ok = true) {
   return {
@@ -62,7 +73,7 @@ describe("HydraulicsForm", () => {
     const user = userEvent.setup();
     fetchMock
       .mockRejectedValueOnce(new Error("offline"))
-      .mockResolvedValueOnce(createJsonResponse(SYSTEM_DEFAULTS));
+      .mockResolvedValueOnce(createJsonResponse(parameters));
 
     renderForm();
 
@@ -75,14 +86,14 @@ describe("HydraulicsForm", () => {
     await user.click(screen.getByRole("button", { name: "Tentar novamente" }));
 
     expect(await screen.findByLabelText("Coeficiente de retorno")).toHaveValue(
-      SYSTEM_DEFAULTS.returnCoefficient,
+      parameters.returnCoefficient,
     );
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it("links validation feedback to its input", async () => {
     const user = userEvent.setup();
-    fetchMock.mockResolvedValue(createJsonResponse(SYSTEM_DEFAULTS));
+    fetchMock.mockResolvedValue(createJsonResponse(parameters));
 
     renderForm();
 
@@ -92,19 +103,20 @@ describe("HydraulicsForm", () => {
     await user.clear(returnCoefficient);
     await user.click(screen.getByRole("button", { name: "Salvar alterações" }));
 
-    expect(
-      await screen.findByText("O coeficiente de retorno é obrigatório."),
-    ).toHaveAttribute("id", "return-coef-error");
+    expect(await screen.findByText(/expected number/i)).toHaveAttribute(
+      "id",
+      "returnCoefficient-error",
+    );
     expect(returnCoefficient).toHaveAttribute(
       "aria-describedby",
-      "return-coef-error",
+      "returnCoefficient-error",
     );
     expect(returnCoefficient).toHaveAttribute("aria-invalid", "true");
   });
 
   it("confirms before leaving a dirty form", async () => {
     const user = userEvent.setup();
-    fetchMock.mockResolvedValue(createJsonResponse(SYSTEM_DEFAULTS));
+    fetchMock.mockResolvedValue(createJsonResponse(parameters));
 
     renderForm();
 
@@ -131,7 +143,7 @@ describe("HydraulicsForm", () => {
     );
 
     await waitFor(() => {
-      expect(mocks.push).toHaveBeenCalledWith("/home");
+      expect(mocks.push).toHaveBeenCalledWith("/project/project-1");
     });
   });
 });

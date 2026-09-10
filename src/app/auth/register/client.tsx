@@ -24,7 +24,6 @@ export function RegisterForm() {
   } = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
-      name: "",
       cnpj: "",
       email: "",
       password: "",
@@ -52,28 +51,6 @@ export function RegisterForm() {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-      {/* Campo: Nome da Empresa */}
-      <Controller
-        name="name"
-        control={control}
-        render={({ field, fieldState }) => (
-          <Field data-invalid={fieldState.invalid}>
-            <FieldLabel htmlFor={field.name}>Nome da Empresa</FieldLabel>
-            <Input
-              {...field}
-              id={field.name}
-              type="text"
-              placeholder="Sua Empresa LTDA"
-              aria-invalid={fieldState.invalid}
-            />
-            <FieldDescription>
-              Nome oficial da empresa para identificação no sistema.
-            </FieldDescription>
-            {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
-          </Field>
-        )}
-      />
-
       {/* Campo: CNPJ */}
       <Controller
         name="cnpj"
@@ -133,7 +110,7 @@ export function RegisterForm() {
               aria-invalid={fieldState.invalid}
             />
             <FieldDescription>
-              Mínimo 8 caracteres, com 1 letra maiúscula e 1 número.
+              Escolha uma senha para acessar a conta.
             </FieldDescription>
             {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
           </Field>

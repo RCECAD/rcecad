@@ -1,16 +1,20 @@
 import "server-only";
 
 import { redirect } from "next/navigation";
-import type { User } from "@/domain/entities";
+import {
+  loginResponseSchema,
+  refreshTokenRequestSchema,
+  registeredUserResponseSchema,
+} from "@/api/contracts/spring";
 import type { LoginFormValues } from "@/schemas/login";
 import type { RegisterFormValues } from "@/schemas/register";
-import { clearAuthSession, hasAuthSession, setAuthSession } from "./session";
 import {
-  normalizeAuthTokens,
-  SpringApiError,
-  springRequest,
-  springRequestWithRefresh,
-} from "./spring-client";
+  clearAuthSession,
+  getAuthSession,
+  hasAuthSession,
+  setAuthSession,
+} from "./session";
+import { SpringApiError, springRequest } from "./spring-client";
 
 export type AuthActionResult =
   | {
@@ -23,66 +27,51 @@ export type AuthActionResult =
 
 export function getAuthErrorMessage(error: unknown): string {
   if (error instanceof SpringApiError && error.status === 401) {
-    return "E-mail ou senha invalidos.";
+    return "E-mail ou senha inválidos.";
   }
 
   if (error instanceof SpringApiError && error.status === 409) {
-    return "Ja existe uma conta com estes dados.";
+    return "Já existe uma conta com estes dados.";
   }
 
-  return "Nao foi possivel concluir a operacao. Tente novamente.";
+  if (error instanceof SpringApiError && error.status === 400) {
+    return "Verifique os dados informados e tente novamente.";
+  }
+
+  return "Não foi possível concluir a operação. Tente novamente.";
 }
 
 export async function loginWithSpring(input: LoginFormValues): Promise<void> {
-  const payload = await springRequest<unknown>(
+  const payload = await springRequest(
     "/auth/login",
     {
       method: "POST",
       body: JSON.stringify(input),
     },
-    { auth: false },
+    { auth: false, schema: loginResponseSchema },
   );
 
-  await setAuthSession(normalizeAuthTokens(payload));
+  await setAuthSession(payload);
 }
 
 export async function registerWithSpring(
   input: RegisterFormValues,
 ): Promise<void> {
   const { confirmPassword: _confirmPassword, ...payload } = input;
-  const response = await springRequest<unknown>(
+  const response = await springRequest(
     "/auth/register",
     {
       method: "POST",
       body: JSON.stringify(payload),
     },
-    { auth: false },
+    { auth: false, schema: registeredUserResponseSchema },
   );
 
-  try {
-    await setAuthSession(normalizeAuthTokens(response));
-  } catch {
-    await loginWithSpring({
-      email: input.email,
-      password: input.password,
-    });
+  if (!response.id) {
+    throw new Error("Cadastro concluído sem identificador de usuário.");
   }
-}
 
-export async function getCurrentUser(): Promise<User> {
-  try {
-    return await springRequest<User>("/auth/me");
-  } catch (error) {
-    if (error instanceof SpringApiError && error.status === 401) {
-      redirect("/auth/login");
-    }
-
-    throw error;
-  }
-}
-
-export async function getCurrentUserWithRefresh(): Promise<User> {
-  return springRequestWithRefresh<User>("/auth/me");
+  await loginWithSpring({ email: input.email, password: input.password });
 }
 
 export async function ensureAuthenticated(): Promise<void> {
@@ -92,8 +81,23 @@ export async function ensureAuthenticated(): Promise<void> {
 }
 
 export async function logoutFromSpring(): Promise<void> {
+  const session = await getAuthSession();
+
   try {
-    await springRequestWithRefresh("/auth/logout", { method: "POST" });
+    if (session.refreshToken) {
+      await springRequest(
+        "/auth/logout",
+        {
+          method: "POST",
+          body: JSON.stringify(
+            refreshTokenRequestSchema.parse({
+              refreshToken: session.refreshToken,
+            }),
+          ),
+        },
+        { auth: false, schema: loginResponseSchema.nullable() },
+      );
+    }
   } catch {
     // Local session cleanup must happen even if the backend is unavailable.
   } finally {

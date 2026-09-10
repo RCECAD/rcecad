@@ -1,29 +1,18 @@
-import { routeErrorResponse } from "@/api/server/route-errors";
 import {
-  SpringApiError,
-  springRequestWithRefresh,
-} from "@/api/server/spring-client";
-import type { HydraulicsFormValues } from "@/schemas/hydraulics";
-import { SYSTEM_DEFAULTS } from "@/utils/constants";
+  getProjectParameters,
+  updateProjectParameters,
+} from "@/api/server/projects";
+import { routeErrorResponse } from "@/api/server/route-errors";
+import { hydraulicsSchema } from "@/schemas/hydraulics";
 
 export async function GET(
   _request: Request,
   context: { params: Promise<{ projectId: string }> },
 ) {
-  const { projectId } = await context.params;
-  const path = `/projects/${encodeURIComponent(projectId)}/hydraulics`;
-
   try {
-    const payload = await springRequestWithRefresh<HydraulicsFormValues>(path);
-    return Response.json(payload);
+    const { projectId } = await context.params;
+    return Response.json(await getProjectParameters(projectId));
   } catch (error) {
-    if (
-      error instanceof SpringApiError &&
-      (error.status === 401 || error.status === 404)
-    ) {
-      return Response.json(SYSTEM_DEFAULTS);
-    }
-
     return routeErrorResponse(error);
   }
 }
@@ -32,22 +21,22 @@ export async function PUT(
   request: Request,
   context: { params: Promise<{ projectId: string }> },
 ) {
-  const { projectId } = await context.params;
-  const values = (await request.json()) as HydraulicsFormValues;
-  const path = `/projects/${encodeURIComponent(projectId)}/hydraulics`;
+  const parsed = hydraulicsSchema.safeParse(await request.json());
+
+  if (!parsed.success) {
+    return Response.json(
+      {
+        error: "Revise os parâmetros informados.",
+        issues: parsed.error.issues,
+      },
+      { status: 400 },
+    );
+  }
 
   try {
-    const payload = await springRequestWithRefresh<HydraulicsFormValues>(path, {
-      method: "PUT",
-      body: JSON.stringify(values),
-    });
-
-    return Response.json(payload);
+    const { projectId } = await context.params;
+    return Response.json(await updateProjectParameters(projectId, parsed.data));
   } catch (error) {
-    if (error instanceof SpringApiError && error.status === 401) {
-      return Response.json(values);
-    }
-
     return routeErrorResponse(error);
   }
 }

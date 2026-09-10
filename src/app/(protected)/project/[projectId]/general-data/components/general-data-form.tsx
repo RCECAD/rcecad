@@ -6,13 +6,17 @@ import { Lock, Save, Undo2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import {
-  Controller,
   type FieldErrors,
   type FieldPath,
   type UseFormRegister,
   useForm,
 } from "react-hook-form";
 import { toast } from "sonner";
+import {
+  invalidateProjectDependents,
+  projectQueryKeys,
+} from "@/api/client/query-keys";
+import { parseClientJson } from "@/api/client/response";
 import { useUnsavedChanges } from "@/components/project/unsaved-changes-provider";
 import { Button } from "@/components/ui/button";
 import {
@@ -27,18 +31,10 @@ import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { PageLoading } from "@/components/ui/page-state";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import {
   GENERAL_DATA_DEFAULTS,
   type GeneralDataFormValues,
   generalDataSchema,
-  systemTypes,
+  projectStatuses,
 } from "@/schemas/general-data";
 
 type GeneralDataFormProps = {
@@ -46,59 +42,35 @@ type GeneralDataFormProps = {
 };
 
 type TextFieldConfig = {
-  name: FieldPath<GeneralDataFormValues>;
+  name: Exclude<FieldPath<GeneralDataFormValues>, "status">;
   label: string;
   placeholder: string;
+  optional?: boolean;
 };
 
-const identificationFields = [
+const textFields = [
   {
-    name: "projectName",
+    name: "name",
     label: "Nome do Projeto",
     placeholder: "Digite o nome do projeto",
-  },
-  {
-    name: "internalCode",
-    label: "Código Interno",
-    placeholder: "Digite o código interno",
   },
   {
     name: "contractor",
     label: "Contratante",
     placeholder: "Digite o contratante",
-  },
-  {
-    name: "city",
-    label: "Município/Localidade",
-    placeholder: "Digite o município/localidade",
-  },
-  {
-    name: "revision",
-    label: "Revisão",
-    placeholder: "Digite a revisão",
+    optional: true,
   },
   {
     name: "technicalManager",
     label: "Responsável Técnico",
     placeholder: "Digite o responsável técnico",
-  },
-] satisfies Array<TextFieldConfig>;
-
-const spatialScopeFields = [
-  {
-    name: "basin",
-    label: "Bacia",
-    placeholder: "Ex. Bacia do Rio Paraná",
+    optional: true,
   },
   {
-    name: "sector",
-    label: "Setor",
-    placeholder: "Ex. Setor Central",
-  },
-  {
-    name: "totalArea",
-    label: "Área Total",
-    placeholder: "Ex. 2.5km²",
+    name: "location",
+    label: "Localidade",
+    placeholder: "Digite a localidade",
+    optional: true,
   },
 ] satisfies Array<TextFieldConfig>;
 
@@ -120,7 +92,10 @@ function TextField({
 
   return (
     <Field data-invalid={Boolean(error)}>
-      <FieldLabel htmlFor={config.name}>{config.label}</FieldLabel>
+      <FieldLabel htmlFor={config.name}>
+        {config.label}
+        {config.optional ? " (opcional)" : ""}
+      </FieldLabel>
       <Input
         id={config.name}
         type="text"
@@ -138,29 +113,26 @@ export function GeneralDataForm({ projectId }: Readonly<GeneralDataFormProps>) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { requestNavigation, setHasUnsavedChanges } = useUnsavedChanges();
+  const queryKey = projectQueryKeys.generalData(projectId);
 
   const {
     data: generalData,
     isError,
     isLoading,
     refetch,
-  } = useQuery<GeneralDataFormValues>({
-    queryKey: ["projectGeneralData", projectId],
-    queryFn: async () => {
-      const response = await fetch(`/api/projects/${projectId}/general-data`);
-
-      if (!response.ok) {
-        throw new Error("Erro ao carregar dados gerais.");
-      }
-
-      return (await response.json()) as GeneralDataFormValues;
-    },
+  } = useQuery({
+    queryKey,
+    queryFn: async () =>
+      parseClientJson(
+        await fetch(`/api/projects/${projectId}/general-data`),
+        generalDataSchema,
+        "Erro ao carregar dados gerais.",
+      ),
     enabled: Boolean(projectId),
     retry: false,
   });
 
   const {
-    control,
     formState: { errors, isDirty },
     handleSubmit,
     register,
@@ -177,24 +149,20 @@ export function GeneralDataForm({ projectId }: Readonly<GeneralDataFormProps>) {
   }, [generalData, reset]);
 
   const saveMutation = useMutation({
-    mutationFn: async (values: GeneralDataFormValues) => {
-      const response = await fetch(`/api/projects/${projectId}/general-data`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(values),
-      });
-
-      if (!response.ok) {
-        throw new Error("Erro ao salvar dados gerais.");
-      }
-
-      return (await response.json()) as GeneralDataFormValues;
-    },
-    onSuccess: (data) => {
-      queryClient.setQueryData(["projectGeneralData", projectId], data);
+    mutationFn: async (values: GeneralDataFormValues) =>
+      parseClientJson(
+        await fetch(`/api/projects/${projectId}/general-data`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(values),
+        }),
+        generalDataSchema,
+        "Erro ao salvar dados gerais.",
+      ),
+    onSuccess: async (data) => {
+      queryClient.setQueryData(queryKey, data);
       reset(data);
+      await invalidateProjectDependents(queryClient, projectId);
       toast.success("Dados gerais salvos com sucesso!");
     },
     onError: (error) => {
@@ -207,15 +175,12 @@ export function GeneralDataForm({ projectId }: Readonly<GeneralDataFormProps>) {
     setHasUnsavedChanges(isDirty && !saveMutation.isPending);
   }, [isDirty, saveMutation.isPending, setHasUnsavedChanges]);
 
-  useEffect(() => {
-    return () => {
+  useEffect(
+    () => () => {
       setHasUnsavedChanges(false);
-    };
-  }, [setHasUnsavedChanges]);
-
-  function onSubmit(values: GeneralDataFormValues) {
-    saveMutation.mutate(values);
-  }
+    },
+    [setHasUnsavedChanges],
+  );
 
   if (isLoading) {
     return <PageLoading label="Carregando dados gerais" />;
@@ -235,7 +200,7 @@ export function GeneralDataForm({ projectId }: Readonly<GeneralDataFormProps>) {
 
   return (
     <form
-      onSubmit={handleSubmit(onSubmit)}
+      onSubmit={handleSubmit((values) => saveMutation.mutate(values))}
       aria-busy={saveMutation.isPending}
       className="mx-auto max-w-5xl space-y-6"
     >
@@ -254,114 +219,42 @@ export function GeneralDataForm({ projectId }: Readonly<GeneralDataFormProps>) {
       <Card className="rounded-lg border border-border/80 bg-card/40 shadow-xs">
         <CardHeader className="pb-4">
           <CardTitle className="text-base font-semibold">
-            1. Identificação
+            Identificação do projeto
           </CardTitle>
           <CardDescription>
-            Informações básicas de identificação do projeto
+            Campos disponíveis no cadastro oficial do projeto.
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-            {identificationFields.map((field) => (
-              <TextField
-                key={field.name}
-                config={field}
-                errors={errors}
-                register={register}
-              />
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card className="rounded-lg border border-border/80 bg-card/40 shadow-xs">
-        <CardHeader className="pb-4">
-          <CardTitle className="text-base font-semibold">
-            2. Contexto Técnico
-          </CardTitle>
-          <CardDescription>
-            Características técnicas e escopo do projeto
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-5">
-          <div className="grid gap-5 md:grid-cols-2">
-            <Controller
-              name="systemType"
-              control={control}
-              render={({ field, fieldState }) => (
-                <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor={field.name}>Tipo de Sistema</FieldLabel>
-                  <Select value={field.value} onValueChange={field.onChange}>
-                    <SelectTrigger
-                      id={field.name}
-                      className="w-full bg-background"
-                      aria-invalid={fieldState.invalid}
-                    >
-                      <SelectValue placeholder="Selecione o Tipo" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {systemTypes.map((type) => (
-                        <SelectItem key={type} value={type}>
-                          {type}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {fieldState.invalid && (
-                    <FieldError errors={[fieldState.error]} />
-                  )}
-                </Field>
-              )}
-            />
-
+        <CardContent className="grid gap-5 md:grid-cols-2">
+          {textFields.map((field) => (
             <TextField
-              config={{
-                name: "horizonStage",
-                label: "Etapa/Horizonte",
-                placeholder: "Ex. 2024-2034, Fase 1",
-              }}
+              key={field.name}
+              config={field}
               errors={errors}
               register={register}
             />
-          </div>
-
-          <Field data-invalid={Boolean(errors.notes)}>
-            <FieldLabel htmlFor="notes">Observações</FieldLabel>
-            <Textarea
-              id="notes"
-              placeholder="Digite..."
-              aria-invalid={Boolean(errors.notes)}
-              aria-describedby={errors.notes ? getErrorId("notes") : undefined}
-              className="min-h-32 bg-background"
-              {...register("notes")}
-            />
-            {errors.notes && (
-              <FieldError id={getErrorId("notes")} errors={[errors.notes]} />
+          ))}
+          <Field data-invalid={Boolean(errors.status)}>
+            <FieldLabel htmlFor="status">Status</FieldLabel>
+            <select
+              id="status"
+              className="flex h-9 w-full rounded-md border border-input bg-background px-2.5 py-1 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+              aria-invalid={Boolean(errors.status)}
+              aria-describedby={
+                errors.status ? getErrorId("status") : undefined
+              }
+              {...register("status")}
+            >
+              {projectStatuses.map((status) => (
+                <option key={status.value} value={status.value}>
+                  {status.label}
+                </option>
+              ))}
+            </select>
+            {errors.status && (
+              <FieldError id={getErrorId("status")} errors={[errors.status]} />
             )}
           </Field>
-        </CardContent>
-      </Card>
-
-      <Card className="rounded-lg border border-border/80 bg-card/40 shadow-xs">
-        <CardHeader className="pb-4">
-          <CardTitle className="text-base font-semibold">
-            3. Escopo Espacial
-          </CardTitle>
-          <CardDescription>
-            Delimitação geográfica e setorização do projeto
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-5 md:grid-cols-3">
-            {spatialScopeFields.map((field) => (
-              <TextField
-                key={field.name}
-                config={field}
-                errors={errors}
-                register={register}
-              />
-            ))}
-          </div>
         </CardContent>
       </Card>
 
