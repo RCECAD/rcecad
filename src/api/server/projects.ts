@@ -17,6 +17,7 @@ import type {
   ProjectsStatusSummary,
 } from "@/domain/entities";
 import type { GeneralDataFormValues } from "@/schemas/general-data";
+import { isDevPreview, previewProject } from "./dev-preview";
 import {
   SpringApiError,
   springRequest,
@@ -84,6 +85,18 @@ export async function getHomeProjects({
 }: {
   refresh?: boolean;
 } = {}): Promise<HomeProjectsPayload> {
+  if (isDevPreview) {
+    return {
+      recentProjects: [previewProject],
+      projects: [previewProject],
+      statusSummary: buildSummary([previewProject]),
+      page: 0,
+      size: 100,
+      totalElements: 1,
+      totalPages: 1,
+    };
+  }
+
   const response = await listProjects({ page: 0, size: 100 }, { refresh });
 
   return {
@@ -105,6 +118,10 @@ export async function getProjectById(
     refresh?: boolean;
   } = {},
 ): Promise<Project | undefined> {
+  if (isDevPreview && projectId === previewProject.id) {
+    return previewProject;
+  }
+
   const request = refresh ? springRequestWithRefresh : springRequest;
 
   try {
