@@ -1,6 +1,10 @@
 import "server-only";
 
 import {
+  type CreateProjectRequest,
+  createProjectRequestSchema,
+  type ImportDxfRequest,
+  importDxfRequestSchema,
   type ProjectListQuery,
   type ProjectParameters,
   projectDetailResponseSchema,
@@ -11,6 +15,7 @@ import {
   updateProjectRequestSchema,
 } from "@/api/contracts/spring";
 import { toProject, toProjectFromDetail } from "@/api/server/project-adapters";
+import { springPageRequest } from "@/api/server/spring-page-client";
 import type {
   HomeProjectsPayload,
   Project,
@@ -81,7 +86,7 @@ export async function listProjects(
 }
 
 export async function getHomeProjects({
-  refresh = true,
+  refresh = false,
 }: {
   refresh?: boolean;
 } = {}): Promise<HomeProjectsPayload> {
@@ -97,7 +102,12 @@ export async function getHomeProjects({
     };
   }
 
-  const response = await listProjects({ page: 0, size: 100 }, { refresh });
+  const response = await (refresh
+    ? listProjects({ page: 0, size: 100 }, { refresh })
+    : springPageRequest(
+        () => listProjects({ page: 0, size: 100 }, { refresh: false }),
+        "/home",
+      ));
 
   return {
     recentProjects: response.content.slice(0, 3),
@@ -113,7 +123,7 @@ export async function getHomeProjects({
 export async function getProjectById(
   projectId: string,
   {
-    refresh = true,
+    refresh = false,
   }: {
     refresh?: boolean;
   } = {},
@@ -125,13 +135,17 @@ export async function getProjectById(
   const request = refresh ? springRequestWithRefresh : springRequest;
 
   try {
-    const response = await request(
-      projectPath(projectId),
-      {},
-      {
-        schema: projectDetailResponseSchema,
-      },
-    );
+    const load = () =>
+      request(
+        projectPath(projectId),
+        {},
+        {
+          schema: projectDetailResponseSchema,
+        },
+      );
+    const response = await (refresh
+      ? load()
+      : springPageRequest(load, `/project/${encodeURIComponent(projectId)}`));
     return toProjectFromDetail(response);
   } catch (error) {
     if (error instanceof SpringApiError && error.status === 404) {
@@ -140,6 +154,32 @@ export async function getProjectById(
 
     throw error;
   }
+}
+
+export async function createProject(
+  values: CreateProjectRequest,
+): Promise<Project> {
+  const response = await springRequestWithRefresh(
+    "/projects",
+    {
+      method: "POST",
+      body: JSON.stringify(createProjectRequestSchema.parse(values)),
+    },
+    { schema: projectResponseSchema },
+  );
+  return toProject(response);
+}
+
+export async function importDxf(values: ImportDxfRequest): Promise<Project> {
+  const response = await springRequestWithRefresh(
+    "/projects/import-dxf",
+    {
+      method: "POST",
+      body: JSON.stringify(importDxfRequestSchema.parse(values)),
+    },
+    { schema: projectDetailResponseSchema },
+  );
+  return toProjectFromDetail(response);
 }
 
 export async function updateProject(
@@ -167,14 +207,25 @@ export async function updateProject(
 
 export async function getProjectParameters(
   projectId: string,
-): Promise<ProjectParameters> {
-  return springRequestWithRefresh(
-    `${projectPath(projectId)}/parameters`,
-    {},
-    {
-      schema: projectParametersSchema,
-    },
-  );
+): Promise<ProjectParameters | null> {
+  try {
+    return await springRequestWithRefresh(
+      `${projectPath(projectId)}/parameters`,
+      {},
+      {
+        schema: projectParametersSchema,
+      },
+    );
+  } catch (error) {
+    // A newly created project has no parameters yet. Keep a missing project a 404.
+    if (
+      error instanceof SpringApiError &&
+      error.status === 404 &&
+      (await getProjectById(projectId, { refresh: true }))
+    )
+      return null;
+    throw error;
+  }
 }
 
 export async function updateProjectParameters(

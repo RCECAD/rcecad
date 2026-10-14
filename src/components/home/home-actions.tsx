@@ -2,6 +2,8 @@
 
 import { motion } from "framer-motion";
 import { FilePlus2, ScanSearch } from "lucide-react";
+import { useState } from "react";
+import { ProjectCreateDialog } from "@/components/home/project-create-dialog";
 import { Card, CardContent } from "@/components/ui/card";
 
 const actions = [
@@ -9,17 +11,23 @@ const actions = [
     title: "Novo Projeto",
     description: "Comece pelo básico.",
     icon: FilePlus2,
+    mode: "create" as const,
   },
   {
     title: "Importar .DXF",
     description: "Comece rapidamente.",
     icon: ScanSearch,
+    mode: "import" as const,
   },
 ];
 
 export function HomeActions() {
+  const [mode, setMode] = useState<"create" | "import" | null>(null);
   return (
     <div className="grid gap-4 md:grid-cols-2">
+      {mode && (
+        <ProjectCreateDialog mode={mode} onClose={() => setMode(null)} />
+      )}
       {actions.map((action, index) => {
         const Icon = action.icon;
 
@@ -31,6 +39,7 @@ export function HomeActions() {
           <motion.button
             key={action.title}
             type="button"
+            onClick={() => setMode(action.mode)}
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.25, delay: 0.08 * index }}

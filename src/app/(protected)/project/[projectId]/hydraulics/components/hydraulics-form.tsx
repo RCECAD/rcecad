@@ -22,7 +22,13 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { ErrorState } from "@/components/ui/error-state";
-import { Field, FieldError, FieldLabel } from "@/components/ui/field";
+import {
+  Field,
+  FieldDescription,
+  FieldError,
+  FieldLabel,
+} from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 import {
   InputGroup,
   InputGroupAddon,
@@ -78,9 +84,9 @@ const parameterFields = [
   {
     name: "infiltrationRate",
     label: "Taxa de infiltração",
-    unit: "L/s.m",
+    unit: "L/s por km",
     min: 0,
-    step: 0.0001,
+    step: 0.01,
   },
   {
     name: "peakDailyFactor",
@@ -98,7 +104,7 @@ const parameterFields = [
   },
   {
     name: "manningCoefficient",
-    label: "Coeficiente de Manning",
+    label: "Coeficiente de Manning (registro)",
     unit: "adimensional",
     min: Number.MIN_VALUE,
     step: 0.001,
@@ -125,7 +131,7 @@ export function HydraulicsForm({ projectId }: Readonly<HydraulicsFormProps>) {
     queryFn: async () =>
       parseClientJson(
         await fetch(`/api/projects/${projectId}/hydraulics`),
-        hydraulicsSchema,
+        hydraulicsSchema.nullable(),
         "Erro ao carregar parâmetros hidráulicos.",
       ),
     enabled: Boolean(projectId),
@@ -142,8 +148,14 @@ export function HydraulicsForm({ projectId }: Readonly<HydraulicsFormProps>) {
   });
 
   useEffect(() => {
-    if (hydraulicData) {
-      reset(hydraulicData);
+    if (hydraulicData !== undefined) {
+      reset(
+        hydraulicData ?? {
+          infiltrationRate: null,
+          manningCoefficient: null,
+          defaultNetworkMaterial: null,
+        },
+      );
     }
   }, [hydraulicData, reset]);
 
@@ -217,6 +229,12 @@ export function HydraulicsForm({ projectId }: Readonly<HydraulicsFormProps>) {
       <h1 className="text-3xl font-bold tracking-tight text-foreground">
         Hidráulica
       </h1>
+      {hydraulicData === null && (
+        <p className="text-sm text-muted-foreground">
+          Este projeto ainda não possui parâmetros hidráulicos. Preencha os
+          campos para começar.
+        </p>
+      )}
 
       <Card className="border border-border/80 bg-card/40 shadow-xs">
         <CardHeader className="pb-4">
@@ -224,17 +242,54 @@ export function HydraulicsForm({ projectId }: Readonly<HydraulicsFormProps>) {
             Parâmetros globais do sistema
           </CardTitle>
           <CardDescription>
-            Estes valores são usados no cálculo de todos os trechos do projeto.
+            Parâmetros da rede usados no dimensionamento. O coeficiente de
+            Manning é mantido apenas como registro; o cálculo define a
+            rugosidade pelo material.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-6 md:grid-cols-2">
+          <Field
+            data-invalid={Boolean(errors.defaultNetworkMaterial)}
+            className="md:col-span-2"
+          >
+            <FieldLabel htmlFor="defaultNetworkMaterial">
+              Material da rede
+            </FieldLabel>
+            <Input
+              id="defaultNetworkMaterial"
+              maxLength={100}
+              placeholder="Ex.: PVC JEI"
+              aria-invalid={Boolean(errors.defaultNetworkMaterial)}
+              aria-describedby="defaultNetworkMaterial-description defaultNetworkMaterial-error"
+              {...register("defaultNetworkMaterial", {
+                setValueAs: (value: string | null) => value?.trim() || null,
+              })}
+            />
+            <FieldDescription id="defaultNetworkMaterial-description">
+              Pode ficar em branco durante o cadastro, mas é necessário para
+              dimensionar a rede.
+            </FieldDescription>
+            {errors.defaultNetworkMaterial && (
+              <FieldError
+                id="defaultNetworkMaterial-error"
+                errors={[errors.defaultNetworkMaterial]}
+                role="alert"
+              />
+            )}
+          </Field>
           {parameterFields.map((field) => {
             const error = errors[field.name];
             const errorId = getErrorId(field.name);
 
             return (
               <Field key={field.name} data-invalid={Boolean(error)}>
-                <FieldLabel htmlFor={field.name}>{field.label}</FieldLabel>
+                <FieldLabel htmlFor={field.name}>
+                  {field.label}
+                  {field.name === "infiltrationRate" ||
+                  field.name === "manningCoefficient"
+                    ? " (opcional)"
+                    : ""}
+                </FieldLabel>
                 <InputGroup>
                   <InputGroupInput
                     id={field.name}
@@ -245,12 +300,21 @@ export function HydraulicsForm({ projectId }: Readonly<HydraulicsFormProps>) {
                     aria-invalid={Boolean(error)}
                     aria-describedby={error ? errorId : undefined}
                     aria-errormessage={error ? errorId : undefined}
-                    {...register(field.name, { valueAsNumber: true })}
+                    {...register(field.name, {
+                      setValueAs: (value: string | null) =>
+                        value === "" || value === null ? null : Number(value),
+                    })}
                   />
                   <InputGroupAddon align="inline-end">
                     {field.unit}
                   </InputGroupAddon>
                 </InputGroup>
+                {field.name === "infiltrationRate" && (
+                  <FieldDescription>
+                    Em branco, será definida conforme a norma do material,
+                    quando houver valor aplicável.
+                  </FieldDescription>
+                )}
                 {error && (
                   <FieldError id={errorId} errors={[error]} role="alert" />
                 )}

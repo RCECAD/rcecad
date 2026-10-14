@@ -9,11 +9,13 @@ export function routeErrorResponse(error: unknown): NextResponse {
     const details = springErrorSchema.safeParse(error.payload);
     const springDetails = details.success ? details.data : undefined;
     const message =
-      springDetails?.details ??
-      springDetails?.title ??
-      (error.status === 401
-        ? "Sua sessão expirou. Entre novamente para continuar."
-        : "Não foi possível concluir a operação com a API.");
+      error.status >= 500
+        ? error.message
+        : (springDetails?.details ??
+          springDetails?.title ??
+          (error.status === 401
+            ? "Sua sessão expirou. Entre novamente para continuar."
+            : "Não foi possível concluir a operação com a API."));
 
     return NextResponse.json(
       {

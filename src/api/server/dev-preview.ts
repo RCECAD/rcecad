@@ -2,9 +2,9 @@ import "server-only";
 
 import type { Project } from "@/domain/entities";
 
-// Temporary UI preview. Set DEV_PREVIEW=false to require login locally again.
+// Explicit opt-in for UI work without Spring. Integration is the default.
 export const isDevPreview =
-  process.env.NODE_ENV === "development" && process.env.DEV_PREVIEW !== "false";
+  process.env.NODE_ENV === "development" && process.env.DEV_PREVIEW === "true";
 
 export const previewProject: Project = {
   id: "dev-project",

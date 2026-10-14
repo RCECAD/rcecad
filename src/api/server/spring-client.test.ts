@@ -11,6 +11,7 @@ vi.mock("server-only", () => ({}));
 vi.mock("@/api/server/session", () => mocks);
 
 import {
+  refreshSpringSession,
   SpringContractError,
   springRequest,
   springRequestWithRefresh,
@@ -152,5 +153,107 @@ describe("Spring client", () => {
         ([url]) => new URL(url).pathname === "/api/auth/refresh",
       ),
     ).toHaveLength(1);
+    expect(mocks.setAuthSession).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps the session when refresh fails because Spring is unavailable", async () => {
+    fetchMock.mockRejectedValueOnce(new TypeError("fetch failed"));
+    await expect(refreshSpringSession()).rejects.toMatchObject({ status: 503 });
+    expect(mocks.clearAuthSession).not.toHaveBeenCalled();
+  });
+
+  it("clears a rejected refresh token", async () => {
+    fetchMock.mockResolvedValueOnce(new Response(null, { status: 401 }));
+    await expect(refreshSpringSession()).resolves.toBeNull();
+    expect(mocks.clearAuthSession).toHaveBeenCalledOnce();
+  });
+
+  it("stops after a second 401 and clears the rejected session", async () => {
+    fetchMock
+      .mockResolvedValueOnce(new Response(null, { status: 401 }))
+      .mockResolvedValueOnce(Response.json(tokens))
+      .mockResolvedValueOnce(new Response(null, { status: 401 }));
+    await expect(
+      springRequestWithRefresh(
+        "/projects",
+        {},
+        { schema: z.object({ id: z.string() }) },
+      ),
+    ).rejects.toMatchObject({ status: 401 });
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(mocks.clearAuthSession).toHaveBeenCalledOnce();
+  });
+
+  it("preserves cookies when the refresh endpoint returns 503", async () => {
+    fetchMock.mockResolvedValueOnce(new Response(null, { status: 503 }));
+    await expect(refreshSpringSession()).rejects.toMatchObject({ status: 503 });
+    expect(mocks.clearAuthSession).not.toHaveBeenCalled();
+  });
+
+  it("reports interrupted response bodies as a connection failure", async () => {
+    fetchMock.mockResolvedValueOnce(
+      new Response(
+        new ReadableStream({
+          start(controller) {
+            controller.error(new TypeError("connection reset"));
+          },
+        }),
+      ),
+    );
+    await expect(
+      springRequestWithRefresh(
+        "/projects",
+        {},
+        { schema: z.object({ id: z.string() }) },
+      ),
+    ).rejects.toMatchObject({ status: 503 });
+    expect(mocks.clearAuthSession).not.toHaveBeenCalled();
+  });
+
+  it("shares rotation when concurrent requests receive their 401 at different times", async () => {
+    let releaseSecond: (response: Response) => void = () => {};
+    let refreshes = 0;
+    const secondResponse = new Promise<Response>((resolve) => {
+      releaseSecond = resolve;
+    });
+    fetchMock.mockImplementation(async (url: URL, init: RequestInit) => {
+      if (url.pathname === "/api/auth/refresh") {
+        refreshes++;
+        return refreshes === 1
+          ? Response.json(tokens)
+          : new Response(null, { status: 401 });
+      }
+      if (
+        new Headers(init.headers).get("Authorization") ===
+        "Bearer new-access-token"
+      )
+        return Response.json({ ok: true });
+      if (url.pathname.endsWith("slow")) return secondResponse;
+      return new Response(null, { status: 401 });
+    });
+    const schema = z.object({ ok: z.boolean() });
+    const first = springRequestWithRefresh("/projects/fast", {}, { schema });
+    const second = springRequestWithRefresh("/projects/slow", {}, { schema });
+    await first;
+    releaseSecond(new Response(null, { status: 401 }));
+    await expect(second).resolves.toEqual({ ok: true });
+    expect(refreshes).toBe(1);
+    expect(mocks.clearAuthSession).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    "https://spring.example/rcecad",
+    "https://spring.example/rcecad/api/",
+  ])("preserves the deployment prefix in %s", async (base) => {
+    process.env.SPRING_API_BASE_URL = base;
+    fetchMock.mockResolvedValueOnce(Response.json({ ok: true }));
+    await springRequest(
+      "/projects",
+      {},
+      { schema: z.object({ ok: z.boolean() }) },
+    );
+    expect(String(fetchMock.mock.calls[0][0])).toBe(
+      "https://spring.example/rcecad/api/projects",
+    );
   });
 });
