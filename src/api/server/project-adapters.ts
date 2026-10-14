@@ -35,7 +35,10 @@ export function toProject(
 }
 
 export function toProjectFromDetail(source: ProjectDetailResponse): Project {
-  return toProject(source.project);
+  return {
+    ...toProject(source.project),
+    totalSegments: source.segments.length,
+  };
 }
 
 export function toGeneralDataFormValues(

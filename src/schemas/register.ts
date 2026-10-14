@@ -4,11 +4,18 @@ const cnpjRegex = /^\d{14}$/;
 
 export const registerSchema = z
   .object({
-    cnpj: z.string().trim().regex(cnpjRegex, "O CNPJ deve ter 14 dígitos."),
+    cnpj: z
+      .string()
+      .trim()
+      .transform((value) => value.replace(/[./-]/g, ""))
+      .pipe(z.string().regex(cnpjRegex, "O CNPJ deve ter 14 dígitos.")),
 
     email: z.string().trim().email("Informe um email válido."),
 
-    password: z.string().min(1, "Informe a senha."),
+    password: z
+      .string()
+      .min(1, "Informe a senha.")
+      .refine((value) => value.trim().length > 0, "Informe a senha."),
 
     confirmPassword: z.string(),
   })

@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
+  createProject: vi.fn(),
+  importDxf: vi.fn(),
   getProjectById: vi.fn(),
   getProjectParameters: vi.fn(),
   listProjects: vi.fn(),
@@ -10,6 +12,8 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@/api/server/projects", () => ({
+  createProject: mocks.createProject,
+  importDxf: mocks.importDxf,
   getProjectById: mocks.getProjectById,
   getProjectParameters: mocks.getProjectParameters,
   listProjects: mocks.listProjects,
@@ -32,7 +36,8 @@ import {
   GET as getHydraulics,
   PUT as updateHydraulics,
 } from "./[projectId]/hydraulics/route";
-import { GET as listProjects } from "./route";
+import { POST as importDxf } from "./import-dxf/route";
+import { POST as createProject, GET as listProjects } from "./route";
 
 const parameters = {
   initialPopulation: 312,
@@ -43,6 +48,7 @@ const parameters = {
   peakDailyFactor: 1.25,
   peakHourlyFactor: 1.6,
   manningCoefficient: 0.01,
+  defaultNetworkMaterial: "PVC JEI",
 };
 
 describe("protected project route handlers", () => {
@@ -50,6 +56,48 @@ describe("protected project route handlers", () => {
     Object.values(mocks).forEach((mock) => {
       mock.mockReset();
     });
+  });
+
+  it("creates a project with only the editable fields", async () => {
+    const values = {
+      name: "Nova rede",
+      contractor: null,
+      technicalManager: null,
+      location: null,
+    };
+    mocks.createProject.mockResolvedValue({ id: "project-1", ...values });
+    const response = await createProject(
+      new Request("http://localhost/api/projects", {
+        method: "POST",
+        body: JSON.stringify({ ...values, ownerId: "someone-else" }),
+      }),
+    );
+    expect(response.status).toBe(201);
+    expect(mocks.createProject).toHaveBeenCalledWith(values);
+  });
+
+  it("rejects malformed JSON before creating a project", async () => {
+    const response = await createProject(
+      new Request("http://localhost/api/projects", {
+        method: "POST",
+        body: "{",
+      }),
+    );
+    expect(response.status).toBe(400);
+    expect(mocks.createProject).not.toHaveBeenCalled();
+  });
+
+  it("imports the raw DXF document", async () => {
+    const values = { name: "Rede importada", dxf: "  0\nSECTION\n  0\nEOF\n" };
+    mocks.importDxf.mockResolvedValue({ id: "project-1" });
+    const response = await importDxf(
+      new Request("http://localhost/api/projects/import-dxf", {
+        method: "POST",
+        body: JSON.stringify(values),
+      }),
+    );
+    expect(response.status).toBe(201);
+    expect(mocks.importDxf).toHaveBeenCalledWith(values);
   });
 
   it("passes only validated pagination filters to the project list", async () => {
@@ -123,5 +171,20 @@ describe("protected project route handlers", () => {
       parameters,
     );
     await expect(updateResponse.json()).resolves.toEqual(parameters);
+  });
+
+  it.each([
+    ["general data", updateGeneralData],
+    ["hydraulics", updateHydraulics],
+  ])("returns 400 for malformed JSON in %s updates", async (_name, handler) => {
+    const response = await handler(
+      new Request("http://localhost", { method: "PUT", body: "{" }),
+      {
+        params: Promise.resolve({ projectId: "project-1" }),
+      },
+    );
+    expect(response.status).toBe(400);
+    expect(mocks.updateProject).not.toHaveBeenCalled();
+    expect(mocks.updateProjectParameters).not.toHaveBeenCalled();
   });
 });

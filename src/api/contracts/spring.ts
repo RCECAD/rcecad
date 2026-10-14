@@ -1,7 +1,8 @@
 import { z } from "zod";
 
 /**
- * Spring HTTP contract verified against RCECAD/rcecad-back@2846eb4.
+ * Spring HTTP contract verified against RCECAD/rcecad-back@3af1886 and
+ * the local /v3/api-docs on 2026-10-06.
  *
  * Keep these schemas at the boundary: data from Spring is untrusted until it
  * passes one of them, and requests are validated before they leave Next.
@@ -120,10 +121,11 @@ export const projectParametersSchema = z.object({
   finalPopulation: z.number().int().nonnegative(),
   returnCoefficient: z.number().positive(),
   perCapitaFlow: z.number().positive(),
-  infiltrationRate: z.number().nonnegative(),
+  infiltrationRate: z.number().nonnegative().nullable(),
   peakDailyFactor: z.number().positive(),
   peakHourlyFactor: z.number().positive(),
-  manningCoefficient: z.number().positive(),
+  manningCoefficient: z.number().positive().nullable(),
+  defaultNetworkMaterial: z.string().trim().min(1).max(100).nullable(),
 });
 
 const optionalRequestTextSchema = z.string().trim().max(200).nullable();
@@ -139,9 +141,18 @@ export const updateProjectRequestSchema = createProjectRequestSchema.extend({
   status: projectStatusSchema,
 });
 
+export const MAX_DXF_BYTES = 5 * 1024 * 1024;
+
 export const importDxfRequestSchema = z.object({
   name: z.string().trim().min(1).max(200),
-  dxf: z.string().trim().min(1),
+  dxf: z
+    .string()
+    .min(1)
+    .max(MAX_DXF_BYTES)
+    .refine(
+      (value) => new TextEncoder().encode(value).byteLength <= MAX_DXF_BYTES,
+    )
+    .refine((value) => value.trim().length > 0),
 });
 
 export const refreshTokenRequestSchema = z.object({

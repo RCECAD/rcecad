@@ -3,8 +3,10 @@
 import {
   type AuthActionResult,
   getAuthErrorMessage,
+  getRegistrationError,
   loginWithSpring,
   logoutFromSpring,
+  type RegisterActionResult,
   registerWithSpring,
 } from "@/api/server/auth";
 import { type LoginFormValues, loginSchema } from "@/schemas/login";
@@ -35,7 +37,7 @@ export async function loginAction(
 
 export async function registerAction(
   values: RegisterFormValues,
-): Promise<AuthActionResult> {
+): Promise<RegisterActionResult> {
   const parsed = registerSchema.safeParse(values);
 
   if (!parsed.success) {
@@ -46,13 +48,10 @@ export async function registerAction(
   }
 
   try {
-    await registerWithSpring(parsed.data);
-    return { success: true };
+    const result = await registerWithSpring(parsed.data);
+    return { success: true, authenticated: result.authenticated };
   } catch (error) {
-    return {
-      success: false,
-      message: getAuthErrorMessage(error),
-    };
+    return getRegistrationError(error);
   }
 }
 

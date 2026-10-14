@@ -28,7 +28,9 @@ export async function PUT(
   request: Request,
   context: { params: Promise<{ projectId: string }> },
 ) {
-  const parsed = generalDataSchema.safeParse(await request.json());
+  const parsed = generalDataSchema.safeParse(
+    await request.json().catch(() => null),
+  );
 
   if (!parsed.success) {
     return Response.json(

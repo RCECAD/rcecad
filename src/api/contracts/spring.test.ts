@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  importDxfRequestSchema,
   loginResponseSchema,
+  MAX_DXF_BYTES,
   projectPageResponseSchema,
   projectParametersSchema,
 } from "./spring";
@@ -51,6 +53,7 @@ describe("Spring contract schemas", () => {
         peakDailyFactor: 1.25,
         peakHourlyFactor: 1.6,
         manningCoefficient: 0.01,
+        defaultNetworkMaterial: "PVC JEI",
       }).success,
     ).toBe(true);
 
@@ -79,5 +82,46 @@ describe("Spring contract schemas", () => {
         expiresIn: 900,
       }).success,
     ).toBe(false);
+  });
+
+  it("accepts undecided material and optional hydraulic values without inventing defaults", () => {
+    expect(
+      projectParametersSchema.parse({
+        initialPopulation: 0,
+        finalPopulation: 0,
+        returnCoefficient: 0.8,
+        perCapitaFlow: 200,
+        infiltrationRate: null,
+        peakDailyFactor: 1.2,
+        peakHourlyFactor: 1.5,
+        manningCoefficient: null,
+        defaultNetworkMaterial: null,
+      }),
+    ).toMatchObject({
+      infiltrationRate: null,
+      manningCoefficient: null,
+      defaultNetworkMaterial: null,
+    });
+  });
+
+  it("preserves DXF whitespace and rejects an empty document", () => {
+    const dxf = "  0\nSECTION\n  0\nEOF\n";
+    expect(importDxfRequestSchema.parse({ name: "Rede", dxf }).dxf).toBe(dxf);
+    expect(
+      importDxfRequestSchema.safeParse({ name: "Rede", dxf: "  " }).success,
+    ).toBe(false);
+  });
+
+  it("enforces the DXF limit in UTF-8 bytes, including multibyte text", () => {
+    const dxf = "é".repeat(MAX_DXF_BYTES / 2 + 1);
+    expect(
+      importDxfRequestSchema.safeParse({ name: "Rede", dxf }).success,
+    ).toBe(false);
+    expect(
+      importDxfRequestSchema.safeParse({
+        name: "Rede",
+        dxf: "0".repeat(MAX_DXF_BYTES),
+      }).success,
+    ).toBe(true);
   });
 });

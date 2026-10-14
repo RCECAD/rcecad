@@ -30,10 +30,11 @@ const parameters: HydraulicsFormValues = {
   finalPopulation: 468,
   returnCoefficient: 0.8,
   perCapitaFlow: 220,
-  infiltrationRate: 0.0001,
+  infiltrationRate: 0.1,
   peakDailyFactor: 1.25,
   peakHourlyFactor: 1.6,
   manningCoefficient: 0.01,
+  defaultNetworkMaterial: "PVC JEI",
 };
 
 function createJsonResponse(body: unknown, ok = true) {
@@ -145,5 +146,40 @@ describe("HydraulicsForm", () => {
     await waitFor(() => {
       expect(mocks.push).toHaveBeenCalledWith("/project/project-1");
     });
+  });
+
+  it("saves blank optional coefficients as null and preserves the network material", async () => {
+    const user = userEvent.setup();
+    const saved = {
+      ...parameters,
+      infiltrationRate: null,
+      manningCoefficient: null,
+    };
+    fetchMock
+      .mockResolvedValueOnce(createJsonResponse(parameters))
+      .mockResolvedValueOnce(createJsonResponse(saved));
+    renderForm();
+    await user.clear(
+      await screen.findByLabelText("Taxa de infiltração (opcional)"),
+    );
+    await user.clear(
+      screen.getByLabelText("Coeficiente de Manning (registro) (opcional)"),
+    );
+    await user.click(screen.getByRole("button", { name: "Salvar alterações" }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    expect(JSON.parse(fetchMock.mock.calls[1][1].body)).toEqual(saved);
+  });
+
+  it("lets a new project configure its first parameters without fabricated values", async () => {
+    fetchMock.mockResolvedValueOnce(createJsonResponse(null));
+    renderForm();
+    expect(
+      await screen.findByText(/ainda não possui parâmetros hidráulicos/),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("População inicial")).toHaveValue(null);
+    expect(screen.getByLabelText("Taxa de infiltração (opcional)")).toHaveValue(
+      null,
+    );
+    expect(screen.getByLabelText("Material da rede")).toHaveValue("");
   });
 });
