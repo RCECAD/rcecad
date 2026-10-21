@@ -243,7 +243,8 @@ export function GeneralDataForm({ projectId }: Readonly<GeneralDataFormProps>) {
               aria-describedby={
                 errors.status ? getErrorId("status") : undefined
               }
-              {...register("status")}
+              value={generalData?.status ?? "pending"}
+              disabled
             >
               {projectStatuses.map((status) => (
                 <option key={status.value} value={status.value}>
@@ -251,6 +252,10 @@ export function GeneralDataForm({ projectId }: Readonly<GeneralDataFormProps>) {
                 </option>
               ))}
             </select>
+            <p className="text-sm text-muted-foreground">
+              O status é atualizado pela validação e pelas alterações do
+              projeto.
+            </p>
             {errors.status && (
               <FieldError id={getErrorId("status")} errors={[errors.status]} />
             )}

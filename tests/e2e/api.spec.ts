@@ -76,15 +76,15 @@ test("API: project CRUD, filters, pagination, ownership and Spring contracts", a
     data,
   });
   expect(updated.status()).toBe(200);
-  expect(await updated.json()).toEqual(data);
+  expect(await updated.json()).toEqual({ ...data, status: "pending" });
   const detail = await api.get(`${springUrl}/api/projects/${project.id}`, {
     headers: bearer(tokens.accessToken),
   });
   const parsed = projectDetailResponseSchema.parse(await detail.json());
-  expect(parsed.project).toMatchObject(data);
+  expect(parsed.project).toMatchObject({ ...data, status: "pending" });
   expect(parsed.segments).toEqual([]);
   const listing = await api.get(`${springUrl}/api/projects`, {
-    params: { search: project.name, status: "inProgress", size: 1, page: 0 },
+    params: { search: project.name, status: "pending", size: 1, page: 0 },
     headers: bearer(tokens.accessToken),
   });
   const page = projectPageResponseSchema.parse(await listing.json());
@@ -214,7 +214,14 @@ test("API: DXF topology, byte limits and atomic rejection of invalid imports", a
   const api = context.request;
   const name = `${testPrefix} DXF API`;
   const result = await api.post("/api/projects/import-dxf", {
-    data: { name, dxf },
+    multipart: {
+      name,
+      file: {
+        name: "rede.dxf",
+        mimeType: "application/dxf",
+        buffer: Buffer.from(dxf),
+      },
+    },
   });
   expect(result.status()).toBe(201);
   const project = await result.json();
@@ -241,7 +248,14 @@ test("API: DXF topology, byte limits and atomic rejection of invalid imports", a
     "é".repeat(MAX_DXF_BYTES / 2 + 1),
   ]) {
     const response = await api.post("/api/projects/import-dxf", {
-      data: { name: `${name} invalid`, dxf: invalid },
+      multipart: {
+        name: `${name} invalid`,
+        file: {
+          name: "rede.dxf",
+          mimeType: "application/dxf",
+          buffer: Buffer.from(invalid),
+        },
+      },
     });
     expect(response.status()).toBe(400);
   }

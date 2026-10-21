@@ -1,4 +1,7 @@
+// @vitest-environment node
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("server-only", () => ({}));
 
 const mocks = vi.hoisted(() => ({
   createProject: vi.fn(),
@@ -88,16 +91,22 @@ describe("protected project route handlers", () => {
   });
 
   it("imports the raw DXF document", async () => {
-    const values = { name: "Rede importada", dxf: "  0\nSECTION\n  0\nEOF\n" };
+    const values = new FormData();
+    values.set("name", "Rede importada");
+    values.set("file", new File(["  0\nSECTION\n  0\nEOF\n"], "rede.dxf"));
     mocks.importDxf.mockResolvedValue({ id: "project-1" });
     const response = await importDxf(
       new Request("http://localhost/api/projects/import-dxf", {
         method: "POST",
-        body: JSON.stringify(values),
+        body: values,
       }),
     );
     expect(response.status).toBe(201);
-    expect(mocks.importDxf).toHaveBeenCalledWith(values);
+    const upload = mocks.importDxf.mock.calls[0][0] as FormData;
+    expect(upload.get("name")).toBe("Rede importada");
+    expect(await (upload.get("file") as File).text()).toBe(
+      "  0\nSECTION\n  0\nEOF\n",
+    );
   });
 
   it("passes only validated pagination filters to the project list", async () => {

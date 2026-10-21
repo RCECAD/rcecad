@@ -3,8 +3,6 @@ import "server-only";
 import {
   type CreateProjectRequest,
   createProjectRequestSchema,
-  type ImportDxfRequest,
-  importDxfRequestSchema,
   type ProjectListQuery,
   type ProjectParameters,
   projectDetailResponseSchema,
@@ -170,12 +168,12 @@ export async function createProject(
   return toProject(response);
 }
 
-export async function importDxf(values: ImportDxfRequest): Promise<Project> {
+export async function importDxf(values: FormData): Promise<Project> {
   const response = await springRequestWithRefresh(
     "/projects/import-dxf",
     {
       method: "POST",
-      body: JSON.stringify(importDxfRequestSchema.parse(values)),
+      body: values,
     },
     { schema: projectDetailResponseSchema },
   );
@@ -188,10 +186,9 @@ export async function updateProject(
 ): Promise<Project> {
   const payload = updateProjectRequestSchema.parse({
     name: values.name,
-    contractor: values.contractor || null,
-    technicalManager: values.technicalManager || null,
-    location: values.location || null,
-    status: values.status,
+    contractor: values.contractor,
+    technicalManager: values.technicalManager,
+    location: values.location,
   });
   const response = await springRequestWithRefresh(
     projectPath(projectId),

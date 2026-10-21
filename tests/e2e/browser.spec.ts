@@ -175,7 +175,7 @@ test("browser: DXF validation, recoverable backend rejection and successful uplo
       name: "invalid.dxf",
       buffer: Buffer.from(dxf.replace("SANC_REDE", "OTHER")),
       error:
-        "Não foi possível importar o DXF. Verifique o arquivo e tente novamente.",
+        "O DXF não contém uma rede compatível. Confira as camadas e os identificadores dos trechos.",
     },
   ]) {
     await upload.setInputFiles({
@@ -184,7 +184,7 @@ test("browser: DXF validation, recoverable backend rejection and successful uplo
       buffer: file.buffer,
     });
     await page
-      .getByRole("button", { name: "Importar projeto", exact: true })
+      .getByRole("button", { name: "Pré-visualizar DXF", exact: true })
       .click();
     await expect(page.getByRole("alert")).toHaveText(file.error);
     await expect(
@@ -197,9 +197,15 @@ test("browser: DXF validation, recoverable backend rejection and successful uplo
     buffer: Buffer.from(dxf),
   });
   await page
+    .getByRole("button", { name: "Pré-visualizar DXF", exact: true })
+    .click();
+  await expect(
+    page.getByRole("region", { name: "Pré-visualização do DXF" }),
+  ).toContainText("1 trechos");
+  await page
     .getByRole("button", { name: "Importar projeto", exact: true })
     .click();
-  await expect(page).toHaveURL(/\/general-data$/);
+  await expect(page).toHaveURL(/\/sizing$/);
   const id = new URL(page.url()).pathname.split("/")[2];
   console.log(`Fixture: ${name} | ${id}`);
   expect(

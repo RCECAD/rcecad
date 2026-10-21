@@ -36,6 +36,7 @@ export const registeredUserResponseSchema = z.object({
 });
 
 export const springErrorSchema = z.object({
+  code: z.string().optional(),
   title: z.string().optional(),
   status: z.number().int().optional(),
   details: z.string().optional(),
@@ -90,7 +91,29 @@ export const segmentResponseSchema = z.object({
   slope: z.number().finite(),
   upstreamInvert: z.number().finite(),
   downstreamInvert: z.number().finite(),
-  pavementType: optionalTextSchema,
+  pavementType: z
+    .enum([
+      "SIDEWALK",
+      "PAVED_STREET_WITH_CURB_AND_GUTTER",
+      "UNPAVED_OR_UNDEFINED_GRADE",
+    ])
+    .nullable(),
+  pavementTypeRaw: optionalTextSchema,
+  elementType: z
+    .enum([
+      "COLLECTOR",
+      "TRUNK_COLLECTOR",
+      "INTERCEPTOR",
+      "OUTFALL",
+      "BUILDING_CONNECTION",
+    ])
+    .nullable(),
+  receivesDryWeatherFlow: z.boolean().nullable(),
+  initialSingularContributionLps: z.number().finite().nonnegative(),
+  finalSingularContributionLps: z.number().finite().nonnegative(),
+  surfaceMaterial: z.enum(["ASPHALT", "PAVING_STONE", "GRAVEL"]).nullable(),
+  surfaceCondition: z.enum(["GOOD", "FAIR", "POOR"]).nullable(),
+  pavementNotes: optionalTextSchema,
   diameter: z.number().finite().nullable(),
   material: optionalTextSchema,
   manning: z.number().finite().nullable(),
@@ -137,9 +160,7 @@ export const createProjectRequestSchema = z.object({
   location: optionalRequestTextSchema,
 });
 
-export const updateProjectRequestSchema = createProjectRequestSchema.extend({
-  status: projectStatusSchema,
-});
+export const updateProjectRequestSchema = createProjectRequestSchema;
 
 export const MAX_DXF_BYTES = 5 * 1024 * 1024;
 

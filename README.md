@@ -6,6 +6,20 @@ Este repositorio e frontend-only. O backend oficial do produto e um Spring Boot
 externo, responsavel por autenticacao, usuarios, projetos, hidraulica, banco de
 dados e migrations.
 
+## Integração CDRE — 21/10/2026
+
+O fluxo de dimensionamento já consome o CDRE pelo Spring: importação multipart
+com pré-visualização, edição dos dados de campo de nós e trechos, pavimentação,
+contribuições concentradas por trecho, cálculo, resultados e validação reais.
+A Visão Geral consulta pendências e histórico reais; o status passou a ser
+controlado pelo backend. Exportação de documentos permanece indisponível.
+
+Veja [INTEGRACAO_CDRE.md](INTEGRACAO_CDRE.md) para o fluxo completo, os limites da
+integração e os valores do cenário didático usado com `COLETOR 01.dxf`.
+Os resultados não são persistidos: recalcule após recarregar a página.
+Para as dependências atuais de teste, use Node >= 22.19; a verificação desta
+integração usou Node 24. Os registros de 12/10 abaixo descrevem a etapa anterior.
+
 ## Setup
 
 Instale as dependencias:
@@ -73,8 +87,9 @@ Para conferir localmente, faça login, crie um projeto, salve dados gerais e
 hidráulicos e recarregue a página. Depois importe um DXF válido e confira o projeto
 na listagem. Os testes automatizados rodam com `bun run test`.
 
-Ainda precisam de integração: vazões, pavimentação/dados de campo, dimensionamento
-(`GET /api/projects/{id}/design`), validação, resultados e exportação DXF. A home
+Permanecem pendentes a exportação DXF na interface e a geração de documentos.
+O CRUD de contribuições nomeadas do backend ainda não alimenta o motor; a tela de
+Vazões edita os campos por trecho efetivamente usados no cálculo. A home
 ainda mostra no máximo os primeiros 100 projetos, com filtros locais; a paginação
 completa da interface também fica para uma próxima etapa.
 

@@ -67,10 +67,11 @@ export function principalToken({
   permissions?: string[];
 } = {}) {
   const privateKey = readFileSync(
-    resolve(
-      process.env.E2E_BACKEND_DIR ?? "../rcecad-back",
-      "rcecad/src/main/resources/certs/private_key.pem",
-    ),
+    process.env.E2E_PRIVATE_KEY_PATH ??
+      resolve(
+        process.env.E2E_BACKEND_DIR ?? "../rcecad-back",
+        "rcecad/src/main/resources/certs/private_key.pem",
+      ),
   );
   const now = Math.floor(Date.now() / 1000);
   const header = Buffer.from(

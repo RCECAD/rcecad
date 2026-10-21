@@ -46,6 +46,26 @@ describe("Spring client", () => {
     delete process.env.SPRING_API_BASE_URL;
   });
 
+  it("lets fetch encode multipart boundaries and retains the upload during token refresh", async () => {
+    const upload = new FormData();
+    upload.set("file", new File(["0\r\nEOF\r\n"], "rede.dxf"));
+    fetchMock
+      .mockResolvedValueOnce(new Response(null, { status: 401 }))
+      .mockResolvedValueOnce(Response.json(tokens))
+      .mockResolvedValueOnce(Response.json({ id: "project-1" }));
+    await springRequestWithRefresh(
+      "/projects/import-dxf",
+      { method: "POST", body: upload },
+      { schema: z.object({ id: z.string() }) },
+    );
+    for (const index of [0, 2]) {
+      expect(fetchMock.mock.calls[index][1].body).toBe(upload);
+      expect(
+        new Headers(fetchMock.mock.calls[index][1].headers).has("Content-Type"),
+      ).toBe(false);
+    }
+  });
+
   it("adds the /api prefix, keeps auth server-side, and validates success bodies", async () => {
     fetchMock.mockResolvedValueOnce(
       new Response(JSON.stringify({ id: "project-1" }), { status: 200 }),

@@ -55,11 +55,11 @@ export function ExportContent() {
         />
         <div className="min-w-0">
           <h2 id="export-status" className="text-sm font-medium">
-            Projeto pronto para exportação
+            Exportação indisponível nesta versão
           </h2>
           <p className="mt-1 text-xs leading-5 text-muted-foreground">
-            Todas as validações foram atendidas. Você pode exportar os
-            documentos do projeto.
+            Consulte a tela de Validação para conferir as pendências atuais. A
+            geração dos documentos ainda não está integrada.
           </p>
         </div>
       </section>

@@ -20,7 +20,7 @@ export function routeErrorResponse(error: unknown): NextResponse {
     return NextResponse.json(
       {
         error: message,
-        code: `SPRING_${error.status}`,
+        code: springDetails?.code ?? `SPRING_${error.status}`,
         ...(springDetails?.fields || springDetails?.fieldsMessage
           ? {
               fieldErrors: {

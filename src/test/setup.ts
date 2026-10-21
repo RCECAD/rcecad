@@ -14,21 +14,23 @@ class ResizeObserver {
   disconnect() {}
 }
 
-Object.defineProperty(window, "ResizeObserver", {
-  writable: true,
-  value: ResizeObserver,
-});
+if (typeof window !== "undefined") {
+  Object.defineProperty(window, "ResizeObserver", {
+    writable: true,
+    value: ResizeObserver,
+  });
 
-Object.defineProperty(window, "matchMedia", {
-  writable: true,
-  value: vi.fn().mockImplementation((query: string) => ({
-    addEventListener: vi.fn(),
-    addListener: vi.fn(),
-    dispatchEvent: vi.fn(),
-    matches: false,
-    media: query,
-    onchange: null,
-    removeEventListener: vi.fn(),
-    removeListener: vi.fn(),
-  })),
-});
+  Object.defineProperty(window, "matchMedia", {
+    writable: true,
+    value: vi.fn().mockImplementation((query: string) => ({
+      addEventListener: vi.fn(),
+      addListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+      matches: false,
+      media: query,
+      onchange: null,
+      removeEventListener: vi.fn(),
+      removeListener: vi.fn(),
+    })),
+  });
+}
