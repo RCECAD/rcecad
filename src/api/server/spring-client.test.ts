@@ -1,3 +1,5 @@
+// @vitest-environment node
+
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 
@@ -10,6 +12,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock("server-only", () => ({}));
 vi.mock("@/api/server/session", () => mocks);
 
+import { withDxfUpload } from "./dxf-upload";
 import {
   refreshSpringSession,
   SpringContractError,
@@ -85,6 +88,75 @@ describe("Spring client", () => {
         },
       ),
     ).rejects.toBeInstanceOf(SpringContractError);
+  });
+
+  it("keeps multipart boundaries automatic and replays the file after session renewal", async () => {
+    fetchMock
+      .mockResolvedValueOnce(new Response(null, { status: 401 }))
+      .mockResolvedValueOnce(Response.json(tokens))
+      .mockResolvedValueOnce(Response.json({ id: "project-1" }));
+    const body = new FormData();
+    body.set("file", new File(["DXF"], "rede.dxf"));
+    body.set("name", "Rede");
+    await springRequestWithRefresh(
+      "/projects/import-dxf",
+      { method: "POST", body },
+      { schema: z.object({ id: z.string() }), timeoutMs: 300_000 },
+    );
+    for (const index of [0, 2]) {
+      const init = fetchMock.mock.calls[index][1] as RequestInit;
+      expect(new Headers(init.headers).has("Content-Type")).toBe(false);
+      expect(init.body).toBe(body);
+      const encoded = new Request("http://localhost", init);
+      expect(encoded.headers.get("content-type")).toMatch(
+        /^multipart\/form-data; boundary=/,
+      );
+      expect(await (await encoded.formData()).get("file")).toBeInstanceOf(File);
+    }
+    expect(
+      new Headers(fetchMock.mock.calls[2][1].headers).get("Authorization"),
+    ).toBe("Bearer new-access-token");
+  });
+
+  it("replays a disk-backed multipart upload after a 401 and session rotation", async () => {
+    let uploads = 0;
+    fetchMock.mockImplementation(async (url: URL, init: RequestInit) => {
+      if (url.pathname.endsWith("/auth/refresh")) return Response.json(tokens);
+      if (url.pathname.endsWith("/import-dxf")) {
+        const data = await new Request(url, init).formData();
+        expect(data.get("name")).toBe("Rede");
+        expect(await (data.get("file") as File).text()).toBe("DXF");
+        uploads++;
+        return uploads === 1
+          ? new Response(null, { status: 401 })
+          : Response.json({ id: "project-1" });
+      }
+      return Response.json({
+        content: [],
+        page: 0,
+        size: 1,
+        totalElements: 0,
+        totalPages: 0,
+      });
+    });
+    const form = new FormData();
+    form.set("file", new File(["DXF"], "rede.dxf"));
+    form.set("name", "Rede");
+    const request = new Request("http://localhost", {
+      method: "POST",
+      body: form,
+    });
+    await expect(
+      withDxfUpload(request, (body, contentType) =>
+        springRequestWithRefresh(
+          "/projects/import-dxf",
+          { method: "POST", body, headers: { "Content-Type": contentType } },
+          { schema: z.object({ id: z.string() }) },
+        ),
+      ),
+    ).resolves.toEqual({ id: "project-1" });
+    expect(uploads).toBe(2);
+    expect(mocks.setAuthSession).toHaveBeenCalledOnce();
   });
 
   it("refreshes once and retries the original request with the rotated access token", async () => {

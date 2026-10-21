@@ -56,9 +56,9 @@ export function toGeneralDataFormValues(
 export function toProjectUpdateRequest(values: GeneralDataFormValues) {
   return {
     name: values.name,
-    contractor: values.contractor || null,
-    technicalManager: values.technicalManager || null,
-    location: values.location || null,
+    contractor: values.contractor,
+    technicalManager: values.technicalManager,
+    location: values.location,
     status: values.status,
   };
 }

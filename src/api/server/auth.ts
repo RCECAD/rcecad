@@ -125,7 +125,8 @@ export async function loginWithSpring(input: LoginFormValues): Promise<void> {
 export async function registerWithSpring(
   input: RegisterFormValues,
 ): Promise<{ authenticated: boolean }> {
-  const { confirmPassword: _confirmPassword, ...payload } = input;
+  const { confirmPassword: _confirmPassword, corporateName, ...values } = input;
+  const payload = { ...values, corporateName: corporateName || undefined };
   const response = await springRequest(
     "/auth/register",
     {

@@ -1,3 +1,5 @@
+// @vitest-environment node
+
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
@@ -26,6 +28,12 @@ vi.mock("@/api/server/project-adapters", () => ({
 vi.mock("@/api/server/route-errors", () => ({
   routeErrorResponse: (error: unknown) =>
     Response.json({ error: String(error) }, { status: 500 }),
+}));
+vi.mock("@/api/server/dxf-upload", () => ({
+  withDxfUpload: async (
+    request: Request,
+    upload: (body: Blob, type: string) => Promise<unknown>,
+  ) => upload(await request.blob(), request.headers.get("content-type") ?? ""),
 }));
 
 import {
@@ -87,17 +95,38 @@ describe("protected project route handlers", () => {
     expect(mocks.createProject).not.toHaveBeenCalled();
   });
 
-  it("imports the raw DXF document", async () => {
-    const values = { name: "Rede importada", dxf: "  0\nSECTION\n  0\nEOF\n" };
+  it("forwards the multipart file with the original boundary and metadata", async () => {
+    const dxf = "  0\nSECTION\n  0\nEOF\n";
+    const values = new FormData();
+    values.set("name", "Rede importada");
+    values.set("file", new File([dxf], "rede.dxf"));
+    values.set("contractor", "Prefeitura");
+    values.set("technicalManager", "Ana");
+    values.set("revision", "R1");
+    values.set("basin", "Centro");
     mocks.importDxf.mockResolvedValue({ id: "project-1" });
     const response = await importDxf(
       new Request("http://localhost/api/projects/import-dxf", {
         method: "POST",
-        body: JSON.stringify(values),
+        body: values,
       }),
     );
     expect(response.status).toBe(201);
-    expect(mocks.importDxf).toHaveBeenCalledWith(values);
+    const [body, type] = mocks.importDxf.mock.calls[0];
+    const input = await new Request("http://localhost", {
+      method: "POST",
+      body,
+      headers: { "content-type": type },
+    }).formData();
+    expect(Object.fromEntries(input)).toMatchObject({
+      name: "Rede importada",
+      contractor: "Prefeitura",
+      technicalManager: "Ana",
+      revision: "R1",
+      basin: "Centro",
+    });
+    expect((input.get("file") as File).name).toBe("rede.dxf");
+    expect(await (input.get("file") as File).text()).toBe(dxf);
   });
 
   it("passes only validated pagination filters to the project list", async () => {

@@ -13,8 +13,8 @@ import { loginAction, logoutAction, registerAction } from "./actions";
 const input = {
   email: "test@example.com",
   cnpj: "55444333000101",
-  password: "test-password",
-  confirmPassword: "test-password",
+  password: "Test-password!",
+  confirmPassword: "Test-password!",
 };
 const tokens = {
   accessToken: "access-fixture",
@@ -67,6 +67,30 @@ describe("authentication actions with controlled Spring responses", () => {
   it("rejects mismatched passwords without contacting Spring", async () => {
     expect(
       await registerAction({ ...input, confirmPassword: "different" }),
+    ).toMatchObject({ success: false });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("forwards the company name accepted by registration", async () => {
+    fetchMock.mockResolvedValueOnce(
+      Response.json({ details: "Email already registered" }, { status: 400 }),
+    );
+    await registerAction({ ...input, corporateName: " Empresa Ltda " });
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({
+      email: input.email,
+      cnpj: input.cnpj,
+      password: input.password,
+      corporateName: "Empresa Ltda",
+    });
+  });
+
+  it.each([
+    "weak",
+    "test-password!",
+    "Testpassword1",
+  ])("rejects weak passwords before contacting Spring: %s", async (password) => {
+    expect(
+      await registerAction({ ...input, password, confirmPassword: password }),
     ).toMatchObject({ success: false });
     expect(fetchMock).not.toHaveBeenCalled();
   });

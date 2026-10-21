@@ -1,4 +1,6 @@
-import type { z } from "zod";
+import { z } from "zod";
+
+const clientErrorSchema = z.object({ error: z.string().trim().min(1) });
 
 export class ClientApiError extends Error {
   constructor(
@@ -20,7 +22,13 @@ export async function parseClientJson<T>(
       window.location.assign("/auth/login");
     }
 
-    throw new ClientApiError(message, response.status);
+    const error = clientErrorSchema.safeParse(
+      await response.json().catch(() => null),
+    );
+    throw new ClientApiError(
+      error.success ? error.data.error : message,
+      response.status,
+    );
   }
 
   const payload: unknown = await response.json();

@@ -39,7 +39,7 @@ bunx tsc --noEmit
 O backend fica em `../rcecad-back` e deve estar disponível em
 `http://localhost:8080`. Configure `SPRING_API_BASE_URL` em `.env.local` se usar
 outro endereço; a URL pode incluir `/api` ou um prefixo de implantação.
-O contrato foi conferido com `/v3/api-docs` e com o backend no commit `3af1886`.
+O contrato foi conferido com `/v3/api-docs` e com o backend no commit `419b1fe`.
 
 O modo normal exige login e consulta dados reais. Para trabalhar apenas no
 protótipo visual, use explicitamente `DEV_PREVIEW=true` em desenvolvimento.
@@ -49,7 +49,13 @@ Fluxos conectados nesta etapa:
 
 - Login, cadastro, logout e renovação de sessão, com tokens em cookies HttpOnly.
 - Consulta de projetos, criação pelo botão **Novo Projeto** e edição de dados gerais.
-- Importação de DXF de texto pelo botão **Importar .DXF**, com limite de 5 MB.
+- Importação de DXF de texto pelo botão **Importar .DXF**, em multipart, com limite
+  de 300 MB. O formulário envia `file` e `name`, além de contratante, responsável
+  técnico, revisão e bacia opcionais. O arquivo segue como arquivo, sem conversão
+  integral para texto ou JSON; o tempo de espera do Spring é de cinco minutos.
+  O Next verifica a sessão antes de receber o corpo, limita dois uploads por
+  processo e usa armazenamento temporário em disco, removido ao terminar. O
+  limite também é aplicado durante a leitura de requisições sem `Content-Length`.
   O arquivo deve seguir o formato reconhecido pelo backend, incluindo a camada
   `SANC_REDE` e os identificadores XDATA `NUMEROTRE`.
 - Leitura e gravação dos parâmetros hidráulicos. Projetos novos abrem o formulário
@@ -59,6 +65,18 @@ A infiltração usa **L/s por km**, conforme o contrato atual. Infiltração e M
 podem ser nulos. O Manning informado serve apenas como registro: o backend resolve
 a rugosidade pelo material. O material da rede pode ficar vazio durante o cadastro,
 mas deve ser informado antes do dimensionamento.
+
+O cadastro aceita o nome da empresa como opcional; se vazio, o backend usa o
+cadastro do CNPJ. A senha exige oito caracteres, uma maiúscula e um símbolo,
+com limite de 72 bytes do BCrypt. A validação vale no formulário e na Server Action.
+
+Erros de upload mantêm o arquivo e os campos para nova tentativa. A interface
+mostra o limite no 413 e orienta aguardar no `503 UPLOADS_BUSY`, sem repetir o
+upload automaticamente. Erros de topologia preservam o código do nó informado
+pelo backend.
+
+Ao editar dados gerais, campos opcionais apagados são enviados como texto vazio.
+No contrato atual, `null` preserva o valor existente e não limpa o campo.
 
 As páginas apenas leem cookies. Quando o acesso expira, `/auth/refresh` solicita a
 renovação por `POST /api/auth/refresh` e retorna ao projeto ou à home. Route Handlers
@@ -79,6 +97,15 @@ ainda mostra no máximo os primeiros 100 projetos, com filtros locais; a pagina�
 completa da interface também fica para uma próxima etapa.
 
 ## Testes de regressão e API
+
+Verificação de compatibilidade em 20/10/2026: **114 testes frontend e 14 cenários
+com Spring real e Chrome aprovados**, incluindo o build de produção local,
+DXF acima de 5 MB em viewport móvel, metadados persistidos e limpeza dos campos
+opcionais. TypeScript, build e Biome dos arquivos alterados passaram. O lint sem
+formatação passou no repositório todo; a verificação completa do Biome ainda
+aponta quebras de linha CRLF em 73 arquivos preexistentes. O limite de 300 MB e a
+concorrência foram exercitados com testes de fronteira; não houve upload real de
+um arquivo de 300 MB nem novo cadastro com consulta externa à ReceitaWS.
 
 ```bash
 bun run test

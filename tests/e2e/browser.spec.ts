@@ -1,5 +1,4 @@
 import { expect, test } from "@playwright/test";
-import { MAX_DXF_BYTES } from "../../src/api/contracts/spring";
 import {
   appUrl,
   createProject,
@@ -149,6 +148,7 @@ test("browser: DXF validation, recoverable backend rejection and successful uplo
   page,
   context,
 }) => {
+  await page.setViewportSize({ width: 390, height: 650 });
   await setSession(context);
   await page.goto("/home");
   await page.getByRole("button", { name: /Importar .DXF/ }).click();
@@ -167,15 +167,9 @@ test("browser: DXF validation, recoverable backend rejection and successful uplo
       error: "Exporte o desenho no formato DXF de texto (ASCII).",
     },
     {
-      name: "large.dxf",
-      buffer: Buffer.alloc(MAX_DXF_BYTES + 1),
-      error: "O arquivo DXF deve ter até 5 MB.",
-    },
-    {
       name: "invalid.dxf",
       buffer: Buffer.from(dxf.replace("SANC_REDE", "OTHER")),
-      error:
-        "Não foi possível importar o DXF. Verifique o arquivo e tente novamente.",
+      error: /network|rede/i,
     },
   ]) {
     await upload.setInputFiles({
@@ -194,7 +188,7 @@ test("browser: DXF validation, recoverable backend rejection and successful uplo
   await upload.setInputFiles({
     name: "valid.dxf",
     mimeType: "application/dxf",
-    buffer: Buffer.from(dxf),
+    buffer: Buffer.from(`999\n${"x".repeat(1000)}\n`.repeat(6200) + dxf),
   });
   await page
     .getByRole("button", { name: "Importar projeto", exact: true })

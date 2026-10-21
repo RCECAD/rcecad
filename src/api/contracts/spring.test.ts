@@ -1,3 +1,5 @@
+// @vitest-environment node
+
 import { describe, expect, it } from "vitest";
 import {
   importDxfRequestSchema,
@@ -104,24 +106,47 @@ describe("Spring contract schemas", () => {
     });
   });
 
-  it("preserves DXF whitespace and rejects an empty document", () => {
+  it("accepts a multipart file and the import metadata without changing its bytes", async () => {
     const dxf = "  0\nSECTION\n  0\nEOF\n";
-    expect(importDxfRequestSchema.parse({ name: "Rede", dxf }).dxf).toBe(dxf);
-    expect(
-      importDxfRequestSchema.safeParse({ name: "Rede", dxf: "  " }).success,
-    ).toBe(false);
-  });
-
-  it("enforces the DXF limit in UTF-8 bytes, including multibyte text", () => {
-    const dxf = "é".repeat(MAX_DXF_BYTES / 2 + 1);
+    const file = new File([dxf], "rede.dxf");
+    const parsed = importDxfRequestSchema.parse({
+      name: " Rede ",
+      file,
+      contractor: "Prefeitura",
+      technicalManager: "Ana",
+      revision: "R1",
+      basin: "Centro",
+    });
+    expect(parsed).toMatchObject({
+      name: "Rede",
+      revision: "R1",
+      basin: "Centro",
+    });
+    expect(await parsed.file.text()).toBe(dxf);
     expect(
       importDxfRequestSchema.safeParse({ name: "Rede", dxf }).success,
     ).toBe(false);
     expect(
       importDxfRequestSchema.safeParse({
         name: "Rede",
-        dxf: "0".repeat(MAX_DXF_BYTES),
+        file: new File([], "rede.dxf"),
       }).success,
+    ).toBe(false);
+  });
+
+  it("enforces the 300 MB file limit at the boundary without allocating a large fixture", () => {
+    expect(MAX_DXF_BYTES).toBe(300 * 1024 * 1024);
+    const file = new File(["DXF"], "rede.dxf");
+    Object.defineProperty(file, "size", {
+      value: MAX_DXF_BYTES,
+      configurable: true,
+    });
+    expect(
+      importDxfRequestSchema.safeParse({ name: "Rede", file }).success,
     ).toBe(true);
+    Object.defineProperty(file, "size", { value: MAX_DXF_BYTES + 1 });
+    expect(
+      importDxfRequestSchema.safeParse({ name: "Rede", file }).success,
+    ).toBe(false);
   });
 });

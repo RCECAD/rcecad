@@ -27,4 +27,24 @@ describe("route error translation", () => {
       },
     });
   });
+
+  it.each([
+    [
+      503,
+      "UPLOADS_BUSY",
+      "Há outros uploads em processamento. Aguarde alguns instantes e tente novamente.",
+    ],
+    [413, "PAYLOAD_TOO_LARGE", "O arquivo DXF deve ter até 300 MB."],
+    [422, "INVALID_NETWORK_TOPOLOGY", "Cycle detected at node PV-03"],
+  ])("preserves upload status %s and code %s with safe feedback", async (status, code, error) => {
+    const response = routeErrorResponse(
+      new SpringApiError(status, "Spring API request failed", {
+        code,
+        details: "Cycle detected at node PV-03",
+        developerMessage: "private-internal-diagnostic",
+      }),
+    );
+    expect(response.status).toBe(status);
+    expect(await response.json()).toEqual({ code, error });
+  });
 });
