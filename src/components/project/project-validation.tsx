@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { ArrowUpRight, CircleX, Info, TriangleAlert } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -24,6 +25,32 @@ const severityLabels = {
   ALERT: "Alerta",
   INFO: "Informação",
 };
+const findingTitles: Record<string, string> = {
+  "Design finding: MANNING_N_NOT_JUSTIFIED":
+    "Coeficiente de Manning exige justificativa",
+  "Design finding: DOMAIN_VALUE_MISMATCH":
+    "Parâmetro fora do domínio normativo resolvido",
+  "Missing design parameters": "Parâmetros hidráulicos não informados",
+  "Missing pipe material": "Material da rede não informado",
+  "Missing infiltration rate": "Taxa de infiltração não informada",
+  "Missing ground elevation": "Cota de terreno não informada",
+  "Missing dry-weather discharge answer":
+    "Contribuição de tempo seco não informada",
+  "Missing network segments": "Rede do projeto não cadastrada",
+};
+const severityStyle = {
+  CRITICAL: {
+    Icon: CircleX,
+    color: "text-rose-600",
+    badge: "bg-rose-600 text-white",
+  },
+  ALERT: {
+    Icon: TriangleAlert,
+    color: "text-amber-600",
+    badge: "bg-amber-600 text-white",
+  },
+  INFO: { Icon: Info, color: "text-blue-600", badge: "bg-blue-600 text-white" },
+};
 export function correctionPath(projectId: string, item: ValidationItem) {
   const base = `/project/${projectId}`;
   if (item.step === "HYDRAULICS") return `${base}/hydraulics`;
@@ -43,25 +70,67 @@ export function ValidationFindings({
 }) {
   return (
     <ul className="space-y-3">
-      {items.map((item) => (
-        <li
-          key={JSON.stringify(item)}
-          className="rounded-lg border p-4 space-y-2"
-        >
-          <p className="text-xs font-semibold text-muted-foreground">
-            {severityLabels[item.severity]}
-            {item.target.code && ` · ${item.target.code}`}
-          </p>
-          <h3 className="font-medium">{item.title}</h3>
-          <p className="text-sm">{item.message}</p>
-          <p className="text-sm text-muted-foreground">
-            Ação sugerida: {item.suggestedAction}
-          </p>
-          <Button variant="outline" size="sm" asChild>
-            <Link href={correctionPath(projectId, item)}>Ir para correção</Link>
-          </Button>
-        </li>
-      ))}
+      {items.map((item) => {
+        const { Icon, color, badge } = severityStyle[item.severity];
+        return (
+          <li
+            key={JSON.stringify(item)}
+            className="flex items-start gap-5 rounded-lg border border-border/80 bg-card/40 p-6"
+          >
+            <Icon
+              aria-hidden="true"
+              className={`mt-1 size-6 shrink-0 ${color}`}
+            />
+            <div className="min-w-0 flex-1 space-y-2">
+              <div className="flex items-start justify-between gap-3">
+                <h3 className="text-sm font-medium">
+                  {findingTitles[item.title] ?? item.title}
+                </h3>
+                <span
+                  className={`shrink-0 rounded-full px-2 py-0.5 text-xs ${badge}`}
+                >
+                  {severityLabels[item.severity]}
+                </span>
+              </div>
+              <p className="text-xs font-semibold text-muted-foreground">
+                {severityLabels[item.severity]}
+                {item.target.code && ` · ${item.target.code}`}
+              </p>
+              {findingTitles[item.title] ? (
+                <details className="text-xs text-muted-foreground">
+                  <summary className="cursor-pointer">
+                    Detalhes técnicos e fonte normativa
+                  </summary>
+                  <p className="mt-2">{item.message}</p>
+                </details>
+              ) : (
+                <p className="text-sm">{item.message}</p>
+              )}
+              <p className="text-xs text-muted-foreground">
+                Etapa relacionada:{" "}
+                {item.step === "HYDRAULICS"
+                  ? "Dados Hidráulicos"
+                  : item.step === "DESIGN"
+                    ? "Dimensionamento"
+                    : item.step === "NETWORK"
+                      ? "Rede do projeto"
+                      : "Contribuições"}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Ação sugerida:{" "}
+                {findingTitles[item.title]
+                  ? "Revise os dados e a fonte normativa na etapa relacionada."
+                  : item.suggestedAction}
+              </p>
+              <Button variant="outline" size="sm" asChild>
+                <Link href={correctionPath(projectId, item)}>
+                  Ir para correção <ArrowUpRight className="size-3.5" />
+                </Link>
+              </Button>
+            </div>
+          </li>
+        );
+      })}
     </ul>
   );
 }
@@ -97,18 +166,60 @@ export function ProjectValidation({ projectId }: { projectId: string }) {
     }
   }
   return (
-    <div className="space-y-6">
-      <h1 className="text-3xl font-bold">Validação</h1>
-      <Card>
+    <div className="mx-auto max-w-[1088px] space-y-6">
+      <h1 className="text-2xl font-semibold tracking-tight">Validação</h1>
+      <Card className="gap-4 rounded-lg border border-border/80 bg-card/40 py-5 shadow-none ring-0">
         <CardHeader>
-          <CardTitle>Validação do projeto</CardTitle>
+          <CardTitle>Resumo de Validação</CardTitle>
           <CardDescription>
-            Confira os dados obrigatórios e as ocorrências reais do
-            dimensionamento. A validação atualiza o status do projeto conforme o
-            resultado.
+            Resolva as pendências antes de concluir o projeto.
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
+          <div className="grid gap-3 sm:grid-cols-3">
+            {(
+              [
+                [
+                  "critical",
+                  "Erros críticos",
+                  CircleX,
+                  "border-rose-300 bg-rose-50 text-rose-700",
+                  "Impedem a conclusão",
+                ],
+                [
+                  "alert",
+                  "Alertas",
+                  TriangleAlert,
+                  "border-amber-300 bg-amber-50 text-amber-700",
+                  "Requerem atenção",
+                ],
+                [
+                  "info",
+                  "Informações",
+                  Info,
+                  "border-blue-300 bg-blue-50 text-blue-700",
+                  "Para conhecimento",
+                ],
+              ] as const
+            ).map(([key, label, Icon, color, detail]) => (
+              <Card
+                key={key}
+                className={`rounded-lg border py-3 shadow-none ring-0 ${color}`}
+              >
+                <CardContent className="flex items-center justify-between gap-3 px-3">
+                  <div className="space-y-1">
+                    <Icon className="mb-2 size-7" aria-hidden="true" />
+                    <p className="text-sm font-medium">{label}</p>
+                    <p className="text-xs">{detail}</p>
+                  </div>
+                  <p className="text-6xl font-semibold tracking-tight">
+                    {validation.data?.summary[key] ?? "—"}
+                  </p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
           <Button
             disabled={validation.isFetching}
             onClick={() => void validate()}
@@ -132,27 +243,9 @@ export function ProjectValidation({ projectId }: { projectId: string }) {
               ? "Projeto apto a concluir: todos os trechos foram dimensionados e não há pendências críticas."
               : "Projeto com pendências: revise os itens abaixo antes de concluir."}
           </p>
-          <div className="grid gap-3 sm:grid-cols-3">
-            {(
-              [
-                ["critical", "Erros críticos"],
-                ["alert", "Alertas"],
-                ["info", "Informações"],
-              ] as const
-            ).map(([key, label]) => (
-              <Card key={key}>
-                <CardContent className="pt-5">
-                  <p>{label}</p>
-                  <p className="text-3xl font-semibold">
-                    {validation.data.summary[key]}
-                  </p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
           <fieldset
             aria-label="Filtrar ocorrências de validação"
-            className="flex flex-wrap gap-2"
+            className="grid grid-cols-2 gap-1 rounded-md bg-card p-1.5 sm:grid-cols-4"
           >
             {(
               [
@@ -164,11 +257,24 @@ export function ProjectValidation({ projectId }: { projectId: string }) {
             ).map(([value, label]) => (
               <Button
                 key={value}
-                variant={filter === value ? "default" : "outline"}
+                variant="ghost"
+                className={
+                  filter === value
+                    ? "h-8 rounded bg-background text-foreground shadow-sm"
+                    : "h-8 text-muted-foreground"
+                }
                 aria-pressed={filter === value}
                 onClick={() => setFilter(value)}
               >
-                {label}
+                {label} (
+                {value === "ALL"
+                  ? validation.data.items.length
+                  : value === "CRITICAL"
+                    ? validation.data.summary.critical
+                    : value === "ALERT"
+                      ? validation.data.summary.alert
+                      : validation.data.summary.info}
+                )
               </Button>
             ))}
           </fieldset>

@@ -9,55 +9,58 @@ import {
   Sparkles,
   TriangleAlert,
 } from "lucide-react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
-const projectDetails = [
-  { label: "Responsável Técnico", value: "Giovane Comelli" },
-  { label: "Criado em", value: "12/04/2026 - 12:22" },
-  { label: "Última atualização", value: "12/04/2026 - 13:24" },
-  { label: "Contratante", value: "Prefeitura Municipal de Cascavel" },
-  { label: "Revisão", value: "rev.129" },
-];
-
-const stages = [
-  { title: "DXF Importado", description: "233 MB", complete: true },
-  { title: "Dados Gerais", description: "Incompleto", complete: false },
-  { title: "Dados Hidráulicos", description: "Incompleto", complete: false },
-  { title: "Exportação", description: "Nunca exportado", complete: false },
-];
-
-const alerts = [
-  "Completar dados gerais do projeto",
-  "Informar dados hidráulicos",
-  "Cadastrar vazões concentradas",
-];
-
 const quickActions = [
-  { label: "Completar Dados Gerais", icon: FileText },
-  { label: "Configurar dados hidráulicos", icon: Droplets },
-  { label: "Exportar Projeto", icon: Download },
+  { label: "Completar Dados Gerais", icon: FileText, route: "general-data" },
+  {
+    label: "Configurar dados hidráulicos",
+    icon: Droplets,
+    route: "hydraulics",
+  },
+  { label: "Exportar Projeto", icon: Download, route: "export" },
 ];
-
-const recentActions = Array.from({ length: 6 }, (_, index) => ({
-  id: index + 1,
-  title: "DXF Importado",
-  detail: "233 MB",
-  time: "Ontem, 23:33",
-}));
 
 const panelClassName = "rounded-lg border border-border/80 bg-card/40 p-5";
-const progress = 23.2;
-
-export function OverviewContent() {
+export function OverviewContent({
+  projectId,
+  projectDetails,
+  stages,
+  alerts,
+  recentActions,
+  onRefresh,
+  refreshing,
+  status,
+}: {
+  projectId: string;
+  projectDetails: { label: string; value: string }[];
+  stages: { title: string; description: string; complete: boolean }[];
+  alerts: { title: string; href: string }[];
+  recentActions: {
+    id: string;
+    title: string;
+    detail: string | null;
+    time: string;
+  }[];
+  onRefresh: () => void;
+  refreshing: boolean;
+  status: string;
+}) {
+  const progress = stages.length
+    ? Math.round(
+        (stages.filter((stage) => stage.complete).length / stages.length) * 100,
+      )
+    : 0;
   return (
-    <div className="mx-auto grid w-full min-w-0 max-w-7xl gap-5 xl:grid-cols-[minmax(0,1fr)_280px]">
+    <div className="mx-auto grid w-full min-w-0 gap-5 xl:-mx-4 xl:w-[calc(100%+2rem)] xl:gap-8 xl:grid-cols-[minmax(0,1fr)_350px]">
       <div className="min-w-0 space-y-5">
         <section aria-labelledby="overview-title" className={panelClassName}>
           <h1 id="overview-title" className="text-base font-semibold">
             Visão Geral do Projeto
           </h1>
           <p className="mt-1 text-xs text-muted-foreground">
-            Status atual e informações principais
+            Status atual: {status}
           </p>
           <dl className="mt-4 grid gap-x-5 gap-y-3 sm:grid-cols-3">
             {projectDetails.map((detail) => (
@@ -73,7 +76,7 @@ export function OverviewContent() {
           </dl>
           <div className="mt-4">
             <div className="mb-1 flex items-center justify-between gap-3 text-xs">
-              <span id="overview-progress-label">Progresso Geral</span>
+              <span id="overview-progress-label">Etapas concluídas</span>
               <span className="tabular-nums">{progress}%</span>
             </div>
             <div
@@ -90,6 +93,10 @@ export function OverviewContent() {
               />
             </div>
           </div>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Indicador das quatro etapas abaixo. Consulte a Validação para
+            verificar a aptidão do dimensionamento.
+          </p>
         </section>
 
         <section aria-labelledby="overview-stages" className={panelClassName}>
@@ -125,6 +132,11 @@ export function OverviewContent() {
             Últimas Ações
           </h2>
           <ol className="ml-2">
+            {recentActions.length === 0 && (
+              <li className="text-xs text-muted-foreground">
+                Nenhuma ação registrada.
+              </li>
+            )}
             {recentActions.map((action, index) => (
               <li
                 key={action.id}
@@ -167,19 +179,23 @@ export function OverviewContent() {
             Pendências e Alertas
           </h2>
           <p className="mt-2 text-xs text-muted-foreground">
-            3 itens requerem sua atenção.
+            {alerts.length}{" "}
+            {alerts.length === 1 ? "item requer" : "itens requerem"} sua
+            atenção.
           </p>
           <ul className="mt-5 space-y-2">
             {alerts.map((alert) => (
               <li
-                key={alert}
+                key={`${alert.href}-${alert.title}`}
                 className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-2.5 py-3 text-xs leading-5 dark:border-amber-800 dark:bg-amber-950/30"
               >
                 <TriangleAlert
                   aria-hidden="true"
                   className="mt-0.5 size-4 shrink-0 text-amber-500"
                 />
-                {alert}
+                <Link href={alert.href} className="hover:underline">
+                  {alert.title}
+                </Link>
               </li>
             ))}
           </ul>
@@ -188,7 +204,8 @@ export function OverviewContent() {
               type="button"
               variant="secondary"
               size="xs"
-              disabled
+              disabled={refreshing}
+              onClick={onRefresh}
               className="disabled:opacity-100"
             >
               <RefreshCw aria-hidden="true" />
@@ -208,19 +225,21 @@ export function OverviewContent() {
             Ações Rápidas
           </h2>
           <div className="mt-5 space-y-2">
-            {quickActions.map(({ label, icon: Icon }) => (
+            {quickActions.map(({ label, icon: Icon, route }) => (
               <Button
                 key={label}
                 type="button"
                 variant="outline"
-                disabled
+                asChild
                 className="h-auto min-h-10 w-full justify-start gap-2 whitespace-normal border-blue-200 bg-blue-100 px-2.5 py-2 text-left text-xs leading-5 shadow-none disabled:opacity-100 dark:border-blue-800 dark:bg-blue-950/30"
               >
-                <Icon
-                  aria-hidden="true"
-                  className="size-4 shrink-0 text-blue-500"
-                />
-                {label}
+                <Link href={`/project/${projectId}/${route}`}>
+                  <Icon
+                    aria-hidden="true"
+                    className="size-4 shrink-0 text-blue-500"
+                  />
+                  {label}
+                </Link>
               </Button>
             ))}
           </div>

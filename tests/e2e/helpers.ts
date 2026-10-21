@@ -93,6 +93,7 @@ export function principalToken({
 }
 
 export const parameters = {
+  justification: null,
   initialPopulation: 100,
   finalPopulation: 200,
   returnCoefficient: 0.8,

@@ -42,8 +42,10 @@ const formats = [
 
 export function ExportContent() {
   return (
-    <div className="mx-auto flex w-full min-w-0 max-w-5xl flex-col gap-6">
-      <h1 className="mb-2 text-3xl font-bold text-foreground">Exportação</h1>
+    <div className="mx-auto flex w-full min-w-0 max-w-[1088px] flex-col gap-6">
+      <h1 className="mb-2 text-2xl font-semibold tracking-tight text-foreground">
+        Exportação
+      </h1>
 
       <section
         aria-labelledby="export-status"

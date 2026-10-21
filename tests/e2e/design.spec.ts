@@ -129,6 +129,10 @@ test("CDRE: importa, salva dados de campo, calcula, invalida resultados e valida
     .getByRole("button", { name: "Calcular dimensionamento", exact: true })
     .click();
   await expect(
+    page.getByRole("tab", { name: "Resumo Executivo" }),
+  ).toBeVisible();
+  await page.getByRole("tab", { name: "Resultados por Trecho" }).click();
+  await expect(
     page.getByText("Dimensionamento por trecho", { exact: true }),
   ).toBeVisible();
   const recalculated = networkDesignSchema.parse(

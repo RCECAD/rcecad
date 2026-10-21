@@ -6,9 +6,9 @@ export default async function ResultsPage({
 }) {
   const { projectId } = await params;
   return (
-    <div className="space-y-6">
-      <h1 className="text-3xl font-bold">Resultados</h1>
-      <DesignPanel projectId={projectId} />
+    <div className="mx-auto max-w-[1088px] space-y-6">
+      <h1 className="text-2xl font-semibold tracking-tight">Resultados</h1>
+      <DesignPanel projectId={projectId} tabbed />
     </div>
   );
 }

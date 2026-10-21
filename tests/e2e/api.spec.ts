@@ -70,6 +70,14 @@ test("API: project CRUD, filters, pagination, ownership and Spring contracts", a
     contractor: "Prefeitura teste",
     technicalManager: "Engenheiro teste",
     location: "Cascavel, PR",
+    internalCode: "E2E-01",
+    revision: "rev.1",
+    systemType: "Separador absoluto",
+    horizon: "2026–2046",
+    notes: "Cenário de teste",
+    totalAreaKm2: 1.2,
+    sector: "Centro",
+    basin: "Bacia de teste",
     status: "inProgress",
   };
   const updated = await api.put(`/api/projects/${project.id}/general-data`, {

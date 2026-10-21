@@ -1,4 +1,5 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import {
   networkDesignSchema,
@@ -19,6 +20,66 @@ const choice = {
   upstreamInvertM: 100,
 };
 describe("CDRE outcomes", () => {
+  it("separates critical and warning segments and keeps the four result views usable", async () => {
+    const user = userEvent.setup();
+    const finding = {
+      ruleCode: "COVER",
+      sourceId: "NBR",
+      description: "Recobrimento insuficiente",
+      severity: "WARNING",
+      subject: null,
+      observedValue: null,
+      expectedLimit: null,
+      waiverJustification: null,
+    };
+    const design = networkDesignSchema.parse({
+      projectId: common.segmentId,
+      rulesetVersionId: "nbr-test",
+      justifications: [],
+      nonconformities: [],
+      segments: [
+        {
+          ...common,
+          status: "designed",
+          choice,
+          quantities: [{ key: "initialDischarge", unit: "L/s", value: 0 }],
+          nonconformities: [finding],
+        },
+        {
+          ...common,
+          segmentId: "22222222-2222-4222-8222-222222222222",
+          segmentCode: "T-02",
+          status: "designed",
+          choice,
+          quantities: [],
+          nonconformities: [finding, { ...finding, severity: "CRITICAL" }],
+        },
+      ],
+    });
+    render(<DesignResults design={design} tabbed />);
+    expect(screen.getByRole("group", { name: "Conformes" })).toHaveTextContent(
+      "Conformes0",
+    );
+    expect(screen.getByRole("group", { name: "Em atenção" })).toHaveTextContent(
+      "Em atenção1",
+    );
+    expect(
+      screen.getByRole("group", { name: "Não conformes" }),
+    ).toHaveTextContent("Não conformes1");
+    await user.click(
+      screen.getByRole("tab", { name: "Resultados por Trecho" }),
+    );
+    expect(
+      within(screen.getByRole("table")).getByText("0", { exact: true }),
+    ).toBeVisible();
+    await user.click(screen.getByRole("link", { name: "T-01" }));
+    expect(
+      screen.getByRole("tab", { name: "Memória de Cálculo" }),
+    ).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByText("Vazão inicial (Qi)")).toBeVisible();
+    await user.click(screen.getByRole("tab", { name: "Não conformidades" }));
+    expect(screen.getAllByText("Recobrimento insuficiente")).toHaveLength(3);
+  });
   it("reads hydraulic quantities by key and preserves numeric zero", () => {
     const segment = segmentDesignSchema.parse({
       ...common,

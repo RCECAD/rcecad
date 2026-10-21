@@ -12,6 +12,14 @@ export type Project = {
   status: ProjectStatus;
   cnpj?: string;
   totalSegments?: number;
+  internalCode?: string;
+  revision?: string;
+  systemType?: string;
+  horizon?: string;
+  notes?: string;
+  totalAreaKm2?: number;
+  sector?: string;
+  basin?: string;
 };
 
 export type ProjectsStatusSummary = Record<ProjectStatus, number>;

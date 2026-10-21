@@ -43,6 +43,14 @@ describe("project adapters", () => {
       technicalManager: "Eng. Silva",
       location: "Cascavel, PR",
       status: "validated",
+      internalCode: "",
+      revision: "",
+      systemType: "",
+      horizon: "",
+      notes: "",
+      totalAreaKm2: null,
+      sector: "",
+      basin: "",
     });
   });
 });

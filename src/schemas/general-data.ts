@@ -10,6 +10,14 @@ export const generalDataSchema = z.object({
   technicalManager: optionalText,
   location: optionalText,
   status: projectStatusSchema,
+  internalCode: z.string().trim().max(50).optional(),
+  revision: z.string().trim().max(50).optional(),
+  systemType: z.string().trim().max(100).optional(),
+  horizon: z.string().trim().max(100).optional(),
+  notes: z.string().trim().max(5000).optional(),
+  totalAreaKm2: z.number().finite().nonnegative().nullable().optional(),
+  sector: optionalText.optional(),
+  basin: optionalText.optional(),
 });
 
 export const projectStatuses = [

@@ -2,6 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Save } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -358,8 +359,26 @@ function SegmentRow({
           disabled={!isDirty || save.isPending}
           onClick={() => void handleSubmit((values) => save.mutate(values))()}
         >
-          {save.isPending ? "Salvando..." : "Salvar trecho"}
+          {mode === "survey" ? (
+            save.isPending ? (
+              "Salvando..."
+            ) : (
+              "Salvar trecho"
+            )
+          ) : (
+            <Save
+              className="size-4"
+              aria-label={save.isPending ? "Salvando trecho" : "Salvar trecho"}
+            />
+          )}
         </Button>
+        {mode !== "survey" && (
+          <span
+            className={`ml-2 inline-block rounded-full border px-2 py-0.5 text-xs ${isDirty ? "border-amber-200 bg-amber-50 text-amber-700" : "border-teal-200 bg-teal-50 text-teal-700"}`}
+          >
+            {isDirty ? "Não salvo" : "Salvo"}
+          </span>
+        )}
         {Object.keys(errors).length > 0 && (
           <p role="alert" className="text-sm text-destructive">
             Revise os campos. As contribuições devem ser números iguais ou
@@ -388,6 +407,7 @@ export function NetworkFieldEditor({
   const { setHasUnsavedChanges } = useUnsavedChanges();
   const [dirtyRows, setDirtyRows] = useState<Record<string, boolean>>({});
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(0);
   const isDirty = Object.values(dirtyRows).some(Boolean);
   const onDirty = useCallback<DirtyChange>(
     (key, dirty) =>
@@ -444,10 +464,17 @@ export function NetworkFieldEditor({
   const term = search.trim().toLocaleLowerCase("pt-BR");
   const matches = (code: string) =>
     code.toLocaleLowerCase("pt-BR").includes(term);
+  const filteredSegments = network.data.segments.filter((segment) =>
+    matches(segment.code),
+  );
+  const visibleSegments =
+    mode === "survey"
+      ? filteredSegments
+      : filteredSegments.slice(page * 5, page * 5 + 5);
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-muted-foreground">
+        <p className="text-xs text-muted-foreground">
           {network.data.segments.length} trechos · {network.data.nodes.length}{" "}
           nós. Salve cada linha alterada antes de calcular.
         </p>
@@ -459,15 +486,20 @@ export function NetworkFieldEditor({
           Atualizar rede
         </Button>
       </div>
-      <Input
-        type="search"
-        aria-label="Buscar nó ou trecho"
-        placeholder="Buscar pelo código do nó ou trecho..."
-        value={search}
-        disabled={isDirty}
-        onChange={(event) => setSearch(event.target.value)}
-        className="max-w-md"
-      />
+      {mode === "survey" && (
+        <Input
+          type="search"
+          aria-label="Buscar nó ou trecho"
+          placeholder="Buscar pelo código do nó ou trecho..."
+          value={search}
+          disabled={isDirty}
+          onChange={(event) => {
+            setSearch(event.target.value);
+            setPage(0);
+          }}
+          className="max-w-md"
+        />
+      )}
       {isDirty && (
         <p role="status" className="text-sm text-amber-700 dark:text-amber-300">
           Existem alterações não salvas. Salve as linhas alteradas ou saia e
@@ -509,14 +541,14 @@ export function NetworkFieldEditor({
           </CardContent>
         </Card>
       )}
-      <Card>
+      <Card className="rounded-lg border border-border/80 bg-card/40 shadow-none ring-0">
         <CardHeader>
           <CardTitle>
             {mode === "survey"
               ? "Dados de campo dos trechos"
               : mode === "paving"
-                ? "Pavimentação por trecho"
-                : "Contribuições concentradas por trecho"}
+                ? "Dados de Pavimentação por Trecho"
+                : "Contribuições Singulares"}
           </CardTitle>
           <CardDescription>
             {mode === "survey"
@@ -527,6 +559,24 @@ export function NetworkFieldEditor({
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {mode !== "survey" && (
+            <Input
+              type="search"
+              aria-label="Buscar nó ou trecho"
+              placeholder={
+                mode === "paving"
+                  ? "Buscar por trecho..."
+                  : "Buscar por identificação, trecho..."
+              }
+              value={search}
+              disabled={isDirty}
+              onChange={(event) => {
+                setSearch(event.target.value);
+                setPage(0);
+              }}
+              className="mb-4 max-w-96"
+            />
+          )}
           <Table>
             <TableHeader>
               <TableRow>
@@ -552,24 +602,52 @@ export function NetworkFieldEditor({
                     <TableHead>Observações</TableHead>
                   </>
                 )}
-                <TableHead>Ação</TableHead>
+                <TableHead>
+                  {mode === "survey" ? "Ação" : "Status / Ação"}
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {network.data.segments
-                .filter((segment) => matches(segment.code))
-                .map((segment) => (
-                  <SegmentRow
-                    key={segment.id}
-                    segment={segment}
-                    projectId={projectId}
-                    mode={mode}
-                    onDirty={onDirty}
-                    nodeCodes={nodeCodes}
-                  />
-                ))}
+              {visibleSegments.map((segment) => (
+                <SegmentRow
+                  key={segment.id}
+                  segment={segment}
+                  projectId={projectId}
+                  mode={mode}
+                  onDirty={onDirty}
+                  nodeCodes={nodeCodes}
+                />
+              ))}
             </TableBody>
           </Table>
+          {mode !== "survey" && (
+            <div className="mt-4 flex items-center justify-between gap-3 text-xs text-muted-foreground">
+              <span>
+                {Math.min((page + 1) * 5, filteredSegments.length)} de{" "}
+                {filteredSegments.length} trechos
+              </span>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={isDirty || page === 0}
+                  onClick={() => setPage(page - 1)}
+                >
+                  Anterior
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={
+                    isDirty || (page + 1) * 5 >= filteredSegments.length
+                  }
+                  onClick={() => setPage(page + 1)}
+                >
+                  Próxima
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

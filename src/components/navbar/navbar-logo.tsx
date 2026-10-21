@@ -34,7 +34,14 @@ export const NavbarLogo = () => {
         className="hover:cursor-pointer"
         onClick={handleNavigation}
       >
-        <Image src="/rcecad-logo.png" alt="RCECAD" width={156} height={48} />
+        <Image
+          src="/rcecad-logo.png"
+          alt="RCECAD"
+          width={171}
+          height={45}
+          className="h-auto w-[171px]"
+          loading="eager"
+        />
       </Link>
     </div>
   );

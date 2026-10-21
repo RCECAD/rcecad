@@ -6,8 +6,8 @@ export default async function PavingPage({
 }) {
   const { projectId } = await params;
   return (
-    <div className="space-y-6">
-      <h1 className="text-3xl font-bold">Pavimentação</h1>
+    <div className="mx-auto max-w-[1088px] space-y-6">
+      <h1 className="text-2xl font-semibold tracking-tight">Pavimentação</h1>
       <NetworkFieldEditor projectId={projectId} mode="paving" />
     </div>
   );

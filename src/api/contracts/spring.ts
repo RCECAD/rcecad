@@ -57,6 +57,14 @@ export const projectSummaryResponseSchema = z.object({
 });
 
 export const projectResponseSchema = z.object({
+  internalCode: z.string().max(50).nullable().optional(),
+  revision: z.string().max(50).nullable().optional(),
+  systemType: z.string().max(100).nullable().optional(),
+  horizon: z.string().max(100).nullable().optional(),
+  notes: z.string().max(5000).nullable().optional(),
+  totalAreaKm2: z.number().finite().nonnegative().nullable().optional(),
+  sector: optionalTextSchema.optional(),
+  basin: optionalTextSchema.optional(),
   id: uuidSchema,
   name: z.string().min(1),
   contractor: optionalTextSchema,
@@ -149,11 +157,22 @@ export const projectParametersSchema = z.object({
   peakHourlyFactor: z.number().positive(),
   manningCoefficient: z.number().positive().nullable(),
   defaultNetworkMaterial: z.string().trim().min(1).max(100).nullable(),
+  justification: z.string().trim().max(5000).nullable().optional(),
 });
 
 const optionalRequestTextSchema = z.string().trim().max(200).nullable();
 
 export const createProjectRequestSchema = z.object({
+  ...projectResponseSchema.pick({
+    internalCode: true,
+    revision: true,
+    systemType: true,
+    horizon: true,
+    notes: true,
+    totalAreaKm2: true,
+    sector: true,
+    basin: true,
+  }).shape,
   name: z.string().trim().min(1).max(200),
   contractor: optionalRequestTextSchema,
   technicalManager: optionalRequestTextSchema,
