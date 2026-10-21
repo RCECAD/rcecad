@@ -5,8 +5,8 @@ async function fillRegistration(page: Page, email = login.email) {
   await page.goto("/auth/register");
   await page.getByLabel("CNPJ", { exact: true }).fill("00.000.000/0001-91");
   await page.getByLabel("Email", { exact: true }).fill(email);
-  await page.getByLabel("Senha", { exact: true }).fill("registration-fixture");
-  await page.getByLabel("Confirmar Senha").fill("registration-fixture");
+  await page.getByLabel("Senha", { exact: true }).fill("Registration-fixture!");
+  await page.getByLabel("Confirmar Senha").fill("Registration-fixture!");
 }
 
 test.afterEach(async ({ context }) => {

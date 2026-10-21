@@ -12,6 +12,7 @@ type SpringRequestOptions<T> = {
   schema: z.ZodType<T>;
   auth?: boolean;
   accessToken?: string;
+  timeoutMs?: number;
 };
 
 export type SpringAuthTokens = {
@@ -113,7 +114,11 @@ async function requestSpring<T>(
     headers.set("Accept", "application/json");
   }
 
-  if (init.body && !headers.has("Content-Type")) {
+  if (
+    init.body &&
+    !(init.body instanceof FormData) &&
+    !headers.has("Content-Type")
+  ) {
     headers.set("Content-Type", "application/json");
   }
 
@@ -135,7 +140,7 @@ async function requestSpring<T>(
       ...init,
       headers,
       cache: "no-store",
-      signal: init.signal ?? AbortSignal.timeout(30_000),
+      signal: init.signal ?? AbortSignal.timeout(options.timeoutMs ?? 30_000),
     });
     payload = await parseJsonResponse(response);
   } catch {
