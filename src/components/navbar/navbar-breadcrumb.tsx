@@ -1,8 +1,11 @@
 "use client";
 
+import { skipToken, useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Fragment, type MouseEvent, useMemo } from "react";
+import { projectQueryKeys } from "@/api/client/query-keys";
+import type { ProjectDetailResponse } from "@/api/contracts/spring";
 import { useUnsavedChanges } from "@/components/project/unsaved-changes-provider";
 import {
   Breadcrumb,
@@ -101,7 +104,23 @@ export function NavbarBreadcrumb() {
   const pathname = usePathname();
   const router = useRouter();
   const { requestNavigation } = useUnsavedChanges();
-  const items = useMemo(() => buildBreadcrumbItems(pathname), [pathname]);
+  const projectId = pathname.startsWith("/project/")
+    ? pathname.split("/")[2]
+    : "";
+  const network = useQuery<ProjectDetailResponse>({
+    queryKey: projectQueryKeys.network(projectId),
+    queryFn: skipToken,
+    enabled: false,
+  });
+  const items = useMemo(
+    () =>
+      buildBreadcrumbItems(pathname).map((item) =>
+        projectId && item.href === `/project/${projectId}`
+          ? { ...item, label: network.data?.project.name ?? "Projeto" }
+          : item,
+      ),
+    [pathname, projectId, network.data?.project.name],
+  );
 
   const handleNavigation = (
     event: MouseEvent<HTMLAnchorElement>,

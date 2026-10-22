@@ -93,6 +93,18 @@ test("browser: create, edit, confirm unsaved changes and persist hydraulic value
     name,
   );
   await page.getByLabel("Contratante (opcional)").fill("Prefeitura E2E");
+  await page.getByLabel("Código Interno (opcional)").fill("E2E-42");
+  await page.getByLabel("Revisão (opcional)").fill("rev.2");
+  await page
+    .getByLabel("Tipo de Sistema", { exact: true })
+    .fill("Separador absoluto");
+  await page.getByLabel("Etapa/Horizonte", { exact: true }).fill("2026–2046");
+  await page
+    .getByLabel("Observações", { exact: true })
+    .fill("Dados artificiais para teste");
+  await page.getByLabel("Bacia", { exact: true }).fill("Bacia de teste");
+  await page.getByLabel("Setor", { exact: true }).fill("Setor de teste");
+  await page.getByLabel("Área Total (km²)", { exact: true }).fill("2.5");
   await page.getByRole("button", { name: "Voltar", exact: true }).click();
   await expect(
     page.getByRole("dialog", { name: "Descartar alterações?" }),
@@ -107,6 +119,19 @@ test("browser: create, edit, confirm unsaved changes and persist hydraulic value
     "Prefeitura E2E",
   );
   await page.goto(`/project/${id}/hydraulics`);
+  const details = await (
+    await context.request.get(`/api/projects/${id}/network`)
+  ).json();
+  expect(details.project).toMatchObject({
+    internalCode: "E2E-42",
+    revision: "rev.2",
+    systemType: "Separador absoluto",
+    horizon: "2026–2046",
+    notes: "Dados artificiais para teste",
+    basin: "Bacia de teste",
+    sector: "Setor de teste",
+    totalAreaKm2: 2.5,
+  });
   await expect(
     page.getByText(/ainda não possui parâmetros hidráulicos/),
   ).toBeVisible();
@@ -118,6 +143,10 @@ test("browser: create, edit, confirm unsaved changes and persist hydraulic value
     ["Fator de pico diário (K1)", "1.2"],
     ["Fator de pico horário (K2)", "1.5"],
     ["Material da rede", "PVC JEI"],
+    [
+      "Justificativa Técnica (opcional)",
+      "Cenário didático para testar persistência",
+    ],
   ]) {
     await page.getByLabel(label, { exact: true }).fill(value);
   }
@@ -131,6 +160,9 @@ test("browser: create, edit, confirm unsaved changes and persist hydraulic value
   ).toHaveValue("PVC JEI");
   await expect(page.getByLabel("Taxa de infiltração (opcional)")).toHaveValue(
     "",
+  );
+  await expect(page.getByLabel("Justificativa Técnica (opcional)")).toHaveValue(
+    "Cenário didático para testar persistência",
   );
   await expect(page.getByText("L/s por km", { exact: true })).toBeVisible();
   await page.getByLabel("Taxa de infiltração (opcional)").fill("0.1");
@@ -169,7 +201,8 @@ test("browser: DXF validation, recoverable backend rejection and successful uplo
     {
       name: "invalid.dxf",
       buffer: Buffer.from(dxf.replace("SANC_REDE", "OTHER")),
-      error: /network|rede/i,
+      error:
+        "O DXF não contém uma rede compatível. Confira as camadas e os identificadores dos trechos.",
     },
   ]) {
     await upload.setInputFiles({
@@ -178,7 +211,7 @@ test("browser: DXF validation, recoverable backend rejection and successful uplo
       buffer: file.buffer,
     });
     await page
-      .getByRole("button", { name: "Importar projeto", exact: true })
+      .getByRole("button", { name: "Pré-visualizar DXF", exact: true })
       .click();
     await expect(page.getByRole("alert")).toHaveText(file.error);
     await expect(
@@ -191,9 +224,15 @@ test("browser: DXF validation, recoverable backend rejection and successful uplo
     buffer: Buffer.from(`999\n${"x".repeat(1000)}\n`.repeat(6200) + dxf),
   });
   await page
+    .getByRole("button", { name: "Pré-visualizar DXF", exact: true })
+    .click();
+  await expect(
+    page.getByRole("region", { name: "Pré-visualização do DXF" }),
+  ).toContainText("1 trechos");
+  await page
     .getByRole("button", { name: "Importar projeto", exact: true })
     .click();
-  await expect(page).toHaveURL(/\/general-data$/);
+  await expect(page).toHaveURL(/\/sizing$/);
   const id = new URL(page.url()).pathname.split("/")[2];
   console.log(`Fixture: ${name} | ${id}`);
   expect(

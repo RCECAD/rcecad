@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { FilePlus2, ScanSearch } from "lucide-react";
+import { FilePlus2, Zap } from "lucide-react";
 import { useState } from "react";
 import { ProjectCreateDialog } from "@/components/home/project-create-dialog";
 import { Card, CardContent } from "@/components/ui/card";
@@ -16,7 +16,7 @@ const actions = [
   {
     title: "Importar .DXF",
     description: "Comece rapidamente.",
-    icon: ScanSearch,
+    icon: Zap,
     mode: "import" as const,
   },
 ];

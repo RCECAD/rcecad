@@ -120,7 +120,7 @@ export function ProjectSidebar({
 
   return (
     <Sidebar
-      className="border-r border-border bg-sidebar md:top-16 md:h-[calc(100vh-64px)]"
+      className="border-r border-border bg-sidebar md:top-20 md:h-[calc(100vh-80px)]"
       data-slot="sidebar"
     >
       {/* Project Switcher Selector */}
@@ -128,7 +128,10 @@ export function ProjectSidebar({
         <Select value={currentProject.id} onValueChange={handleProjectChange}>
           <SelectTrigger className="w-full justify-between border-0 bg-transparent shadow-none hover:bg-muted/50 p-2 h-auto cursor-pointer focus:ring-0">
             <div className="flex flex-col items-start text-left">
-              <span className="font-semibold text-foreground text-sm tracking-tight leading-none">
+              <span
+                title={currentProject.name}
+                className="block max-w-44 truncate font-semibold text-foreground text-sm tracking-tight leading-5"
+              >
                 {currentProject.name}
               </span>
               <span className="text-xs text-muted-foreground mt-1">

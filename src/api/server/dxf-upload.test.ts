@@ -108,6 +108,30 @@ describe("bounded DXF uploads", () => {
     expect(upload).not.toHaveBeenCalled();
   });
 
+  it("preserves BOM, CRLF and non-UTF-8 bytes in the original DXF file", async () => {
+    const bytes = new Uint8Array([0xef, 0xbb, 0xbf, 0x30, 0x0d, 0x0a, 0xe7]);
+    const form = new FormData();
+    form.set("file", new File([bytes], "Rede.DXF"));
+    await withDxfUpload(
+      new Request("http://localhost/api/projects/dxf-preview", {
+        method: "POST",
+        body: form,
+      }),
+      async (body, contentType) => {
+        const forwarded = await new Request("http://localhost", {
+          method: "POST",
+          body,
+          headers: { "content-type": contentType },
+        }).formData();
+        expect(
+          new Uint8Array(await (forwarded.get("file") as File).arrayBuffer()),
+        ).toEqual(bytes);
+        expect(forwarded.has("name")).toBe(false);
+      },
+    );
+    await expectCleaned();
+  });
+
   it("rejects legacy JSON and missing multipart boundaries before reading", async () => {
     for (const type of ["application/json", "multipart/form-data"]) {
       const request = new Request("http://localhost", {

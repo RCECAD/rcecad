@@ -5,6 +5,7 @@ import { type FormEvent, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
 import { parseClientJson } from "@/api/client/response";
+import { type DxfPreview, dxfPreviewSchema } from "@/api/contracts/design";
 import { importDxfRequestSchema, MAX_DXF_BYTES } from "@/api/contracts/spring";
 import { Button } from "@/components/ui/button";
 import {
@@ -30,6 +31,7 @@ export function ProjectCreateDialog({
   const router = useRouter();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string>();
+  const [preview, setPreview] = useState<DxfPreview>();
   const importing = mode === "import";
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -79,6 +81,16 @@ export function ProjectCreateDialog({
           body: JSON.stringify(body),
         };
       }
+      if (importing && !preview) {
+        setPreview(
+          await parseClientJson(
+            await fetch("/api/projects/dxf-preview", init),
+            dxfPreviewSchema,
+            "Não foi possível conferir o DXF.",
+          ),
+        );
+        return;
+      }
       const project = await parseClientJson(
         await fetch(
           importing ? "/api/projects/import-dxf" : "/api/projects",
@@ -95,7 +107,9 @@ export function ProjectCreateDialog({
           ? "Projeto importado com sucesso."
           : "Projeto criado com sucesso.",
       );
-      router.push(`/project/${project.id}/general-data`);
+      router.push(
+        `/project/${project.id}/${importing ? "sizing" : "general-data"}`,
+      );
       router.refresh();
       onClose();
     } catch (cause) {
@@ -152,6 +166,10 @@ export function ProjectCreateDialog({
                   type="file"
                   accept=".dxf"
                   required
+                  onChange={() => {
+                    setPreview(undefined);
+                    setError(undefined);
+                  }}
                 />
               </Field>
             ) : null}
@@ -207,6 +225,30 @@ export function ProjectCreateDialog({
               </Field>
             )}
           </fieldset>
+          {preview && (
+            <section
+              aria-label="Pré-visualização do DXF"
+              className="rounded-md border p-3 text-sm space-y-2"
+            >
+              <p className="font-medium">
+                {preview.segmentCount} trechos · {preview.nodeCount} nós
+              </p>
+              <p>Saídas: {preview.outletCodes.join(", ") || "Nenhuma"}</p>
+              {preview.warnings.map((warning) => (
+                <p
+                  key={warning}
+                  role="alert"
+                  className="text-amber-700 dark:text-amber-300"
+                >
+                  {warning}
+                </p>
+              ))}
+              <p className="text-muted-foreground">
+                Confira a rede e confirme a importação. Parâmetros hidráulicos e
+                dados de campo serão preenchidos no projeto.
+              </p>
+            </section>
+          )}
           {error && (
             <p role="alert" className="text-sm text-destructive">
               {error}
@@ -224,10 +266,14 @@ export function ProjectCreateDialog({
             <Button type="submit" disabled={pending}>
               {pending
                 ? importing
-                  ? "Importando..."
+                  ? preview
+                    ? "Importando..."
+                    : "Conferindo DXF..."
                   : "Criando..."
                 : importing
-                  ? "Importar projeto"
+                  ? preview
+                    ? "Importar projeto"
+                    : "Pré-visualizar DXF"
                   : "Criar projeto"}
             </Button>
           </DialogFooter>

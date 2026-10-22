@@ -69,18 +69,26 @@ test("API: project CRUD, filters, pagination, ownership and Spring contracts", a
     contractor: "Prefeitura teste",
     technicalManager: "Engenheiro teste",
     location: "Cascavel, PR",
+    internalCode: "E2E-01",
+    revision: "rev.1",
+    systemType: "Separador absoluto",
+    horizon: "2026–2046",
+    notes: "Cenário de teste",
+    totalAreaKm2: 1.2,
+    sector: "Centro",
+    basin: "Bacia de teste",
     status: "inProgress",
   };
   const updated = await api.put(`/api/projects/${project.id}/general-data`, {
     data,
   });
   expect(updated.status()).toBe(200);
-  expect(await updated.json()).toEqual(data);
+  expect(await updated.json()).toEqual({ ...data, status: "pending" });
   const detail = await api.get(`${springUrl}/api/projects/${project.id}`, {
     headers: bearer(tokens.accessToken),
   });
   const parsed = projectDetailResponseSchema.parse(await detail.json());
-  expect(parsed.project).toMatchObject(data);
+  expect(parsed.project).toMatchObject({ ...data, status: "pending" });
   expect(parsed.segments).toEqual([]);
   const cleared = {
     ...data,
@@ -104,7 +112,7 @@ test("API: project CRUD, filters, pagination, ownership and Spring contracts", a
     location: null,
   });
   const listing = await api.get(`${springUrl}/api/projects`, {
-    params: { search: project.name, status: "inProgress", size: 1, page: 0 },
+    params: { search: project.name, status: "pending", size: 1, page: 0 },
     headers: bearer(tokens.accessToken),
   });
   const page = projectPageResponseSchema.parse(await listing.json());

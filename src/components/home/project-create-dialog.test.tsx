@@ -14,6 +14,15 @@ vi.mock("sonner", () => ({ toast: mocks }));
 import { ProjectCreateDialog } from "./project-create-dialog";
 
 const id = "9e8c6966-c49a-4f2f-9d9a-0953d2f6d0dc";
+const preview = {
+  fileName: "rede.dxf",
+  sizeBytes: 10,
+  segmentCount: 1,
+  nodeCount: 2,
+  layers: ["SANC_REDE"],
+  outletCodes: ["PV-02"],
+  warnings: [],
+};
 const fetchMock = vi.fn();
 const BrowserFormData = globalThis.FormData;
 
@@ -55,8 +64,10 @@ describe("project upload dialog", () => {
   });
   afterEach(() => vi.unstubAllGlobals());
 
-  it("sends a file above the old 5 MB limit as multipart with the import metadata", async () => {
-    fetchMock.mockResolvedValue(Response.json({ id }, { status: 201 }));
+  it("previews before importing a file above the old 5 MB limit and preserves metadata in both requests", async () => {
+    fetchMock
+      .mockResolvedValueOnce(Response.json(preview))
+      .mockResolvedValueOnce(Response.json({ id }, { status: 201 }));
     const { user, file } = await fillImport(6 * 1024 * 1024);
     await user.type(
       screen.getByLabelText("Contratante (opcional)"),
@@ -71,7 +82,7 @@ describe("project upload dialog", () => {
     submitImport();
     await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
     const [path, init] = fetchMock.mock.calls[0];
-    expect(path).toBe("/api/projects/import-dxf");
+    expect(path).toBe("/api/projects/dxf-preview");
     expect(init.headers).toBeUndefined();
     expect(init.body.get("file")).toBe(file);
     expect(Object.fromEntries(init.body)).toMatchObject({
@@ -81,7 +92,26 @@ describe("project upload dialog", () => {
       revision: "R1",
       basin: "Centro",
     });
-    expect(mocks.push).toHaveBeenCalledWith(`/project/${id}/general-data`);
+    expect(mocks.push).not.toHaveBeenCalled();
+    expect(
+      await screen.findByRole("region", { name: "Pré-visualização do DXF" }),
+    ).toHaveTextContent("1 trechos");
+    submitImport();
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    const [importPath, importInit] = fetchMock.mock.calls[1];
+    expect(importPath).toBe("/api/projects/import-dxf");
+    expect(importInit.headers).toBeUndefined();
+    expect(importInit.body.get("file")).toBe(file);
+    expect(Object.fromEntries(importInit.body)).toMatchObject({
+      name: "Rede",
+      contractor: "Prefeitura",
+      technicalManager: "Ana",
+      revision: "R1",
+      basin: "Centro",
+    });
+    await waitFor(() =>
+      expect(mocks.push).toHaveBeenCalledWith(`/project/${id}/sizing`),
+    );
     expect(file.slice).toHaveBeenCalledWith(0, 18);
   });
 
@@ -102,6 +132,7 @@ describe("project upload dialog", () => {
           { status: 503 },
         ),
       )
+      .mockResolvedValueOnce(Response.json(preview))
       .mockResolvedValueOnce(Response.json({ id }, { status: 201 }));
     const { file } = await fillImport();
     submitImport();
@@ -114,6 +145,36 @@ describe("project upload dialog", () => {
     ).toBe(file);
     submitImport();
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
-    expect(mocks.push).toHaveBeenCalledWith(`/project/${id}/general-data`);
+    await screen.findByRole("region", { name: "Pré-visualização do DXF" });
+    submitImport();
+    await waitFor(() =>
+      expect(mocks.push).toHaveBeenCalledWith(`/project/${id}/sizing`),
+    );
+  });
+
+  it("keeps a successful preview when import is busy and retries only the import", async () => {
+    fetchMock
+      .mockResolvedValueOnce(Response.json(preview))
+      .mockResolvedValueOnce(
+        Response.json({ error: "Uploads ocupados." }, { status: 503 }),
+      )
+      .mockResolvedValueOnce(Response.json({ id }, { status: 201 }));
+    const { file } = await fillImport();
+    submitImport();
+    await screen.findByRole("region", { name: "Pré-visualização do DXF" });
+    submitImport();
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Uploads ocupados.",
+    );
+    submitImport();
+    await waitFor(() =>
+      expect(mocks.push).toHaveBeenCalledWith(`/project/${id}/sizing`),
+    );
+    expect(fetchMock.mock.calls.map(([path]) => path)).toEqual([
+      "/api/projects/dxf-preview",
+      "/api/projects/import-dxf",
+      "/api/projects/import-dxf",
+    ]);
+    expect(fetchMock.mock.calls[2][1].body.get("file")).toBe(file);
   });
 });

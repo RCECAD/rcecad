@@ -22,6 +22,18 @@ export function toProject(
     location: optionalValue(source.location),
     status: source.status,
     createdAt: source.createdAt,
+    ...("internalCode" in source
+      ? {
+          internalCode: source.internalCode ?? undefined,
+          revision: source.revision ?? undefined,
+          systemType: source.systemType ?? undefined,
+          horizon: source.horizon ?? undefined,
+          notes: source.notes ?? undefined,
+          totalAreaKm2: source.totalAreaKm2 ?? undefined,
+          sector: source.sector ?? undefined,
+          basin: source.basin ?? undefined,
+        }
+      : {}),
     ...("updatedAt" in source ? { updatedAt: source.updatedAt } : {}),
     ...("technicalManager" in source
       ? { technicalManager: optionalValue(source.technicalManager) }
@@ -50,11 +62,27 @@ export function toGeneralDataFormValues(
     technicalManager: project.technicalManager ?? "",
     location: project.location ?? "",
     status: project.status,
+    internalCode: project.internalCode ?? "",
+    revision: project.revision ?? "",
+    systemType: project.systemType ?? "",
+    horizon: project.horizon ?? "",
+    notes: project.notes ?? "",
+    totalAreaKm2: project.totalAreaKm2 ?? null,
+    sector: project.sector ?? "",
+    basin: project.basin ?? "",
   };
 }
 
 export function toProjectUpdateRequest(values: GeneralDataFormValues) {
   return {
+    internalCode: values.internalCode,
+    revision: values.revision,
+    systemType: values.systemType,
+    horizon: values.horizon,
+    notes: values.notes,
+    totalAreaKm2: values.totalAreaKm2,
+    sector: values.sector,
+    basin: values.basin,
     name: values.name,
     contractor: values.contractor,
     technicalManager: values.technicalManager,

@@ -154,6 +154,7 @@ describe("HydraulicsForm", () => {
       ...parameters,
       infiltrationRate: null,
       manningCoefficient: null,
+      justification: null,
     };
     fetchMock
       .mockResolvedValueOnce(createJsonResponse(parameters))

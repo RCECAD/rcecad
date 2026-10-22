@@ -42,8 +42,10 @@ const formats = [
 
 export function ExportContent() {
   return (
-    <div className="mx-auto flex w-full min-w-0 max-w-5xl flex-col gap-6">
-      <h1 className="mb-2 text-3xl font-bold text-foreground">Exportação</h1>
+    <div className="mx-auto flex w-full min-w-0 max-w-[1088px] flex-col gap-6">
+      <h1 className="mb-2 text-2xl font-semibold tracking-tight text-foreground">
+        Exportação
+      </h1>
 
       <section
         aria-labelledby="export-status"
@@ -55,11 +57,11 @@ export function ExportContent() {
         />
         <div className="min-w-0">
           <h2 id="export-status" className="text-sm font-medium">
-            Projeto pronto para exportação
+            Exportação indisponível nesta versão
           </h2>
           <p className="mt-1 text-xs leading-5 text-muted-foreground">
-            Todas as validações foram atendidas. Você pode exportar os
-            documentos do projeto.
+            Consulte a tela de Validação para conferir as pendências atuais. A
+            geração dos documentos ainda não está integrada.
           </p>
         </div>
       </section>

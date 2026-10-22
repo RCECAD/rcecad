@@ -12,6 +12,7 @@ import {
   projectQueryKeys,
 } from "@/api/client/query-keys";
 import { parseClientJson } from "@/api/client/response";
+import type { NetworkDesign } from "@/api/contracts/design";
 import { useUnsavedChanges } from "@/components/project/unsaved-changes-provider";
 import { Button } from "@/components/ui/button";
 import {
@@ -35,6 +36,7 @@ import {
   InputGroupInput,
 } from "@/components/ui/input-group";
 import { PageLoading } from "@/components/ui/page-state";
+import { Textarea } from "@/components/ui/textarea";
 import {
   type HydraulicsFormValues,
   hydraulicsSchema,
@@ -120,6 +122,9 @@ export function HydraulicsForm({ projectId }: Readonly<HydraulicsFormProps>) {
   const queryClient = useQueryClient();
   const { requestNavigation, setHasUnsavedChanges } = useUnsavedChanges();
   const queryKey = projectQueryKeys.parameters(projectId);
+  const calculated = queryClient.getQueryData<NetworkDesign>(
+    projectQueryKeys.calculations(projectId),
+  );
 
   const {
     data: hydraulicData,
@@ -217,7 +222,7 @@ export function HydraulicsForm({ projectId }: Readonly<HydraulicsFormProps>) {
     <form
       onSubmit={handleSubmit((values) => saveMutation.mutate(values))}
       aria-busy={saveMutation.isPending}
-      className="mx-auto max-w-4xl space-y-6"
+      className="mx-auto max-w-[1088px] space-y-6"
     >
       <p aria-live="polite" className="sr-only">
         {saveMutation.isPending
@@ -226,7 +231,7 @@ export function HydraulicsForm({ projectId }: Readonly<HydraulicsFormProps>) {
             ? "Existem alterações não salvas."
             : "Nenhuma alteração pendente."}
       </p>
-      <h1 className="text-3xl font-bold tracking-tight text-foreground">
+      <h1 className="text-2xl font-semibold tracking-tight text-foreground">
         Hidráulica
       </h1>
       {hydraulicData === null && (
@@ -236,7 +241,7 @@ export function HydraulicsForm({ projectId }: Readonly<HydraulicsFormProps>) {
         </p>
       )}
 
-      <Card className="border border-border/80 bg-card/40 shadow-xs">
+      <Card className="rounded-lg border border-border/80 bg-card/40 shadow-none ring-0">
         <CardHeader className="pb-4">
           <CardTitle className="text-lg font-semibold">
             Parâmetros globais do sistema
@@ -247,10 +252,10 @@ export function HydraulicsForm({ projectId }: Readonly<HydraulicsFormProps>) {
             rugosidade pelo material.
           </CardDescription>
         </CardHeader>
-        <CardContent className="grid gap-6 md:grid-cols-2">
+        <CardContent className="grid gap-x-3 gap-y-5 md:grid-cols-3">
           <Field
             data-invalid={Boolean(errors.defaultNetworkMaterial)}
-            className="md:col-span-2"
+            className="md:col-span-3"
           >
             <FieldLabel htmlFor="defaultNetworkMaterial">
               Material da rede
@@ -321,6 +326,23 @@ export function HydraulicsForm({ projectId }: Readonly<HydraulicsFormProps>) {
               </Field>
             );
           })}
+          <Field className="md:col-span-3">
+            <FieldLabel htmlFor="justification">
+              Justificativa Técnica (opcional)
+            </FieldLabel>
+            <Textarea
+              id="justification"
+              className="min-h-32 bg-background"
+              maxLength={5000}
+              placeholder="Explique os critérios utilizados para definição dos parâmetros..."
+              {...register("justification", {
+                setValueAs: (value: string) => value?.trim() || null,
+              })}
+            />
+            {errors.justification && (
+              <FieldError errors={[errors.justification]} />
+            )}
+          </Field>
         </CardContent>
       </Card>
 
@@ -331,6 +353,35 @@ export function HydraulicsForm({ projectId }: Readonly<HydraulicsFormProps>) {
           resultados do projeto.
         </p>
       </div>
+
+      <Card className="rounded-lg border border-border/80 bg-card/40 shadow-none ring-0">
+        <CardHeader>
+          <CardTitle>Regras Ativas e Perfil Normativo</CardTitle>
+          <CardDescription>
+            Normas e regras utilizadas no dimensionamento
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-3 text-sm sm:grid-cols-2">
+          <div>
+            <p className="text-xs text-muted-foreground">
+              Versão da regra de cálculo
+            </p>
+            <p className="mt-1">
+              {calculated?.rulesetVersionId ?? "Disponível após calcular"}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Material adotado</p>
+            <p className="mt-1">
+              {hydraulicData?.defaultNetworkMaterial ?? "Não informado"}
+            </p>
+          </div>
+          <p className="text-xs text-muted-foreground sm:col-span-2">
+            Consulte as fontes normativas e as justificativas na Memória de
+            Cálculo.
+          </p>
+        </CardContent>
+      </Card>
 
       <div className="flex flex-col items-stretch gap-4 pt-2 sm:flex-row sm:items-center">
         {isDirty ? (

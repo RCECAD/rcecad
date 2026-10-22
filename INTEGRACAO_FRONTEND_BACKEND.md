@@ -1,4 +1,7 @@
-# Integração frontend–backend
+# Integração frontend–backend — levantamento de 12/10/2026
+
+Este documento registra a etapa anterior. Para o estado atual de dimensionamento,
+dados de campo, resultados e validação, consulte [INTEGRACAO_CDRE.md](INTEGRACAO_CDRE.md).
 
 Atualizado em: 12/10/2026.
 

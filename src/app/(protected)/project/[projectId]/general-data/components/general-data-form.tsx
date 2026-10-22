@@ -30,6 +30,7 @@ import { ErrorState } from "@/components/ui/error-state";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { PageLoading } from "@/components/ui/page-state";
+import { Textarea } from "@/components/ui/textarea";
 import {
   GENERAL_DATA_DEFAULTS,
   type GeneralDataFormValues,
@@ -55,9 +56,21 @@ const textFields = [
     placeholder: "Digite o nome do projeto",
   },
   {
+    name: "internalCode",
+    label: "Código Interno",
+    placeholder: "Ex.: 00042",
+    optional: true,
+  },
+  {
     name: "contractor",
     label: "Contratante",
     placeholder: "Digite o contratante",
+    optional: true,
+  },
+  {
+    name: "revision",
+    label: "Revisão",
+    placeholder: "Ex.: rev.129",
     optional: true,
   },
   {
@@ -73,6 +86,14 @@ const textFields = [
     optional: true,
   },
 ] satisfies Array<TextFieldConfig>;
+const identificationOrder = [
+  "name",
+  "internalCode",
+  "contractor",
+  "location",
+  "revision",
+  "technicalManager",
+];
 
 function getErrorId(name: FieldPath<GeneralDataFormValues>) {
   return `${name}-error`;
@@ -202,7 +223,7 @@ export function GeneralDataForm({ projectId }: Readonly<GeneralDataFormProps>) {
     <form
       onSubmit={handleSubmit((values) => saveMutation.mutate(values))}
       aria-busy={saveMutation.isPending}
-      className="mx-auto max-w-5xl space-y-6"
+      className="mx-auto max-w-[1088px] space-y-6 pt-2"
     >
       <p aria-live="polite" className="sr-only">
         {saveMutation.isPending
@@ -212,52 +233,129 @@ export function GeneralDataForm({ projectId }: Readonly<GeneralDataFormProps>) {
             : "Nenhuma alteração pendente."}
       </p>
 
-      <h1 className="text-3xl font-bold tracking-tight text-foreground">
+      <h1 className="pb-4 text-2xl font-semibold tracking-tight text-foreground">
         Dados Gerais
       </h1>
 
-      <Card className="rounded-lg border border-border/80 bg-card/40 shadow-xs">
-        <CardHeader className="pb-4">
+      <Card className="gap-3 rounded-lg border border-border/80 bg-card/40 shadow-none ring-0">
+        <CardHeader>
           <CardTitle className="text-base font-semibold">
-            Identificação do projeto
+            1. Identificação
           </CardTitle>
           <CardDescription>
-            Campos disponíveis no cadastro oficial do projeto.
+            Informações básicas de identificação do projeto
           </CardDescription>
         </CardHeader>
-        <CardContent className="grid gap-5 md:grid-cols-2">
-          {textFields.map((field) => (
-            <TextField
-              key={field.name}
-              config={field}
-              errors={errors}
-              register={register}
+        <CardContent className="grid gap-4 md:grid-cols-3">
+          {textFields
+            .toSorted(
+              (a, b) =>
+                identificationOrder.indexOf(a.name) -
+                identificationOrder.indexOf(b.name),
+            )
+            .map((field) => (
+              <TextField
+                key={field.name}
+                config={field}
+                errors={errors}
+                register={register}
+              />
+            ))}
+        </CardContent>
+      </Card>
+      <Card className="gap-3 rounded-lg border border-border/80 bg-card/40 shadow-none ring-0">
+        <CardHeader>
+          <CardTitle>2. Contexto Técnico</CardTitle>
+          <CardDescription>
+            Características técnicas e escopo do projeto
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4 md:grid-cols-3">
+          <TextField
+            config={{
+              name: "systemType",
+              label: "Tipo de Sistema",
+              placeholder: "Ex.: Separador absoluto",
+            }}
+            register={register}
+            errors={errors}
+          />
+          <TextField
+            config={{
+              name: "horizon",
+              label: "Etapa/Horizonte",
+              placeholder: "Ex.: 2026–2046, Fase 1",
+            }}
+            register={register}
+            errors={errors}
+          />
+          <Field className="md:col-span-3">
+            <FieldLabel htmlFor="notes">Observações</FieldLabel>
+            <Textarea
+              id="notes"
+              maxLength={5000}
+              className="min-h-32 bg-background"
+              placeholder="Digite..."
+              {...register("notes")}
             />
-          ))}
-          <Field data-invalid={Boolean(errors.status)}>
-            <FieldLabel htmlFor="status">Status</FieldLabel>
-            <select
-              id="status"
-              className="flex h-9 w-full rounded-md border border-input bg-background px-2.5 py-1 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-              aria-invalid={Boolean(errors.status)}
-              aria-describedby={
-                errors.status ? getErrorId("status") : undefined
-              }
-              {...register("status")}
-            >
-              {projectStatuses.map((status) => (
-                <option key={status.value} value={status.value}>
-                  {status.label}
-                </option>
-              ))}
-            </select>
-            {errors.status && (
-              <FieldError id={getErrorId("status")} errors={[errors.status]} />
+            {errors.notes && <FieldError errors={[errors.notes]} />}
+          </Field>
+        </CardContent>
+      </Card>
+      <Card className="gap-3 rounded-lg border border-border/80 bg-card/40 shadow-none ring-0">
+        <CardHeader>
+          <CardTitle>3. Escopo Espacial</CardTitle>
+          <CardDescription>
+            Delimitação geográfica e setorização do projeto
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4 md:grid-cols-3">
+          <TextField
+            config={{
+              name: "basin",
+              label: "Bacia",
+              placeholder: "Ex.: Bacia do Rio Paraná",
+            }}
+            register={register}
+            errors={errors}
+          />
+          <TextField
+            config={{
+              name: "sector",
+              label: "Setor",
+              placeholder: "Ex.: Setor Central",
+            }}
+            register={register}
+            errors={errors}
+          />
+          <Field>
+            <FieldLabel htmlFor="totalAreaKm2">Área Total (km²)</FieldLabel>
+            <Input
+              id="totalAreaKm2"
+              type="number"
+              min="0"
+              step="any"
+              placeholder="Ex.: 2,5"
+              {...register("totalAreaKm2", {
+                setValueAs: (value) =>
+                  value === "" || value == null ? null : Number(value),
+              })}
+            />
+            {errors.totalAreaKm2 && (
+              <FieldError errors={[errors.totalAreaKm2]} />
             )}
           </Field>
         </CardContent>
       </Card>
 
+      <p className="text-xs text-muted-foreground">
+        Status:{" "}
+        {
+          projectStatuses.find((item) => item.value === generalData?.status)
+            ?.label
+        }
+        . Definido automaticamente pela validação do projeto.
+      </p>
       <div className="flex flex-col items-stretch gap-4 pt-2 sm:flex-row sm:items-center">
         {isDirty ? (
           <Button

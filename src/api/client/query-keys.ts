@@ -14,6 +14,12 @@ export const projectQueryKeys = {
     [...projectQueryKeys.all, "parameters", projectId] as const,
   calculations: (projectId: string) =>
     [...projectQueryKeys.all, "calculations", projectId] as const,
+  network: (projectId: string) =>
+    [...projectQueryKeys.all, "network", projectId] as const,
+  validation: (projectId: string) =>
+    [...projectQueryKeys.all, "validation", projectId] as const,
+  overview: (projectId: string) =>
+    [...projectQueryKeys.all, "overview", projectId] as const,
 };
 
 export async function invalidateProjectDependents(
@@ -26,7 +32,21 @@ export async function invalidateProjectDependents(
       queryKey: projectQueryKeys.detail(projectId),
     }),
     queryClient.invalidateQueries({
+      queryKey: projectQueryKeys.overview(projectId),
+    }),
+    queryClient.cancelQueries({
       queryKey: projectQueryKeys.calculations(projectId),
+    }),
+    queryClient.cancelQueries({
+      queryKey: projectQueryKeys.validation(projectId),
+    }),
+  ]);
+  await Promise.all([
+    queryClient.resetQueries({
+      queryKey: projectQueryKeys.calculations(projectId),
+    }),
+    queryClient.resetQueries({
+      queryKey: projectQueryKeys.validation(projectId),
     }),
   ]);
 }
