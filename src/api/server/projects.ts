@@ -12,7 +12,11 @@ import {
   projectResponseSchema,
   updateProjectRequestSchema,
 } from "@/api/contracts/spring";
-import { toProject, toProjectFromDetail } from "@/api/server/project-adapters";
+import {
+  toProject,
+  toProjectFromDetail,
+  toProjectUpdateRequest,
+} from "@/api/server/project-adapters";
 import { springPageRequest } from "@/api/server/spring-page-client";
 import type {
   HomeProjectsPayload,
@@ -168,14 +172,18 @@ export async function createProject(
   return toProject(response);
 }
 
-export async function importDxf(values: FormData): Promise<Project> {
+export async function importDxf(
+  body: Blob,
+  contentType: string,
+): Promise<Project> {
   const response = await springRequestWithRefresh(
     "/projects/import-dxf",
     {
       method: "POST",
-      body: values,
+      headers: { "Content-Type": contentType },
+      body,
     },
-    { schema: projectDetailResponseSchema },
+    { schema: projectDetailResponseSchema, timeoutMs: 300_000 },
   );
   return toProjectFromDetail(response);
 }
@@ -184,20 +192,9 @@ export async function updateProject(
   projectId: string,
   values: GeneralDataFormValues,
 ): Promise<Project> {
-  const payload = updateProjectRequestSchema.parse({
-    internalCode: values.internalCode,
-    revision: values.revision,
-    systemType: values.systemType,
-    horizon: values.horizon,
-    notes: values.notes,
-    totalAreaKm2: values.totalAreaKm2,
-    sector: values.sector,
-    basin: values.basin,
-    name: values.name,
-    contractor: values.contractor,
-    technicalManager: values.technicalManager,
-    location: values.location,
-  });
+  const payload = updateProjectRequestSchema.parse(
+    toProjectUpdateRequest(values),
+  );
   const response = await springRequestWithRefresh(
     projectPath(projectId),
     {

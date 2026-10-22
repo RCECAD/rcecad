@@ -13,7 +13,7 @@ test("live registration: ReceitaWS, account, automatic login, project and later 
     );
   }
   const email = `cadastro-e2e-${Date.now()}@example.invalid`;
-  const password = randomUUID();
+  const password = `A!${randomUUID()}`;
   console.log(`Registration fixture email: ${email}`);
   page.on("pageerror", (error) => {
     throw error;

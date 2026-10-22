@@ -31,6 +31,7 @@ export function RegisterForm() {
     defaultValues: {
       cnpj: "",
       email: "",
+      corporateName: "",
       password: "",
       confirmPassword: "",
     },
@@ -43,7 +44,13 @@ export function RegisterForm() {
 
   useEffect(() => {
     if (isSubmitting) return;
-    const fields = ["cnpj", "email", "password", "confirmPassword"] as const;
+    const fields = [
+      "cnpj",
+      "corporateName",
+      "email",
+      "password",
+      "confirmPassword",
+    ] as const;
     const rejectedField = fields.find(
       (name) => errors[name]?.type === "server",
     );
@@ -132,6 +139,34 @@ export function RegisterForm() {
           )}
         />
 
+        <Controller
+          name="corporateName"
+          control={control}
+          render={({ field, fieldState }) => (
+            <Field data-invalid={fieldState.invalid}>
+              <FieldLabel htmlFor={field.name}>
+                Nome da empresa (opcional)
+              </FieldLabel>
+              <Input
+                {...field}
+                id={field.name}
+                autoComplete="organization"
+                maxLength={255}
+                aria-invalid={fieldState.invalid}
+                aria-describedby="corporateName-description corporateName-error"
+              />
+              <FieldDescription id="corporateName-description">
+                Se ficar vazio, será usado o nome cadastrado no CNPJ.
+              </FieldDescription>
+              <FieldError
+                id="corporateName-error"
+                role="alert"
+                errors={[fieldState.error]}
+              />
+            </Field>
+          )}
+        />
+
         {/* Campo: Email */}
         <Controller
           name="email"
@@ -174,10 +209,10 @@ export function RegisterForm() {
                 autoComplete="new-password"
                 placeholder="••••••••"
                 aria-invalid={fieldState.invalid}
-                aria-describedby="password-error"
+                aria-describedby="password-description password-error"
               />
-              <FieldDescription>
-                Escolha uma senha para acessar a conta.
+              <FieldDescription id="password-description">
+                Use no mínimo 8 caracteres, uma letra maiúscula e um símbolo.
               </FieldDescription>
               <FieldError
                 id="password-error"

@@ -19,14 +19,14 @@ vi.mock("sonner", () => ({
 
 import { RegisterForm } from "./client";
 
-async function fillForm(confirm = "test-password") {
+async function fillForm(confirm = "Test-password!") {
   const user = userEvent.setup();
   render(<RegisterForm />);
   await user.type(screen.getByLabelText("CNPJ"), "55444333000101");
   await user.type(screen.getByLabelText("Email"), "test@example.com");
   await user.type(
     screen.getByLabelText("Senha", { exact: true }),
-    "test-password",
+    "Test-password!",
   );
   await user.type(screen.getByLabelText("Confirmar Senha"), confirm);
   await user.click(screen.getByRole("button", { name: "Criar Conta" }));

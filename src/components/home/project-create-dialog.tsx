@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { z } from "zod";
 import { parseClientJson } from "@/api/client/response";
 import { type DxfPreview, dxfPreviewSchema } from "@/api/contracts/design";
-import { MAX_DXF_BYTES } from "@/api/contracts/spring";
+import { importDxfRequestSchema, MAX_DXF_BYTES } from "@/api/contracts/spring";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -44,9 +44,9 @@ export function ProjectCreateDialog({
     try {
       const name = String(data.get("name") ?? "").trim();
       if (!name) throw new Error("Informe o nome do projeto.");
-      let body: BodyInit;
+      let init: RequestInit;
       if (importing) {
-        const file = data.get("dxf");
+        const file = data.get("file");
         if (
           !(file instanceof File) ||
           !file.name.toLowerCase().endsWith(".dxf") ||
@@ -55,42 +55,47 @@ export function ProjectCreateDialog({
           throw new Error("Selecione um arquivo .dxf válido.");
         }
         if (file.size > MAX_DXF_BYTES)
-          throw new Error("O arquivo DXF deve ter até 5 MB.");
-        const upload = new FormData();
-        upload.set("name", name);
-        upload.set("file", file);
-        if (!preview) {
-          setPreview(
-            await parseClientJson(
-              await fetch("/api/projects/dxf-preview", {
-                method: "POST",
-                body: upload,
-              }),
-              dxfPreviewSchema,
-              "Não foi possível conferir o DXF.",
-            ),
-          );
-          return;
+          throw new Error("O arquivo DXF deve ter até 300 MB.");
+        if (
+          !importDxfRequestSchema.safeParse(Object.fromEntries(data)).success
+        ) {
+          throw new Error("Revise os dados do projeto e o arquivo DXF.");
         }
-        body = upload;
+        const header = await file.slice(0, 18).text();
+        if (header.startsWith("AutoCAD Binary DXF"))
+          throw new Error("Exporte o desenho no formato DXF de texto (ASCII).");
+        data.set("name", name);
+        init = { method: "POST", body: data };
       } else {
         const optional = (key: string) =>
           String(data.get(key) ?? "").trim() || null;
-        body = JSON.stringify({
+        const body = {
           name,
           contractor: optional("contractor"),
           technicalManager: optional("technicalManager"),
           location: optional("location"),
-        });
+        };
+        init = {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        };
+      }
+      if (importing && !preview) {
+        setPreview(
+          await parseClientJson(
+            await fetch("/api/projects/dxf-preview", init),
+            dxfPreviewSchema,
+            "Não foi possível conferir o DXF.",
+          ),
+        );
+        return;
       }
       const project = await parseClientJson(
-        await fetch(importing ? "/api/projects/import-dxf" : "/api/projects", {
-          method: "POST",
-          ...(importing
-            ? {}
-            : { headers: { "Content-Type": "application/json" } }),
-          body,
-        }),
+        await fetch(
+          importing ? "/api/projects/import-dxf" : "/api/projects",
+          init,
+        ),
         createdProjectSchema,
         importing
           ? "Não foi possível importar o DXF. Verifique o arquivo e tente novamente."
@@ -125,14 +130,17 @@ export function ProjectCreateDialog({
         if (!open && !pending) onClose();
       }}
     >
-      <DialogContent showCloseButton={!pending}>
+      <DialogContent
+        showCloseButton={!pending}
+        className="max-h-[calc(100dvh-2rem)] overflow-y-auto"
+      >
         <DialogHeader>
           <DialogTitle>
             {importing ? "Importar .DXF" : "Novo projeto"}
           </DialogTitle>
           <DialogDescription>
             {importing
-              ? "Crie um projeto a partir do desenho da rede. Use um DXF de texto de até 5 MB."
+              ? "Crie um projeto a partir do desenho da rede. Use um DXF de texto de até 300 MB."
               : "Informe os dados iniciais. Você poderá completá-los depois."}
           </DialogDescription>
         </DialogHeader>
@@ -154,7 +162,7 @@ export function ProjectCreateDialog({
                 <FieldLabel htmlFor="new-project-dxf">Arquivo DXF</FieldLabel>
                 <Input
                   id="new-project-dxf"
-                  name="dxf"
+                  name="file"
                   type="file"
                   accept=".dxf"
                   required
@@ -164,39 +172,57 @@ export function ProjectCreateDialog({
                   }}
                 />
               </Field>
-            ) : (
+            ) : null}
+            <Field>
+              <FieldLabel htmlFor="new-project-contractor">
+                Contratante (opcional)
+              </FieldLabel>
+              <Input
+                id="new-project-contractor"
+                name="contractor"
+                maxLength={200}
+              />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="new-project-manager">
+                Responsável técnico (opcional)
+              </FieldLabel>
+              <Input
+                id="new-project-manager"
+                name="technicalManager"
+                maxLength={200}
+              />
+            </Field>
+            {importing ? (
               <>
                 <Field>
-                  <FieldLabel htmlFor="new-project-contractor">
-                    Contratante (opcional)
+                  <FieldLabel htmlFor="new-project-revision">
+                    Revisão (opcional)
                   </FieldLabel>
                   <Input
-                    id="new-project-contractor"
-                    name="contractor"
-                    maxLength={200}
+                    id="new-project-revision"
+                    name="revision"
+                    maxLength={50}
                   />
                 </Field>
                 <Field>
-                  <FieldLabel htmlFor="new-project-manager">
-                    Responsável técnico (opcional)
+                  <FieldLabel htmlFor="new-project-basin">
+                    Bacia (opcional)
                   </FieldLabel>
-                  <Input
-                    id="new-project-manager"
-                    name="technicalManager"
-                    maxLength={200}
-                  />
-                </Field>
-                <Field>
-                  <FieldLabel htmlFor="new-project-location">
-                    Localidade (opcional)
-                  </FieldLabel>
-                  <Input
-                    id="new-project-location"
-                    name="location"
-                    maxLength={200}
-                  />
+                  <Input id="new-project-basin" name="basin" maxLength={200} />
                 </Field>
               </>
+            ) : (
+              <Field>
+                <FieldLabel htmlFor="new-project-location">
+                  Localidade (opcional)
+                </FieldLabel>
+                <Input
+                  id="new-project-location"
+                  name="location"
+                  maxLength={200}
+                />
+              </Field>
             )}
           </fieldset>
           {preview && (

@@ -42,11 +42,11 @@ export const getProjectOverview = (id: string) =>
     {},
     { schema: projectOverviewSchema },
   );
-export const previewDxf = (body: FormData) =>
+export const previewDxf = (body: Blob, contentType: string) =>
   springRequestWithRefresh(
     "/projects/dxf-preview",
-    { method: "POST", body },
-    { schema: dxfPreviewSchema },
+    { method: "POST", headers: { "Content-Type": contentType }, body },
+    { schema: dxfPreviewSchema, timeoutMs: 300_000 },
   );
 export const updateNodeFieldData = (
   id: string,

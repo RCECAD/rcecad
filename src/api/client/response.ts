@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 const zClientError = z.object({
-  error: z.string().min(1),
+  error: z.string().trim().min(1),
   code: z.string().optional(),
 });
 const errorMessages: Record<string, string> = {

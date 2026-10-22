@@ -75,10 +75,18 @@ export function toGeneralDataFormValues(
 
 export function toProjectUpdateRequest(values: GeneralDataFormValues) {
   return {
+    internalCode: values.internalCode,
+    revision: values.revision,
+    systemType: values.systemType,
+    horizon: values.horizon,
+    notes: values.notes,
+    totalAreaKm2: values.totalAreaKm2,
+    sector: values.sector,
+    basin: values.basin,
     name: values.name,
-    contractor: values.contractor || null,
-    technicalManager: values.technicalManager || null,
-    location: values.location || null,
+    contractor: values.contractor,
+    technicalManager: values.technicalManager,
+    location: values.location,
     status: values.status,
   };
 }

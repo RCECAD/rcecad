@@ -1,5 +1,4 @@
 import { expect, test } from "@playwright/test";
-import { MAX_DXF_BYTES } from "../../src/api/contracts/spring";
 import {
   appUrl,
   createProject,
@@ -181,6 +180,7 @@ test("browser: DXF validation, recoverable backend rejection and successful uplo
   page,
   context,
 }) => {
+  await page.setViewportSize({ width: 390, height: 650 });
   await setSession(context);
   await page.goto("/home");
   await page.getByRole("button", { name: /Importar .DXF/ }).click();
@@ -197,11 +197,6 @@ test("browser: DXF validation, recoverable backend rejection and successful uplo
       name: "binary.dxf",
       buffer: Buffer.from("AutoCAD Binary DXF"),
       error: "Exporte o desenho no formato DXF de texto (ASCII).",
-    },
-    {
-      name: "large.dxf",
-      buffer: Buffer.alloc(MAX_DXF_BYTES + 1),
-      error: "O arquivo DXF deve ter até 5 MB.",
     },
     {
       name: "invalid.dxf",
@@ -226,7 +221,7 @@ test("browser: DXF validation, recoverable backend rejection and successful uplo
   await upload.setInputFiles({
     name: "valid.dxf",
     mimeType: "application/dxf",
-    buffer: Buffer.from(dxf),
+    buffer: Buffer.from(`999\n${"x".repeat(1000)}\n`.repeat(6200) + dxf),
   });
   await page
     .getByRole("button", { name: "Pré-visualizar DXF", exact: true })

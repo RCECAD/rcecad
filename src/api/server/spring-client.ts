@@ -12,6 +12,7 @@ type SpringRequestOptions<T> = {
   schema: z.ZodType<T>;
   auth?: boolean;
   accessToken?: string;
+  timeoutMs?: number;
 };
 
 export type SpringAuthTokens = {
@@ -139,7 +140,7 @@ async function requestSpring<T>(
       ...init,
       headers,
       cache: "no-store",
-      signal: init.signal ?? AbortSignal.timeout(30_000),
+      signal: init.signal ?? AbortSignal.timeout(options.timeoutMs ?? 30_000),
     });
     payload = await parseJsonResponse(response);
   } catch {

@@ -10,7 +10,9 @@ com Zod em `src/api/contracts/design.ts` e `spring.ts`.
 1. Na Home, escolha **Importar .DXF**, informe nome e arquivo e use
    **Pré-visualizar DXF**. Confira contagens, saídas e avisos; a prévia não cria projeto.
 2. Confirme **Importar projeto**. Os bytes originais seguem por multipart, sem
-   conversão de codificação. O limite atual do front é 5 MB.
+   conversão de codificação. Prévia e importação aceitam até 300 MB, com leitura
+   limitada, arquivo temporário em disco e até dois uploads simultâneos por
+   processo Next. O formulário preserva os metadados opcionais da importação.
 3. Em **Hidráulica**, informe os parâmetros e o material da rede. Projetos novos
    continuam sem valores de engenharia preenchidos automaticamente.
 4. Em **Dimensionamento**, preencha as cotas de terreno dos nós, o tipo dos

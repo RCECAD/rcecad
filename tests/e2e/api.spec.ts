@@ -1,7 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { expect, test } from "@playwright/test";
 import {
-  MAX_DXF_BYTES,
   projectDetailResponseSchema,
   projectPageResponseSchema,
   projectParametersSchema,
@@ -91,6 +90,27 @@ test("API: project CRUD, filters, pagination, ownership and Spring contracts", a
   const parsed = projectDetailResponseSchema.parse(await detail.json());
   expect(parsed.project).toMatchObject({ ...data, status: "pending" });
   expect(parsed.segments).toEqual([]);
+  const cleared = {
+    ...data,
+    contractor: "",
+    technicalManager: "",
+    location: "",
+  };
+  expect(
+    (
+      await api.put(`/api/projects/${project.id}/general-data`, {
+        data: cleared,
+      })
+    ).status(),
+  ).toBe(200);
+  const reloaded = await api.get(`${springUrl}/api/projects/${project.id}`, {
+    headers: bearer(tokens.accessToken),
+  });
+  expect((await reloaded.json()).project).toMatchObject({
+    contractor: null,
+    technicalManager: null,
+    location: null,
+  });
   const listing = await api.get(`${springUrl}/api/projects`, {
     params: { search: project.name, status: "pending", size: 1, page: 0 },
     headers: bearer(tokens.accessToken),
@@ -215,7 +235,7 @@ test("API: invalid JSON/fields return safe errors without creating records", asy
   ).toBe(400);
 });
 
-test("API: DXF topology, byte limits and atomic rejection of invalid imports", async ({
+test("API: multipart DXF import and atomic rejection of invalid topology", async ({
   context,
 }) => {
   const tokens = await setSession(context);
@@ -224,6 +244,10 @@ test("API: DXF topology, byte limits and atomic rejection of invalid imports", a
   const result = await api.post("/api/projects/import-dxf", {
     multipart: {
       name,
+      contractor: "Prefeitura E2E",
+      technicalManager: "Ana E2E",
+      revision: "R1",
+      basin: "Centro",
       file: {
         name: "rede.dxf",
         mimeType: "application/dxf",
@@ -235,15 +259,24 @@ test("API: DXF topology, byte limits and atomic rejection of invalid imports", a
   const project = await result.json();
   console.log(`Fixture: ${name} | ${project.id}`);
   expect(project.totalSegments).toBe(1);
-  const detail = projectDetailResponseSchema.parse(
-    await (
-      await api.get(`${springUrl}/api/projects/${project.id}`, {
-        headers: bearer(tokens.accessToken),
-      })
-    ).json(),
-  );
+  const rawDetail = await (
+    await api.get(`${springUrl}/api/projects/${project.id}`, {
+      headers: bearer(tokens.accessToken),
+    })
+  ).json();
+  expect(rawDetail.project).toMatchObject({
+    contractor: "Prefeitura E2E",
+    technicalManager: "Ana E2E",
+    revision: "R1",
+    basin: "Centro",
+  });
+  const detail = projectDetailResponseSchema.parse(rawDetail);
   expect(detail.nodes).toHaveLength(2);
   expect(detail.segments).toHaveLength(1);
+  expect(detail.project).toMatchObject({
+    contractor: "Prefeitura E2E",
+    technicalManager: "Ana E2E",
+  });
   const exported = await api.get(
     `${springUrl}/api/projects/${project.id}/export-dxf`,
     { headers: bearer(tokens.accessToken) },
@@ -253,13 +286,12 @@ test("API: DXF topology, byte limits and atomic rejection of invalid imports", a
     "",
     "0\nSECTION\n2\nENTITIES\n0\nENDSEC\n0\nEOF\n",
     dxf.replace("SANC_REDE", "OTHER"),
-    "é".repeat(MAX_DXF_BYTES / 2 + 1),
   ]) {
     const response = await api.post("/api/projects/import-dxf", {
       multipart: {
         name: `${name} invalid`,
         file: {
-          name: "rede.dxf",
+          name: "invalid.dxf",
           mimeType: "application/dxf",
           buffer: Buffer.from(invalid),
         },
