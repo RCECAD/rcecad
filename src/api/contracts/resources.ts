@@ -12,7 +12,8 @@ import {
 
 /** Spring endpoints added after the CDRE integration, checked at rcecad-back@a0a43b3. */
 
-const uuid = z.string().uuid();
+// Java UUID accepts seeded ids without RFC version bits (e.g. the admin 1111…).
+const uuid = z.guid();
 const instant = z.string().datetime({ offset: true });
 const finite = z.number().finite();
 const lps = finite.nonnegative();

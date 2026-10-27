@@ -6,6 +6,7 @@ import {
   projectOverviewSchema,
   segmentFieldDataSchema,
 } from "./design";
+import { authenticatedUserSchema } from "./resources";
 import {
   projectDetailResponseSchema,
   projectParametersDetailsSchema,
@@ -90,6 +91,21 @@ const choice = {
 };
 
 describe("current backend contract", () => {
+  it("reads the seeded administrator profile, whose id has no RFC version bits", () => {
+    expect(
+      authenticatedUserSchema.parse({
+        id: "11111111-1111-1111-1111-111111111111",
+        email: "admin@rcecad.com",
+        corporateName: "RCECAD ADMIN",
+        cnpj: "00000000000191",
+        active: true,
+        roles: ["ADMIN"],
+        permissions: ["MANAGE_PROJECT"],
+        name: null,
+      }).corporateName,
+    ).toBe("RCECAD ADMIN");
+  });
+
   it("reads a project detail whose segments no longer carry contribution or legacy pipe fields", () => {
     const parsed = projectDetailResponseSchema.parse(backendDetail);
     expect(parsed.segments[0].fixedDiameterMm).toBeNull();

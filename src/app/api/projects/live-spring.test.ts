@@ -133,6 +133,14 @@ describe.skipIf(!springUrl || !dxfPath)("live Spring contract", () => {
       } as RequestInit;
     };
 
+    const { springRequest } = await import("@/api/server/spring-client");
+    const { authenticatedUserSchema, projectStatsSchema } = await import(
+      "@/api/contracts/resources"
+    );
+    // Server components call these directly; no Next route exercises them.
+    await springRequest("/users/me", {}, { schema: authenticatedUserSchema });
+    await springRequest("/projects/stats", {}, { schema: projectStatsSchema });
+
     expect((await call(routes.preview, {}, multipart(form()))).status).toBe(
       200,
     );
