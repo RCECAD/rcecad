@@ -18,6 +18,8 @@ const choice = {
   slope: 0.0045,
   material: "PVC JEI",
   upstreamInvertM: 100,
+  diameterImposed: false,
+  upstreamDropM: 0,
 };
 describe("CDRE outcomes", () => {
   it("separates critical and warning segments and keeps the four result views usable", async () => {
@@ -36,6 +38,7 @@ describe("CDRE outcomes", () => {
       projectId: common.segmentId,
       rulesetVersionId: "nbr-test",
       justifications: [],
+      adoptedParameters: [],
       nonconformities: [],
       segments: [
         {
@@ -100,6 +103,7 @@ describe("CDRE outcomes", () => {
       projectId: common.segmentId,
       rulesetVersionId: "nbr-test",
       justifications: [],
+      adoptedParameters: [],
       nonconformities: [],
       segments: [
         {
@@ -157,6 +161,49 @@ describe("CDRE outcomes", () => {
     expect(
       screen.getAllByRole("link", { name: "T-01", hidden: true }),
     ).toHaveLength(2);
+  });
+  it("shows an imposed-diameter segment as verified with its critical findings", () => {
+    const design = networkDesignSchema.parse({
+      projectId: common.segmentId,
+      rulesetVersionId: "nbr-test",
+      justifications: [],
+      adoptedParameters: [
+        {
+          key: "perCapitaFlow",
+          unit: "L/hab.dia",
+          value: 150,
+          origin: "PROJECT:measuredValue",
+          projectSupplied: true,
+        },
+      ],
+      nonconformities: [],
+      segments: [
+        {
+          ...common,
+          status: "verified",
+          choice: { ...choice, diameterMm: 150, diameterImposed: true },
+          quantities: [{ key: "initialDischarge", unit: "L/s", value: 1.5 }],
+          nonconformities: [
+            {
+              ruleCode: "VELOCITY",
+              sourceId: "NBR",
+              description: "Velocidade acima do limite",
+              severity: "CRITICAL",
+              subject: null,
+              observedValue: null,
+              expectedLimit: null,
+              waiverJustification: null,
+            },
+          ],
+        },
+      ],
+    });
+    render(<DesignResults design={design} tabbed />);
+    expect(
+      screen.getByRole("group", { name: "Não conformes" }),
+    ).toHaveTextContent("Não conformes1");
+    expect(screen.getByText("Consumo per capita")).toBeVisible();
+    expect(screen.getByText("Informado no projeto")).toBeVisible();
   });
   it("rejects unknown or incomplete result variants", () => {
     expect(

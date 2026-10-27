@@ -19,6 +19,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { NonconformityPanel } from "./nonconformity-panel";
 
 const severityLabels = {
   CRITICAL: "Erro crítico",
@@ -161,6 +162,9 @@ export function ProjectValidation({ projectId }: { projectId: string }) {
         queryClient.invalidateQueries({
           queryKey: projectQueryKeys.overview(projectId),
         }),
+        queryClient.invalidateQueries({
+          queryKey: projectQueryKeys.nonconformities(projectId),
+        }),
       ]);
       router.refresh();
     }
@@ -298,6 +302,7 @@ export function ProjectValidation({ projectId }: { projectId: string }) {
           Execute a validação para consultar as pendências atuais.
         </p>
       )}
+      <NonconformityPanel projectId={projectId} />
     </div>
   );
 }

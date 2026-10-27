@@ -1,5 +1,10 @@
 import "server-only";
 
+import { z } from "zod";
+import {
+  authenticatedUserSchema,
+  projectStatsSchema,
+} from "@/api/contracts/resources";
 import {
   type CreateProjectRequest,
   createProjectRequestSchema,
@@ -8,6 +13,7 @@ import {
   projectDetailResponseSchema,
   projectListQuerySchema,
   projectPageResponseSchema,
+  projectParametersDetailsSchema,
   projectParametersSchema,
   projectResponseSchema,
   updateProjectRequestSchema,
@@ -89,8 +95,10 @@ export async function listProjects(
 
 export async function getHomeProjects({
   refresh = false,
+  stats = true,
 }: {
   refresh?: boolean;
+  stats?: boolean;
 } = {}): Promise<HomeProjectsPayload> {
   if (isDevPreview) {
     return {
@@ -104,17 +112,25 @@ export async function getHomeProjects({
     };
   }
 
-  const response = await (refresh
-    ? listProjects({ page: 0, size: 100 }, { refresh })
-    : springPageRequest(
-        () => listProjects({ page: 0, size: 100 }, { refresh: false }),
-        "/home",
-      ));
+  const load = () =>
+    Promise.all([
+      listProjects({ page: 0, size: 100 }, { refresh }),
+      stats
+        ? (refresh ? springRequestWithRefresh : springRequest)(
+            "/projects/stats",
+            {},
+            { schema: projectStatsSchema },
+          )
+        : undefined,
+    ]);
+  const [response, statusSummary] = await (refresh
+    ? load()
+    : springPageRequest(load, "/home"));
 
   return {
     recentProjects: response.content.slice(0, 3),
     projects: response.content,
-    statusSummary: buildSummary(response.content),
+    statusSummary: statusSummary ?? buildSummary(response.content),
     page: response.page,
     size: response.size,
     totalElements: response.totalElements,
@@ -207,27 +223,28 @@ export async function updateProject(
   return toProject(response);
 }
 
-export async function getProjectParameters(
-  projectId: string,
-): Promise<ProjectParameters | null> {
-  try {
-    return await springRequestWithRefresh(
-      `${projectPath(projectId)}/parameters`,
-      {},
-      {
-        schema: projectParametersSchema,
-      },
-    );
-  } catch (error) {
-    // A newly created project has no parameters yet. Keep a missing project a 404.
-    if (
-      error instanceof SpringApiError &&
-      error.status === 404 &&
-      (await getProjectById(projectId, { refresh: true }))
-    )
-      return null;
-    throw error;
-  }
+export async function getProjectParameters(projectId: string) {
+  return springRequestWithRefresh(
+    `${projectPath(projectId)}/parameters`,
+    {},
+    { schema: projectParametersDetailsSchema },
+  );
+}
+
+export async function deleteProject(projectId: string): Promise<void> {
+  await springRequestWithRefresh(
+    projectPath(projectId),
+    { method: "DELETE" },
+    { schema: z.null() },
+  );
+}
+
+export async function getCurrentUser() {
+  if (isDevPreview) return null;
+  return springPageRequest(
+    () => springRequest("/users/me", {}, { schema: authenticatedUserSchema }),
+    "/home",
+  );
 }
 
 export async function updateProjectParameters(

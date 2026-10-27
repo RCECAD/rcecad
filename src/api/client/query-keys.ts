@@ -20,7 +20,25 @@ export const projectQueryKeys = {
     [...projectQueryKeys.all, "validation", projectId] as const,
   overview: (projectId: string) =>
     [...projectQueryKeys.all, "overview", projectId] as const,
+  actions: (projectId: string, limit: number) =>
+    [...projectQueryKeys.all, "actions", projectId, limit] as const,
+  contributions: (projectId: string) =>
+    [...projectQueryKeys.all, "contributions", projectId] as const,
+  nonconformities: (projectId: string) =>
+    [...projectQueryKeys.all, "nonconformities", projectId] as const,
+  waivers: (projectId: string) =>
+    [...projectQueryKeys.all, "waivers", projectId] as const,
+  memorial: (projectId: string) =>
+    [...projectQueryKeys.all, "memorial", projectId] as const,
+  executiveSummary: (projectId: string) =>
+    [...projectQueryKeys.all, "executive-summary", projectId] as const,
+  snapshots: (projectId: string) =>
+    [...projectQueryKeys.all, "snapshots", projectId] as const,
+  exports: (projectId: string) =>
+    [...projectQueryKeys.all, "exports", projectId] as const,
 };
+
+export const normativeProfileQueryKey = ["normative-profile"] as const;
 
 export async function invalidateProjectDependents(
   queryClient: QueryClient,
@@ -41,12 +59,13 @@ export async function invalidateProjectDependents(
       queryKey: projectQueryKeys.validation(projectId),
     }),
   ]);
-  await Promise.all([
-    queryClient.resetQueries({
-      queryKey: projectQueryKeys.calculations(projectId),
-    }),
-    queryClient.resetQueries({
-      queryKey: projectQueryKeys.validation(projectId),
-    }),
-  ]);
+  // Memorial and summary are computed on demand from the current inputs.
+  await Promise.all(
+    [
+      projectQueryKeys.calculations(projectId),
+      projectQueryKeys.validation(projectId),
+      projectQueryKeys.memorial(projectId),
+      projectQueryKeys.executiveSummary(projectId),
+    ].map((queryKey) => queryClient.resetQueries({ queryKey })),
+  );
 }

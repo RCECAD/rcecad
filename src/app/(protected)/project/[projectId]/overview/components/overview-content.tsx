@@ -32,7 +32,13 @@ export function OverviewContent({
   onRefresh,
   refreshing,
   status,
+  progressPercent,
+  notice,
+  onShowAllActions,
 }: {
+  progressPercent?: number;
+  notice?: string;
+  onShowAllActions?: () => void;
   projectId: string;
   projectDetails: { label: string; value: string }[];
   stages: { title: string; description: string; complete: boolean }[];
@@ -47,11 +53,13 @@ export function OverviewContent({
   refreshing: boolean;
   status: string;
 }) {
-  const progress = stages.length
-    ? Math.round(
-        (stages.filter((stage) => stage.complete).length / stages.length) * 100,
-      )
-    : 0;
+  const progress = Math.round(
+    progressPercent ??
+      (stages.length
+        ? (stages.filter((stage) => stage.complete).length / stages.length) *
+          100
+        : 0),
+  );
   return (
     <div className="mx-auto grid w-full min-w-0 gap-5 xl:-mx-4 xl:w-[calc(100%+2rem)] xl:gap-8 xl:grid-cols-[minmax(0,1fr)_350px]">
       <div className="min-w-0 space-y-5">
@@ -62,6 +70,14 @@ export function OverviewContent({
           <p className="mt-1 text-xs text-muted-foreground">
             Status atual: {status}
           </p>
+          {notice && (
+            <p
+              role="status"
+              className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-2.5 py-2 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300"
+            >
+              {notice}
+            </p>
+          )}
           <dl className="mt-4 grid gap-x-5 gap-y-3 sm:grid-cols-3">
             {projectDetails.map((detail) => (
               <div key={detail.label} className="min-w-0">
@@ -160,6 +176,18 @@ export function OverviewContent({
               </li>
             ))}
           </ol>
+          {onShowAllActions && (
+            <div className="mt-5 flex justify-end">
+              <Button
+                type="button"
+                variant="secondary"
+                size="xs"
+                onClick={onShowAllActions}
+              >
+                Ver histórico completo
+              </Button>
+            </div>
+          )}
         </section>
       </div>
 

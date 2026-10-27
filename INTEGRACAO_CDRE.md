@@ -19,9 +19,11 @@ com Zod em `src/api/contracts/design.ts` e `spring.ts`.
    elementos e a resposta de contribuição de tempo seco. Salve cada linha.
 5. Em **Pavimentação**, informe a categoria de recobrimento. O material superficial
    importado (por exemplo, asfalto) é um campo diferente dessa categoria.
-6. Em **Vazões**, edite as contribuições concentradas iniciais e finais por trecho,
-   em L/s. São os campos efetivamente lidos pelo CDRE. O CRUD independente de
-   contribuições nomeadas do Spring ainda não alimenta o motor e não é usado aqui.
+6. Em **Vazões**, cadastre as contribuições singulares nomeadas (indústria, comércio,
+   instituição) por nó ou trecho, em L/s (`/singular-contributions`). Desde a V29 do
+   backend o PUT de dados de campo rejeita os antigos campos de contribuição por trecho.
+   Em **Dimensionamento** também é possível impor DN e material por trecho e editar a
+   topologia (criar, alterar e excluir nós e trechos).
 7. Use **Calcular dimensionamento** em Dimensionamento ou Resultados. A tabela
    mostra Qi/Qf, DN, declividade e velocidade/lâmina nos dois horizontes. Grandezas
    são localizadas por chave, nunca pela posição na resposta.
@@ -29,7 +31,9 @@ com Zod em `src/api/contracts/design.ts` e `spring.ts`.
    recusadas e trechos bloqueantes. Uma resposta HTTP 200 pode conter trechos
    inviáveis ou não avaliados.
 9. Em **Validação**, use **Validar projeto**. O Spring decide a aptidão para concluir
-   e atualiza o status. O status em Dados Gerais é somente leitura.
+   e atualiza o status. O status em Dados Gerais é somente leitura. Abaixo ficam as não
+   conformidades registradas (aceitar com justificativa, reabrir, histórico) e as
+   aprovações de exceção por trecho (rebaixar regra ou fixar diâmetro/declividade).
 
 O salvamento de dados de campo substitui o bloco completo de um trecho. Os
 formulários preservam os campos das outras abas e invalidam cálculo/validação
@@ -39,8 +43,21 @@ novamente. Sair com alterações não salvas exige descartá-las explicitamente.
 
 Resultados ficam no cache da sessão do navegador; `/design` não persiste cálculos
 no banco. Após recarregar, execute o cálculo novamente. Visão Geral usa pendências
-e histórico reais de `/overview`, sem executar o motor. A exportação de documentos
-permanece indisponível e não indica mais aprovação fictícia.
+e histórico reais de `/overview` (progresso por etapa e aviso de dimensionamento
+desatualizado), sem executar o motor; o histórico completo vem de `/actions`.
+Resultados mostra o resumo executivo e o memorial de cálculo (fórmulas e
+contribuições aplicadas) calculados no backend. **Exportação** gera memorial,
+planilha XLSX, relatório técnico e perfis longitudinais; com o projeto não apto, o
+Spring responde `EXPORT_BLOCKED` e a tela lista as pendências. A mesma tela baixa o
+DXF original e mostra o histórico de exportações e dos registros de dimensionamento.
+
+Verificação de contrato contra um Spring em execução (opcional):
+
+```powershell
+$env:RCECAD_LIVE_SPRING_URL = 'http://localhost:8081'
+$env:RCECAD_LIVE_DXF = 'C:\caminho\rede.dxf'
+bunx vitest run live-spring
+```
 
 ## Cenário didático com COLETOR 01.dxf
 

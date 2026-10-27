@@ -3,6 +3,7 @@ import { z } from "zod";
 const zClientError = z.object({
   error: z.string().trim().min(1),
   code: z.string().optional(),
+  items: z.array(z.unknown()).optional(),
 });
 const errorMessages: Record<string, string> = {
   DXF_INVALID_FORMAT: "Exporte o desenho no formato DXF de texto (ASCII).",
@@ -17,10 +18,18 @@ export class ClientApiError extends Error {
     message: string,
     readonly status?: number,
     readonly code?: string,
+    readonly items?: unknown[],
   ) {
     super(message);
     this.name = "ClientApiError";
   }
+}
+
+export async function expectNoContent(
+  response: Response,
+  message: string,
+): Promise<void> {
+  if (!response.ok) await parseClientJson(response, z.never(), message);
 }
 
 export async function parseClientJson<T>(
@@ -41,6 +50,7 @@ export async function parseClientJson<T>(
         : message,
       response.status,
       error.success ? error.data.code : undefined,
+      error.success ? error.data.items : undefined,
     );
   }
 

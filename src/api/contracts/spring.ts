@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 /**
- * Spring HTTP contract checked against RCECAD/rcecad-back@419b1fe.
+ * Spring HTTP contract checked against RCECAD/rcecad-back@a0a43b3.
  *
  * Keep these schemas at the boundary: data from Spring is untrusted until it
  * passes one of them, and requests are validated before they leave Next.
@@ -43,6 +43,7 @@ export const springErrorSchema = z.object({
   timestamp: z.string().optional(),
   fields: z.string().optional(),
   fieldsMessage: z.string().optional(),
+  items: z.array(z.unknown()).optional(),
 });
 
 export const projectSummaryResponseSchema = z.object({
@@ -53,6 +54,9 @@ export const projectSummaryResponseSchema = z.object({
   location: optionalTextSchema,
   createdAt: instantSchema,
   totalSegments: z.number().int().nonnegative(),
+  updatedAt: instantSchema.optional(),
+  technicalManager: optionalTextSchema.optional(),
+  revision: optionalTextSchema.optional(),
 });
 
 export const projectResponseSchema = z.object({
@@ -62,6 +66,7 @@ export const projectResponseSchema = z.object({
   horizon: z.string().max(100).nullable().optional(),
   notes: z.string().max(5000).nullable().optional(),
   totalAreaKm2: z.number().finite().nonnegative().nullable().optional(),
+  totalNetworkLengthM: z.number().finite().positive().nullable().optional(),
   sector: optionalTextSchema.optional(),
   basin: optionalTextSchema.optional(),
   id: uuidSchema,
@@ -81,6 +86,7 @@ export const hydraulicNodeResponseSchema = z.object({
   projectId: uuidSchema,
   code: z.string().min(1),
   type: z.string().min(1),
+  hasDropTube: z.boolean(),
   x: z.number().finite(),
   y: z.number().finite(),
   invertElevation: z.number().finite(),
@@ -116,20 +122,19 @@ export const segmentResponseSchema = z.object({
     ])
     .nullable(),
   receivesDryWeatherFlow: z.boolean().nullable(),
-  initialSingularContributionLps: z.number().finite().nonnegative(),
-  finalSingularContributionLps: z.number().finite().nonnegative(),
   surfaceMaterial: z.enum(["ASPHALT", "PAVING_STONE", "GRAVEL"]).nullable(),
   surfaceCondition: z.enum(["GOOD", "FAIR", "POOR"]).nullable(),
   pavementNotes: optionalTextSchema,
-  diameter: z.number().finite().nullable(),
+  fixedDiameterMm: z.number().int().positive().nullable(),
   material: optionalTextSchema,
-  manning: z.number().finite().nullable(),
 });
 
 export const projectDetailResponseSchema = z.object({
   project: projectResponseSchema,
   nodes: z.array(hydraulicNodeResponseSchema),
   segments: z.array(segmentResponseSchema),
+  designOutdated: z.boolean().nullable().optional(),
+  lastSnapshotAt: instantSchema.nullable().optional(),
 });
 
 export function pageResponseSchema<T extends z.ZodType>(itemSchema: T) {
@@ -146,6 +151,14 @@ export const projectPageResponseSchema = pageResponseSchema(
   projectSummaryResponseSchema,
 );
 
+const materialSchema = z.string().trim().min(1).max(100);
+
+export const materialSwitchSchema = z.object({
+  fromMaterial: materialSchema,
+  toMaterial: materialSchema,
+  aboveDiameterMm: z.number().int().positive(),
+});
+
 export const projectParametersSchema = z.object({
   initialPopulation: z.number().int().nonnegative(),
   finalPopulation: z.number().int().nonnegative(),
@@ -155,8 +168,37 @@ export const projectParametersSchema = z.object({
   peakDailyFactor: z.number().positive(),
   peakHourlyFactor: z.number().positive(),
   manningCoefficient: z.number().positive().nullable(),
-  defaultNetworkMaterial: z.string().trim().min(1).max(100).nullable(),
+  defaultNetworkMaterial: materialSchema.nullable(),
+  materialSwitch: materialSwitchSchema.nullable().optional(),
   justification: z.string().trim().max(5000).nullable().optional(),
+});
+
+export const normativeProfileSchema = z.object({
+  rulesetVersion: z.string(),
+  name: z.string(),
+  standards: z.array(z.string()),
+});
+
+/** GET /parameters: stored values, or baseline defaults while unconfigured. */
+export const projectParametersDetailsSchema = z.object({
+  configured: z.boolean(),
+  initialPopulation: z.number().int().nonnegative().nullable(),
+  finalPopulation: z.number().int().nonnegative().nullable(),
+  returnCoefficient: z.number().positive().nullable(),
+  perCapitaFlow: z.number().positive().nullable(),
+  infiltrationRate: z.number().nonnegative().nullable(),
+  infiltrationRateUnit: z.string(),
+  peakDailyFactor: z.number().positive().nullable(),
+  peakHourlyFactor: z.number().positive().nullable(),
+  manningCoefficient: z.number().positive().nullable(),
+  defaultNetworkMaterial: z.string().nullable(),
+  materialSwitch: materialSwitchSchema.nullable(),
+  justification: z.string().nullable(),
+  defaults: z.record(
+    z.string(),
+    z.object({ value: z.number().nullable(), source: z.string().nullable() }),
+  ),
+  normativeProfile: normativeProfileSchema,
 });
 
 const optionalRequestTextSchema = z.string().trim().max(200).nullable();
@@ -169,6 +211,7 @@ export const createProjectRequestSchema = z.object({
     horizon: true,
     notes: true,
     totalAreaKm2: true,
+    totalNetworkLengthM: true,
     sector: true,
     basin: true,
   }).shape,
@@ -221,6 +264,12 @@ export type ProjectResponse = z.infer<typeof projectResponseSchema>;
 export type ProjectDetailResponse = z.infer<typeof projectDetailResponseSchema>;
 export type ProjectPageResponse = z.infer<typeof projectPageResponseSchema>;
 export type ProjectParameters = z.infer<typeof projectParametersSchema>;
+export type ProjectParametersDetails = z.infer<
+  typeof projectParametersDetailsSchema
+>;
+export type NormativeProfile = z.infer<typeof normativeProfileSchema>;
+export type HydraulicNodeResponse = z.infer<typeof hydraulicNodeResponseSchema>;
+export type SegmentResponse = z.infer<typeof segmentResponseSchema>;
 export type CreateProjectRequest = z.infer<typeof createProjectRequestSchema>;
 export type UpdateProjectRequest = z.infer<typeof updateProjectRequestSchema>;
 export type ImportDxfRequest = z.infer<typeof importDxfRequestSchema>;

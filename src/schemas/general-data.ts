@@ -16,6 +16,7 @@ export const generalDataSchema = z.object({
   horizon: z.string().trim().max(100).optional(),
   notes: z.string().trim().max(5000).optional(),
   totalAreaKm2: z.number().finite().nonnegative().nullable().optional(),
+  totalNetworkLengthM: z.number().finite().positive().nullable().optional(),
   sector: optionalText.optional(),
   basin: optionalText.optional(),
 });

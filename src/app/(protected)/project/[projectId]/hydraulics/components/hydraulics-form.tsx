@@ -12,7 +12,7 @@ import {
   projectQueryKeys,
 } from "@/api/client/query-keys";
 import { parseClientJson } from "@/api/client/response";
-import type { NetworkDesign } from "@/api/contracts/design";
+import { projectParametersDetailsSchema } from "@/api/contracts/spring";
 import { useUnsavedChanges } from "@/components/project/unsaved-changes-provider";
 import { Button } from "@/components/ui/button";
 import {
@@ -39,7 +39,10 @@ import { PageLoading } from "@/components/ui/page-state";
 import { Textarea } from "@/components/ui/textarea";
 import {
   type HydraulicsFormValues,
+  hydraulicsFormSchema,
   hydraulicsSchema,
+  toHydraulicsFormValues,
+  toParametersRequest,
 } from "@/schemas/hydraulics";
 
 type HydraulicsFormProps = {
@@ -122,9 +125,6 @@ export function HydraulicsForm({ projectId }: Readonly<HydraulicsFormProps>) {
   const queryClient = useQueryClient();
   const { requestNavigation, setHasUnsavedChanges } = useUnsavedChanges();
   const queryKey = projectQueryKeys.parameters(projectId);
-  const calculated = queryClient.getQueryData<NetworkDesign>(
-    projectQueryKeys.calculations(projectId),
-  );
 
   const {
     data: hydraulicData,
@@ -136,7 +136,7 @@ export function HydraulicsForm({ projectId }: Readonly<HydraulicsFormProps>) {
     queryFn: async () =>
       parseClientJson(
         await fetch(`/api/projects/${projectId}/hydraulics`),
-        hydraulicsSchema.nullable(),
+        projectParametersDetailsSchema,
         "Erro ao carregar parâmetros hidráulicos.",
       ),
     enabled: Boolean(projectId),
@@ -149,35 +149,31 @@ export function HydraulicsForm({ projectId }: Readonly<HydraulicsFormProps>) {
     register,
     reset,
   } = useForm<HydraulicsFormValues>({
-    resolver: zodResolver(hydraulicsSchema),
+    resolver: zodResolver(hydraulicsFormSchema),
   });
 
   useEffect(() => {
-    if (hydraulicData !== undefined) {
-      reset(
-        hydraulicData ?? {
-          infiltrationRate: null,
-          manningCoefficient: null,
-          defaultNetworkMaterial: null,
-        },
-      );
+    if (hydraulicData) {
+      reset(toHydraulicsFormValues(hydraulicData) as HydraulicsFormValues);
     }
   }, [hydraulicData, reset]);
 
   const saveMutation = useMutation({
-    mutationFn: async (values: HydraulicsFormValues) =>
-      parseClientJson(
+    mutationFn: async (values: HydraulicsFormValues) => {
+      await parseClientJson(
         await fetch(`/api/projects/${projectId}/hydraulics`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(values),
+          body: JSON.stringify(toParametersRequest(values)),
         }),
         hydraulicsSchema,
         "Erro ao salvar parâmetros hidráulicos.",
-      ),
-    onSuccess: async (data) => {
-      queryClient.setQueryData(queryKey, data);
-      reset(data);
+      );
+      return values;
+    },
+    onSuccess: async (values) => {
+      reset(values);
+      await queryClient.invalidateQueries({ queryKey });
       await invalidateProjectDependents(queryClient, projectId);
       toast.success("Parâmetros salvos com sucesso!", {
         description:
@@ -234,10 +230,11 @@ export function HydraulicsForm({ projectId }: Readonly<HydraulicsFormProps>) {
       <h1 className="text-2xl font-semibold tracking-tight text-foreground">
         Hidráulica
       </h1>
-      {hydraulicData === null && (
+      {hydraulicData && !hydraulicData.configured && (
         <p className="text-sm text-muted-foreground">
           Este projeto ainda não possui parâmetros hidráulicos. Preencha os
-          campos para começar.
+          campos para começar; os valores publicados pela norma aparecem como
+          referência abaixo de cada campo.
         </p>
       )}
 
@@ -282,9 +279,57 @@ export function HydraulicsForm({ projectId }: Readonly<HydraulicsFormProps>) {
               />
             )}
           </Field>
+          <fieldset className="grid gap-3 md:col-span-3 md:grid-cols-3">
+            <legend className="mb-2 text-sm font-medium">
+              Troca de material por diâmetro (opcional)
+            </legend>
+            <Input
+              aria-label="Material de origem da troca"
+              placeholder="De (ex.: PVC JEI)"
+              maxLength={100}
+              {...register("switchFromMaterial", {
+                setValueAs: (value: string | null) => value?.trim() || null,
+              })}
+            />
+            <Input
+              aria-label="Material de destino da troca"
+              placeholder="Para (ex.: Concreto)"
+              maxLength={100}
+              {...register("switchToMaterial", {
+                setValueAs: (value: string | null) => value?.trim() || null,
+              })}
+            />
+            <InputGroup>
+              <InputGroupInput
+                aria-label="Trocar acima do diâmetro"
+                type="number"
+                min={1}
+                step={1}
+                placeholder="Acima de"
+                aria-invalid={Boolean(errors.switchAboveDiameterMm)}
+                {...register("switchAboveDiameterMm", {
+                  setValueAs: (value: string | null) =>
+                    value === "" || value === null ? null : Number(value),
+                })}
+              />
+              <InputGroupAddon align="inline-end">mm</InputGroupAddon>
+            </InputGroup>
+            <FieldDescription className="md:col-span-3">
+              Aplica-se apenas aos trechos sem material próprio. Não há limite
+              padrão: em branco, nenhuma troca é feita.
+            </FieldDescription>
+            {errors.switchAboveDiameterMm && (
+              <FieldError
+                className="md:col-span-3"
+                errors={[errors.switchAboveDiameterMm]}
+                role="alert"
+              />
+            )}
+          </fieldset>
           {parameterFields.map((field) => {
             const error = errors[field.name];
             const errorId = getErrorId(field.name);
+            const baseline = hydraulicData?.defaults[field.name];
 
             return (
               <Field key={field.name} data-invalid={Boolean(error)}>
@@ -318,6 +363,13 @@ export function HydraulicsForm({ projectId }: Readonly<HydraulicsFormProps>) {
                   <FieldDescription>
                     Em branco, será definida conforme a norma do material,
                     quando houver valor aplicável.
+                  </FieldDescription>
+                )}
+                {baseline?.value != null && (
+                  <FieldDescription>
+                    Referência normativa:{" "}
+                    {baseline.value.toLocaleString("pt-BR")}
+                    {baseline.source ? ` (${baseline.source})` : ""}
                   </FieldDescription>
                 )}
                 {error && (
@@ -367,8 +419,22 @@ export function HydraulicsForm({ projectId }: Readonly<HydraulicsFormProps>) {
               Versão da regra de cálculo
             </p>
             <p className="mt-1">
-              {calculated?.rulesetVersionId ?? "Disponível após calcular"}
+              {hydraulicData?.normativeProfile.rulesetVersion ?? "—"}
             </p>
+          </div>
+          <div className="sm:col-span-2">
+            <p className="text-xs text-muted-foreground">Perfil normativo</p>
+            <p className="mt-1">{hydraulicData?.normativeProfile.name}</p>
+            <ul className="mt-1 flex flex-wrap gap-2">
+              {hydraulicData?.normativeProfile.standards.map((standard) => (
+                <li
+                  key={standard}
+                  className="rounded-full border px-2 py-0.5 text-xs"
+                >
+                  {standard}
+                </li>
+              ))}
+            </ul>
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Material adotado</p>
