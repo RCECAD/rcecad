@@ -36,6 +36,7 @@ export function routeErrorResponse(error: unknown): NextResponse {
               },
             }
           : {}),
+        ...(springDetails?.items ? { items: springDetails.items } : {}),
       },
       { status: error.status },
     );

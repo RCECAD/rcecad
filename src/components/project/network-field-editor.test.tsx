@@ -19,15 +19,12 @@ const segment = {
   slope: 0.01,
   upstreamInvert: 100,
   downstreamInvert: 99.9,
-  diameter: null,
-  material: null,
-  manning: null,
+  fixedDiameterMm: 150,
+  material: "Concreto",
   pavementTypeRaw: "ASFALTO",
   pavementType: "SIDEWALK",
   elementType: "COLLECTOR",
   receivesDryWeatherFlow: null,
-  initialSingularContributionLps: 2,
-  finalSingularContributionLps: 3,
   surfaceMaterial: "ASPHALT",
   surfaceCondition: "FAIR",
   pavementNotes: "Preservar esta nota",
@@ -51,6 +48,7 @@ const detail = {
       projectId,
       code: "PV-01",
       type: "PV",
+      hasDropTube: false,
       x: 0,
       y: 0,
       invertElevation: 100,
@@ -89,7 +87,7 @@ describe("network field data", () => {
       screen.getByRole("button", { name: "Salvar trecho" }),
     ).toBeDisabled();
   });
-  it("preserves pavement and contributions when saving an explicit false answer, then clears obsolete results", async () => {
+  it("preserves pavement, imposed diameter and material when saving an explicit false answer, then clears obsolete results", async () => {
     const user = userEvent.setup();
     const fetchMock = vi
       .fn()
@@ -113,8 +111,8 @@ describe("network field data", () => {
     expect(sent).toEqual({
       elementType: "COLLECTOR",
       receivesDryWeatherFlow: false,
-      initialSingularContributionLps: 2,
-      finalSingularContributionLps: 3,
+      fixedDiameterMm: 150,
+      material: "Concreto",
       pavementType: "SIDEWALK",
       surfaceMaterial: "ASPHALT",
       surfaceCondition: "FAIR",

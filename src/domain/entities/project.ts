@@ -18,6 +18,7 @@ export type Project = {
   horizon?: string;
   notes?: string;
   totalAreaKm2?: number;
+  totalNetworkLengthM?: number;
   sector?: string;
   basin?: string;
 };

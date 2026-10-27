@@ -15,7 +15,7 @@ export default async function ProjectLayout({
 }: Readonly<ProjectLayoutProps>) {
   const { projectId } = await params;
   const project = await getProjectById(projectId);
-  const allProjectsPayload = await getHomeProjects();
+  const allProjectsPayload = await getHomeProjects({ stats: false });
 
   if (!project) {
     notFound();

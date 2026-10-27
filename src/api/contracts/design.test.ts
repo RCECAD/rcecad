@@ -5,6 +5,10 @@ const overview = {
   projectId: "68d5efb4-823a-41d9-b5f5-20fc24877961",
   name: "Projeto didático",
   status: "validated",
+  progressPercent: 100,
+  steps: [],
+  designOutdated: false,
+  lastSnapshotAt: null,
   pendingItems: { count: 0, items: [] },
   recentActions: [
     {

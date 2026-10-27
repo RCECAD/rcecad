@@ -1,8 +1,9 @@
 "use client";
 
 import type { ColumnDef } from "@tanstack/react-table";
-import { ArrowUpDown, MoreHorizontal } from "lucide-react";
+import { ArrowUpDown } from "lucide-react";
 import Link from "next/link";
+import { DeleteProjectButton } from "@/components/home/delete-project-button";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -108,16 +109,11 @@ export function createHomeColumns(): Array<ColumnDef<Project>> {
       enableSorting: false,
       enableHiding: false,
       header: "",
-      cell: () => (
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-sm"
-          className="text-muted-foreground hover:text-foreground"
-          aria-label="Ações do projeto"
-        >
-          <MoreHorizontal className="size-4" />
-        </Button>
+      cell: ({ row }) => (
+        <DeleteProjectButton
+          projectId={row.original.id}
+          name={row.original.name}
+        />
       ),
     },
   ];

@@ -49,6 +49,7 @@ describe("project adapters", () => {
       horizon: "",
       notes: "",
       totalAreaKm2: null,
+      totalNetworkLengthM: null,
       sector: "",
       basin: "",
     });

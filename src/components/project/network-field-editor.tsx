@@ -46,7 +46,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-type Mode = "survey" | "paving" | "contributions";
+type Mode = "survey" | "paving";
 type Segment = z.infer<typeof segmentResponseSchema>;
 type Node = z.infer<typeof hydraulicNodeResponseSchema>;
 type DirtyChange = (key: string, dirty: boolean) => void;
@@ -268,31 +268,27 @@ function SegmentRow({
           </TableCell>
         </>
       )}
-      {mode === "contributions" && (
+      {mode === "survey" && (
         <>
           <TableCell>
             <Input
               type="number"
-              step="any"
-              min="0"
-              aria-label={`Contribuição inicial ${segment.code}`}
+              step="1"
+              min="1"
+              placeholder="Automático"
+              aria-label={`DN imposto ${segment.code}`}
               disabled={save.isPending}
-              {...register("initialSingularContributionLps", {
-                setValueAs: (value) =>
-                  value === "" ? Number.NaN : Number(value),
-              })}
+              {...register("fixedDiameterMm", { setValueAs: nullableNumber })}
             />
           </TableCell>
           <TableCell>
             <Input
-              type="number"
-              step="any"
-              min="0"
-              aria-label={`Contribuição final ${segment.code}`}
+              maxLength={100}
+              placeholder="Material do projeto"
+              aria-label={`Material ${segment.code}`}
               disabled={save.isPending}
-              {...register("finalSingularContributionLps", {
-                setValueAs: (value) =>
-                  value === "" ? Number.NaN : Number(value),
+              {...register("material", {
+                setValueAs: (value: string | null) => value?.trim() || null,
               })}
             />
           </TableCell>
@@ -381,8 +377,7 @@ function SegmentRow({
         )}
         {Object.keys(errors).length > 0 && (
           <p role="alert" className="text-sm text-destructive">
-            Revise os campos. As contribuições devem ser números iguais ou
-            maiores que zero.
+            Revise os campos. O DN imposto deve ser um inteiro positivo em mm.
           </p>
         )}
         {save.isError && (
@@ -546,16 +541,12 @@ export function NetworkFieldEditor({
           <CardTitle>
             {mode === "survey"
               ? "Dados de campo dos trechos"
-              : mode === "paving"
-                ? "Dados de Pavimentação por Trecho"
-                : "Contribuições Singulares"}
+              : "Dados de Pavimentação por Trecho"}
           </CardTitle>
           <CardDescription>
             {mode === "survey"
-              ? "Responda se cada trecho recebe contribuição de tempo seco e identifique o tipo de elemento."
-              : mode === "paving"
-                ? "A categoria de recobrimento é usada no cálculo. Material superficial e condição descrevem a pavimentação existente."
-                : "Informe as contribuições iniciais e finais em L/s que entram em cada trecho. Estes são os valores utilizados no dimensionamento; zero significa ausência de contribuição concentrada."}
+              ? "Responda se cada trecho recebe contribuição de tempo seco e identifique o tipo de elemento. DN imposto e material são opcionais: em branco, o dimensionamento escolhe o diâmetro e usa o material do projeto."
+              : "A categoria de recobrimento é usada no cálculo. Material superficial e condição descrevem a pavimentação existente."}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -563,11 +554,7 @@ export function NetworkFieldEditor({
             <Input
               type="search"
               aria-label="Buscar nó ou trecho"
-              placeholder={
-                mode === "paving"
-                  ? "Buscar por trecho..."
-                  : "Buscar por identificação, trecho..."
-              }
+              placeholder="Buscar por trecho..."
               value={search}
               disabled={isDirty}
               onChange={(event) => {
@@ -586,12 +573,8 @@ export function NetworkFieldEditor({
                     <TableHead>Comprimento (m)</TableHead>
                     <TableHead>Tipo de elemento</TableHead>
                     <TableHead>Recebe contribuição de tempo seco?</TableHead>
-                  </>
-                )}
-                {mode === "contributions" && (
-                  <>
-                    <TableHead>Inicial (L/s)</TableHead>
-                    <TableHead>Final (L/s)</TableHead>
+                    <TableHead>DN imposto (mm)</TableHead>
+                    <TableHead>Material</TableHead>
                   </>
                 )}
                 {mode === "paving" && (

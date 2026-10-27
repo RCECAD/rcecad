@@ -7,17 +7,19 @@ import { useState } from "react";
 import { projectQueryKeys } from "@/api/client/query-keys";
 import { parseClientJson } from "@/api/client/response";
 import {
+  type AdoptedParameter,
+  isCalculated,
   type NetworkDesign,
   type Nonconformity,
   networkDesignSchema,
   type SegmentDesign,
 } from "@/api/contracts/design";
 import {
-  type ProjectParameters,
-  type ProjectResponse,
-  projectDetailResponseSchema,
-  projectParametersSchema,
-} from "@/api/contracts/spring";
+  type CalculationMemorial,
+  calculationMemorialSchema,
+  type ExecutiveSummary,
+  executiveSummarySchema,
+} from "@/api/contracts/resources";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -38,6 +40,7 @@ import { useUnsavedChanges } from "./unsaved-changes-provider";
 
 export const designStatusLabels = {
   designed: "Dimensionado",
+  verified: "Verificado (DN imposto)",
   conflicted: "Conflito de regras",
   infeasible: "Inviável",
   notEvaluated: "Bloqueado a montante",
@@ -46,7 +49,7 @@ export function quantityValue(
   segment: SegmentDesign,
   key: string,
 ): number | undefined {
-  return segment.status === "designed"
+  return isCalculated(segment)
     ? segment.quantities.find((quantity) => quantity.key === key)?.value
     : undefined;
 }
@@ -72,6 +75,97 @@ const quantityLabels: Record<string, string> = {
   upstreamCover: "Recobrimento de montante",
   downstreamCover: "Recobrimento de jusante",
 };
+const parameterLabels: Record<string, string> = {
+  returnCoefficient: "Coeficiente de retorno",
+  peakDailyFactor: "Fator de pico diário (K1)",
+  peakHourlyFactor: "Fator de pico horário (K2)",
+  perCapitaFlow: "Consumo per capita",
+  infiltrationRate: "Taxa de infiltração",
+  initialPopulation: "População inicial",
+  finalPopulation: "População final",
+};
+
+function AdoptedParameters({ items }: { items: AdoptedParameter[] }) {
+  return (
+    <dl className="grid gap-x-4 gap-y-4 sm:grid-cols-3">
+      {items.map((item) => (
+        <div key={item.key}>
+          <dt className="text-xs text-muted-foreground">
+            {parameterLabels[item.key] ?? item.key}
+          </dt>
+          <dd className="mt-1 text-sm">
+            {format(item.value, 6)} {item.unit}
+            <span className="block text-xs text-muted-foreground">
+              {item.projectSupplied ? "Informado no projeto" : item.origin}
+            </span>
+          </dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+function MemorialTrace({ memorial }: { memorial: CalculationMemorial }) {
+  return (
+    <section aria-label="Memorial de cálculo" className="space-y-4">
+      <p className="text-sm text-muted-foreground">
+        Memorial gerado em{" "}
+        {new Date(memorial.generatedAt).toLocaleString("pt-BR")} · regras{" "}
+        {memorial.rulesetVersion}
+      </p>
+      <Card>
+        <CardHeader>
+          <CardTitle>Fórmulas aplicadas</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                {["ID", "Grandeza", "Expressão", "Referência"].map((label) => (
+                  <TableHead key={label}>{label}</TableHead>
+                ))}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {memorial.formulas.map((formula) => (
+                <TableRow key={formula.id}>
+                  <TableCell>{formula.id}</TableCell>
+                  <TableCell>
+                    {quantityLabels[formula.key] ?? formula.key}
+                  </TableCell>
+                  <TableCell className="whitespace-normal font-mono text-xs">
+                    {formula.expression}
+                  </TableCell>
+                  <TableCell className="whitespace-normal text-xs">
+                    {formula.reference} ({formula.sourceId})
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+      {memorial.appliedContributions.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Contribuições singulares aplicadas</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="space-y-1 text-sm">
+              {memorial.appliedContributions.map((item) => (
+                <li key={item.id}>
+                  {item.name} · {item.targetCode} → trecho{" "}
+                  {item.injectedSegmentCode} · {format(item.initialLps)} /{" "}
+                  {format(item.finalLps)} L/s
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
+    </section>
+  );
+}
 
 function Findings({ items }: { items: Nonconformity[] }) {
   return (
@@ -123,12 +217,15 @@ function SegmentDetails({
             {text}
           </p>
         ))}
-        {segment.status === "designed" && (
+        {isCalculated(segment) && (
           <>
             <p className="text-sm">
-              DN {segment.choice.diameterMm} mm · {segment.choice.material} ·
-              declividade {format(segment.choice.slope, 6)} m/m · cota de
-              montante {format(segment.choice.upstreamInvertM)} m
+              DN {segment.choice.diameterMm} mm
+              {segment.choice.diameterImposed ? " (imposto)" : ""} ·{" "}
+              {segment.choice.material} · declividade{" "}
+              {format(segment.choice.slope, 6)} m/m · cota de montante{" "}
+              {format(segment.choice.upstreamInvertM)} m · degrau a montante{" "}
+              {format(segment.choice.upstreamDropM, 3)} m
             </p>
             <dl className="grid gap-3 text-sm sm:grid-cols-2 xl:grid-cols-3">
               {segment.quantities.map((quantity) => (
@@ -215,27 +312,28 @@ function SegmentDetails({
 export function DesignResults({
   design,
   tabbed = false,
-  project,
-  parameters,
+  summary,
+  memorial,
 }: {
   design: NetworkDesign;
   tabbed?: boolean;
-  project?: ProjectResponse;
-  parameters?: ProjectParameters | null;
+  summary?: ExecutiveSummary;
+  memorial?: CalculationMemorial;
 }) {
+  const project = summary?.project;
   const [tab, setTab] = useState("summary");
   const [page, setPage] = useState(0);
   const [selectedSegment, setSelectedSegment] = useState<string>();
   const visible = (value: string) => !tabbed || tab === value;
   const attention = design.segments.filter(
     (s) =>
-      s.status === "designed" &&
+      isCalculated(s) &&
       s.nonconformities.some((n) => n.severity === "WARNING") &&
       !s.nonconformities.some((n) => n.severity === "CRITICAL"),
   ).length;
   const noncompliant = design.segments.filter(
     (s) =>
-      s.status !== "designed" ||
+      !isCalculated(s) ||
       s.nonconformities.some((n) => n.severity === "CRITICAL"),
   ).length;
   const compliant = design.segments.length - attention - noncompliant;
@@ -298,40 +396,12 @@ export function DesignResults({
             <h2 className="mb-3 text-base font-semibold">
               Parâmetros Globais Adotados
             </h2>
-            <dl className="grid gap-x-4 gap-y-4 sm:grid-cols-3">
-              {[
-                [
-                  "Coeficiente de retorno",
-                  format(parameters?.returnCoefficient),
-                ],
-                [
-                  "Fator de pico diário (K1)",
-                  format(parameters?.peakDailyFactor),
-                ],
-                [
-                  "Fator de pico horário (K2)",
-                  format(parameters?.peakHourlyFactor),
-                ],
-                [
-                  "Consumo per capita",
-                  parameters
-                    ? `${format(parameters.perCapitaFlow)} L/hab.dia`
-                    : "—",
-                ],
-                [
-                  "Taxa de infiltração",
-                  parameters?.infiltrationRate != null
-                    ? `${format(parameters.infiltrationRate)} L/s por km`
-                    : "Resolvida pelo material",
-                ],
-                ["Regra de cálculo", design.rulesetVersionId],
-              ].map(([label, value]) => (
-                <div key={label}>
-                  <dt className="text-xs text-muted-foreground">{label}</dt>
-                  <dd className="mt-1 text-sm">{value}</dd>
-                </div>
-              ))}
-            </dl>
+            <p className="mb-3 text-xs text-muted-foreground">
+              Regra de cálculo: {design.rulesetVersionId}
+              {summary &&
+                ` · ${summary.network.segmentCount} trechos, ${summary.network.nodeCount} nós, ${format(summary.network.totalLengthM, 2)} m de rede`}
+            </p>
+            <AdoptedParameters items={design.adoptedParameters} />
           </section>
           <section className="rounded-lg border border-border/80 bg-card/40 px-6 py-4">
             <h2 className="mb-3 text-base font-semibold">
@@ -403,6 +473,9 @@ export function DesignResults({
             </Card>
           ))}
         </div>
+      )}
+      {tabbed && visible("memory") && memorial && (
+        <MemorialTrace memorial={memorial} />
       )}
       {visible("memory") && (
         <>
@@ -484,12 +557,10 @@ export function DesignResults({
                       {format(quantityValue(segment, "finalDischarge"))}
                     </TableCell>
                     <TableCell>
-                      {segment.status === "designed"
-                        ? segment.choice.diameterMm
-                        : "—"}
+                      {isCalculated(segment) ? segment.choice.diameterMm : "—"}
                     </TableCell>
                     <TableCell>
-                      {segment.status === "designed"
+                      {isCalculated(segment)
                         ? format(segment.choice.slope, 6)
                         : "—"}
                     </TableCell>
@@ -507,7 +578,7 @@ export function DesignResults({
                     </TableCell>
                     <TableCell>
                       <span
-                        className={`rounded-full border px-2 py-0.5 text-xs ${segment.status !== "designed" ? "border-rose-300 bg-rose-50 text-rose-700" : segment.nonconformities.some((n) => n.severity === "WARNING") ? "border-amber-300 bg-amber-50 text-amber-700" : "border-teal-300 bg-teal-50 text-teal-700"}`}
+                        className={`rounded-full border px-2 py-0.5 text-xs ${!isCalculated(segment) || segment.nonconformities.some((n) => n.severity === "CRITICAL") ? "border-rose-300 bg-rose-50 text-rose-700" : segment.nonconformities.some((n) => n.severity === "WARNING") ? "border-amber-300 bg-amber-50 text-amber-700" : "border-teal-300 bg-teal-50 text-teal-700"}`}
                       >
                         {segment.status === "designed" &&
                         segment.nonconformities.some(
@@ -560,7 +631,7 @@ export function DesignResults({
               (segment) =>
                 !tabbed ||
                 tab !== "findings" ||
-                segment.status !== "designed" ||
+                !isCalculated(segment) ||
                 segment.nonconformities.length > 0,
             )
             .map((segment) => (
@@ -576,7 +647,7 @@ export function DesignResults({
             tab === "findings" &&
             design.nonconformities.length === 0 &&
             design.segments.every(
-              (s) => s.status === "designed" && s.nonconformities.length === 0,
+              (s) => isCalculated(s) && s.nonconformities.length === 0,
             ) && (
               <p className="text-sm text-muted-foreground">
                 Nenhuma não conformidade encontrada.
@@ -599,28 +670,6 @@ export function DesignPanel({
 }) {
   const router = useRouter();
   const { requestNavigation } = useUnsavedChanges();
-  const network = useQuery({
-    queryKey: projectQueryKeys.network(projectId),
-    queryFn: async () =>
-      parseClientJson(
-        await fetch(`/api/projects/${projectId}/network`),
-        projectDetailResponseSchema,
-        "Não foi possível carregar a identificação.",
-      ),
-    enabled: tabbed,
-    retry: false,
-  });
-  const parameters = useQuery({
-    queryKey: projectQueryKeys.parameters(projectId),
-    queryFn: async () =>
-      parseClientJson(
-        await fetch(`/api/projects/${projectId}/hydraulics`),
-        projectParametersSchema.nullable(),
-        "Não foi possível carregar os parâmetros.",
-      ),
-    enabled: tabbed,
-    retry: false,
-  });
   const design = useQuery({
     queryKey: projectQueryKeys.calculations(projectId),
     queryFn: async ({ signal }) =>
@@ -630,6 +679,33 @@ export function DesignPanel({
         "Não foi possível dimensionar a rede.",
       ),
     enabled: false,
+    retry: false,
+  });
+  const reportsEnabled = tabbed && Boolean(design.data) && !design.isFetching;
+  const summary = useQuery({
+    queryKey: projectQueryKeys.executiveSummary(projectId),
+    queryFn: async ({ signal }) =>
+      parseClientJson(
+        await fetch(`/api/projects/${projectId}/executive-summary`, {
+          signal,
+        }),
+        executiveSummarySchema,
+        "Não foi possível carregar o resumo executivo.",
+      ),
+    enabled: reportsEnabled,
+    retry: false,
+  });
+  const memorial = useQuery({
+    queryKey: projectQueryKeys.memorial(projectId),
+    queryFn: async ({ signal }) =>
+      parseClientJson(
+        await fetch(`/api/projects/${projectId}/calculation-memorial`, {
+          signal,
+        }),
+        calculationMemorialSchema,
+        "Não foi possível carregar o memorial de cálculo.",
+      ),
+    enabled: reportsEnabled,
     retry: false,
   });
   return (
@@ -651,7 +727,14 @@ export function DesignPanel({
         >
           <Button
             disabled={disabled || design.isFetching}
-            onClick={() => void design.refetch()}
+            onClick={() => {
+              void design.refetch().then((result) => {
+                if (tabbed && result.isSuccess) {
+                  void summary.refetch();
+                  void memorial.refetch();
+                }
+              });
+            }}
           >
             {design.isFetching ? "Calculando..." : "Calcular dimensionamento"}
           </Button>
@@ -690,8 +773,8 @@ export function DesignPanel({
           key={design.dataUpdatedAt}
           design={design.data}
           tabbed={tabbed}
-          project={network.data?.project}
-          parameters={parameters.data}
+          summary={summary.data}
+          memorial={memorial.data}
         />
       )}
       {!design.data && !design.isFetching && !design.isError && (

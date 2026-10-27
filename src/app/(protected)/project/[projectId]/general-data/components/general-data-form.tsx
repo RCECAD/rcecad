@@ -345,6 +345,25 @@ export function GeneralDataForm({ projectId }: Readonly<GeneralDataFormProps>) {
               <FieldError errors={[errors.totalAreaKm2]} />
             )}
           </Field>
+          <Field>
+            <FieldLabel htmlFor="totalNetworkLengthM">
+              Extensão total informada da rede (m)
+            </FieldLabel>
+            <Input
+              id="totalNetworkLengthM"
+              type="number"
+              min="0"
+              step="any"
+              placeholder="Conferida com a soma dos trechos"
+              {...register("totalNetworkLengthM", {
+                setValueAs: (value) =>
+                  value === "" || value == null ? null : Number(value),
+              })}
+            />
+            {errors.totalNetworkLengthM && (
+              <FieldError errors={[errors.totalNetworkLengthM]} />
+            )}
+          </Field>
         </CardContent>
       </Card>
 

@@ -18,16 +18,14 @@ describe("new project hydraulics", () => {
     mocks.request.mockReset();
   });
 
-  it("returns an empty configuration only after confirming the project exists", async () => {
-    mocks.request
-      .mockRejectedValueOnce(new SpringApiError(404, "Parameters not set"))
-      .mockResolvedValueOnce({
-        project: { id: "project-1" },
-        segments: [],
-        nodes: [],
-      });
-    await expect(getProjectParameters("project-1")).resolves.toBeNull();
-    expect(mocks.request.mock.calls[1][0]).toBe("/projects/project-1");
+  it("reads unconfigured parameters from Spring instead of guessing a missing configuration", async () => {
+    const details = { configured: false, defaults: {} };
+    mocks.request.mockResolvedValueOnce(details);
+    await expect(getProjectParameters("project-1")).resolves.toBe(details);
+    expect(mocks.request).toHaveBeenCalledTimes(1);
+    expect(mocks.request.mock.calls[0][0]).toBe(
+      "/projects/project-1/parameters",
+    );
   });
 
   it("preserves a missing or inaccessible project as a 404", async () => {

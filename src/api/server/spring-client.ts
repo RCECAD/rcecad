@@ -1,6 +1,6 @@
 import "server-only";
 
-import type { z } from "zod";
+import { z } from "zod";
 import { loginResponseSchema } from "@/api/contracts/spring";
 import {
   clearAuthSession,
@@ -13,7 +13,34 @@ type SpringRequestOptions<T> = {
   auth?: boolean;
   accessToken?: string;
   timeoutMs?: number;
+  binary?: boolean;
 };
+
+export const springFileSchema = z.object({
+  bytes: z.instanceof(ArrayBuffer),
+  contentType: z.string(),
+  fileName: z.string().nullable(),
+});
+export type SpringFile = z.infer<typeof springFileSchema>;
+
+function attachmentName(disposition: string | null): string | null {
+  const match = disposition?.match(/filename\*?=(?:UTF-8'')?"?([^";]+)"?/i);
+  if (!match) return null;
+  try {
+    return decodeURIComponent(match[1]);
+  } catch {
+    return match[1];
+  }
+}
+
+async function readSpringFile(response: Response): Promise<SpringFile> {
+  return {
+    bytes: await response.arrayBuffer(),
+    contentType:
+      response.headers.get("Content-Type") ?? "application/octet-stream",
+    fileName: attachmentName(response.headers.get("Content-Disposition")),
+  };
+}
 
 export type SpringAuthTokens = {
   accessToken: string;
@@ -111,7 +138,8 @@ async function requestSpring<T>(
   const headers = new Headers(init.headers);
 
   if (!headers.has("Accept")) {
-    headers.set("Accept", "application/json");
+    // File endpoints declare `produces`; a JSON-only Accept would get 406.
+    headers.set("Accept", options.binary ? "*/*" : "application/json");
   }
 
   if (
@@ -142,7 +170,10 @@ async function requestSpring<T>(
       cache: "no-store",
       signal: init.signal ?? AbortSignal.timeout(options.timeoutMs ?? 30_000),
     });
-    payload = await parseJsonResponse(response);
+    payload =
+      options.binary && response.ok
+        ? await readSpringFile(response)
+        : await parseJsonResponse(response);
   } catch {
     throw new SpringApiError(
       503,

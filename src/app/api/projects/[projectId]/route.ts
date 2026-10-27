@@ -1,5 +1,6 @@
-import { getProjectById } from "@/api/server/projects";
+import { deleteProject, getProjectById } from "@/api/server/projects";
 import { routeErrorResponse } from "@/api/server/route-errors";
+import { handle } from "@/api/server/route-handler";
 
 export async function GET(
   _request: Request,
@@ -20,4 +21,12 @@ export async function GET(
   } catch (error) {
     return routeErrorResponse(error);
   }
+}
+
+export async function DELETE(
+  _request: Request,
+  context: { params: Promise<{ projectId: string }> },
+) {
+  const { projectId } = await context.params;
+  return handle(() => deleteProject(projectId));
 }

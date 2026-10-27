@@ -30,13 +30,17 @@ export function toProject(
           horizon: source.horizon ?? undefined,
           notes: source.notes ?? undefined,
           totalAreaKm2: source.totalAreaKm2 ?? undefined,
+          totalNetworkLengthM: source.totalNetworkLengthM ?? undefined,
           sector: source.sector ?? undefined,
           basin: source.basin ?? undefined,
         }
       : {}),
     ...("updatedAt" in source ? { updatedAt: source.updatedAt } : {}),
     ...("technicalManager" in source
-      ? { technicalManager: optionalValue(source.technicalManager) }
+      ? { technicalManager: source.technicalManager ?? undefined }
+      : {}),
+    ...(!("internalCode" in source) && source.revision
+      ? { revision: source.revision }
       : {}),
     ...("owner" in source ? { owner: optionalValue(source.owner) } : {}),
     ...("cnpj" in source ? { cnpj: source.cnpj } : {}),
@@ -68,6 +72,7 @@ export function toGeneralDataFormValues(
     horizon: project.horizon ?? "",
     notes: project.notes ?? "",
     totalAreaKm2: project.totalAreaKm2 ?? null,
+    totalNetworkLengthM: project.totalNetworkLengthM ?? null,
     sector: project.sector ?? "",
     basin: project.basin ?? "",
   };
@@ -81,6 +86,7 @@ export function toProjectUpdateRequest(values: GeneralDataFormValues) {
     horizon: values.horizon,
     notes: values.notes,
     totalAreaKm2: values.totalAreaKm2,
+    totalNetworkLengthM: values.totalNetworkLengthM,
     sector: values.sector,
     basin: values.basin,
     name: values.name,
