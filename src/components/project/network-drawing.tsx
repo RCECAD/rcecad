@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { isCalculated, type NetworkDesign } from "@/api/contracts/design";
 import type { ProjectDetailResponse } from "@/api/contracts/spring";
-import { headNodes, profilePath } from "./network-geometry";
+import { headNodes, profilePath, spacedLabels } from "./network-geometry";
 
 const WIDTH = 800;
 const HEIGHT = 420;
@@ -45,16 +45,32 @@ export function NetworkPlan({
 }) {
   const xs = network.nodes.map((node) => node.x);
   const ys = network.nodes.map((node) => node.y);
-  // Keep the drawing's aspect ratio: one scale for both axes.
-  const span = Math.max(
-    Math.max(...xs) - Math.min(...xs),
-    Math.max(...ys) - Math.min(...ys),
-    1,
-  );
-  const unit = (Math.min(WIDTH, HEIGHT) - 2 * PAD) / span;
-  const x = (value: number) => PAD + (value - Math.min(...xs)) * unit;
-  const y = (value: number) => HEIGHT - PAD - (value - Math.min(...ys)) * unit;
+  const spanX = Math.max(Math.max(...xs) - Math.min(...xs), 1);
+  const spanY = Math.max(Math.max(...ys) - Math.min(...ys), 1);
+  // One scale for both axes keeps the drawing's proportions; the slack centres it.
+  const unit = Math.min((WIDTH - 2 * PAD) / spanX, (HEIGHT - 2 * PAD) / spanY);
+  const offsetX = (WIDTH - spanX * unit) / 2;
+  const offsetY = (HEIGHT - spanY * unit) / 2;
+  const x = (value: number) => offsetX + (value - Math.min(...xs)) * unit;
+  const y = (value: number) =>
+    HEIGHT - offsetY - (value - Math.min(...ys)) * unit;
   const byId = new Map(network.nodes.map((node) => [node.id, node]));
+  const segmentMid = network.segments.map((segment) => {
+    const from = byId.get(segment.upstreamNodeId);
+    const to = byId.get(segment.downstreamNodeId);
+    return from && to
+      ? { x: (x(from.x) + x(to.x)) / 2, y: (y(from.y) + y(to.y)) / 2 - 6 }
+      : { x: Number.NaN, y: Number.NaN };
+  });
+  const shown = spacedLabels(
+    [
+      ...network.nodes.map((node) => ({ x: x(node.x) + 6, y: y(node.y) + 12 })),
+      ...segmentMid,
+    ],
+    32,
+  );
+  const nodeLabel = (index: number) => shown[index];
+  const segmentLabel = (index: number) => shown[network.nodes.length + index];
   return (
     <figure className="space-y-2">
       <svg
@@ -63,7 +79,7 @@ export function NetworkPlan({
         aria-label="Planta da rede"
         className="w-full rounded-md border bg-background"
       >
-        {network.segments.map((segment) => {
+        {network.segments.map((segment, index) => {
           const from = byId.get(segment.upstreamNodeId);
           const to = byId.get(segment.downstreamNodeId);
           if (!from || !to) return null;
@@ -78,19 +94,21 @@ export function NetworkPlan({
                 stroke={statusColor(design, segment.id)}
                 strokeWidth={3}
               />
-              <text
-                x={(x(from.x) + x(to.x)) / 2}
-                y={(y(from.y) + y(to.y)) / 2 - 6}
-                fontSize={10}
-                textAnchor="middle"
-                className="fill-muted-foreground"
-              >
-                {segment.code}
-              </text>
+              {segmentLabel(index) && (
+                <text
+                  x={segmentMid[index].x}
+                  y={segmentMid[index].y}
+                  fontSize={10}
+                  textAnchor="middle"
+                  className="fill-muted-foreground"
+                >
+                  {segment.code}
+                </text>
+              )}
             </g>
           );
         })}
-        {network.nodes.map((node) => (
+        {network.nodes.map((node, index) => (
           <g key={node.id}>
             <title>{node.code}</title>
             <circle
@@ -99,17 +117,23 @@ export function NetworkPlan({
               r={4}
               className="fill-foreground"
             />
-            <text
-              x={x(node.x) + 6}
-              y={y(node.y) + 12}
-              fontSize={10}
-              className="fill-foreground"
-            >
-              {node.code}
-            </text>
+            {nodeLabel(index) && (
+              <text
+                x={x(node.x) + 6}
+                y={y(node.y) + 12}
+                fontSize={10}
+                className="fill-foreground"
+              >
+                {node.code}
+              </text>
+            )}
           </g>
         ))}
       </svg>
+      <p className="text-xs text-muted-foreground">
+        Rótulos próximos demais ficam ocultos; passe o mouse sobre um nó ou
+        trecho para ver o código.
+      </p>
       <figcaption className="flex flex-wrap gap-4 text-xs text-muted-foreground">
         {(
           [
@@ -185,6 +209,16 @@ export function LongitudinalProfile({
       .filter((point): point is [number, number] => point[1] !== null)
       .map(([distance, elevation]) => `${x(distance)},${y(elevation)}`)
       .join(" ");
+  // The outlet is checked first so it keeps its label; then from upstream.
+  const labelX = [...stations.map((s) => x(s.from)), x(total)];
+  const ordered = spacedLabels(
+    [labelX[labelX.length - 1], ...labelX.slice(0, -1)].map((value) => ({
+      x: value,
+      y: 0,
+    })),
+    52,
+  );
+  const nodeLabels = [...ordered.slice(1), ordered[0]];
   return (
     <figure className="space-y-3">
       <label className="flex items-center gap-2 text-sm">
@@ -218,7 +252,7 @@ export function LongitudinalProfile({
           stroke="#78716c"
           strokeWidth={2}
         />
-        {stations.map((s) => (
+        {stations.map((s, index) => (
           <g key={s.segment.id}>
             <title>
               {`${s.segment.code}: CF ${format(s.upInvert, 3)} → ${format(s.downInvert, 3)} m`}
@@ -248,16 +282,32 @@ export function LongitudinalProfile({
               y2={HEIGHT - PAD / 2}
               stroke="#e2e8f0"
             />
-            <text
-              x={x(s.from) + 3}
-              y={HEIGHT - 8}
-              fontSize={10}
-              className="fill-muted-foreground"
-            >
-              {byId.get(s.segment.upstreamNodeId)?.code}
-            </text>
+            {nodeLabels[index] && (
+              <text
+                x={x(s.from) + 3}
+                y={HEIGHT - 8}
+                fontSize={10}
+                className="fill-muted-foreground"
+              >
+                {byId.get(s.segment.upstreamNodeId)?.code}
+              </text>
+            )}
           </g>
         ))}
+        {nodeLabels[stations.length] && (
+          <text
+            x={x(total) - 3}
+            y={HEIGHT - 8}
+            fontSize={10}
+            textAnchor="end"
+            className="fill-muted-foreground"
+          >
+            {
+              byId.get(stations[stations.length - 1].segment.downstreamNodeId)
+                ?.code
+            }
+          </text>
+        )}
         <text x={PAD} y={14} fontSize={10} className="fill-muted-foreground">
           {format(Math.max(...elevations), 2)} m
         </text>

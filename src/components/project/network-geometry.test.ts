@@ -3,7 +3,12 @@ import type {
   HydraulicNodeResponse,
   SegmentResponse,
 } from "@/api/contracts/spring";
-import { nodeRows, profilePath, segmentRows } from "./network-geometry";
+import {
+  nodeRows,
+  profilePath,
+  segmentRows,
+  spacedLabels,
+} from "./network-geometry";
 
 const projectId = "9e8c6966-c49a-4f2f-9d9a-0953d2f6d0dc";
 const node = (
@@ -76,6 +81,20 @@ describe("network geometry", () => {
   it("counts arriving and leaving segments per node", () => {
     const b = nodeRows({ nodes, segments }).find((row) => row.code === "PV-2");
     expect(b).toMatchObject({ incoming: 2, outgoing: 1, depth: 1.6 });
+  });
+
+  it("hides labels that would overlap a label already drawn", () => {
+    expect(
+      spacedLabels(
+        [
+          { x: 0, y: 0 },
+          { x: 5, y: 0 },
+          { x: 40, y: 0 },
+          { x: 42, y: 3 },
+        ],
+        20,
+      ),
+    ).toEqual([true, false, true, false]);
   });
 
   it("follows the flow from a start node to the outlet with cumulative distance", () => {

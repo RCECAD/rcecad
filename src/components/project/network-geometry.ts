@@ -59,6 +59,18 @@ export function profilePath({ segments }: Network, startNodeId: string) {
   return path;
 }
 
+/** Greedy label thinning: keeps a label only if it is `gap` px away from every kept one. */
+export function spacedLabels(points: { x: number; y: number }[], gap: number) {
+  const kept: { x: number; y: number }[] = [];
+  return points.map((point) => {
+    const free = kept.every(
+      (other) => Math.hypot(other.x - point.x, other.y - point.y) >= gap,
+    );
+    if (free) kept.push(point);
+    return free;
+  });
+}
+
 /** Nodes nobody drains into: the natural starting points of a profile. */
 export const headNodes = ({ nodes, segments }: Network) =>
   nodes.filter(

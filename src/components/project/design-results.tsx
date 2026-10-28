@@ -58,19 +58,23 @@ export { designStatusLabels, quantityValue } from "./segment-details";
 
 const tableColumns = [
   "Trecho",
-  "Qi (L/s)",
-  "Qf (L/s)",
+  "Q ini / fim (L/s)",
   "DN (mm)",
   "Material",
   "Declividade (m/m)",
-  "V inicial (m/s)",
-  "V final (m/s)",
-  "Y/D inicial",
-  "Y/D final",
+  "V ini / fim (m/s)",
+  "Y/D ini / fim",
   "τ (Pa)",
   "Degrau (m)",
   "Situação",
 ];
+const pair = (
+  segment: SegmentDesign,
+  initial: string,
+  final: string,
+  digits = 4,
+) =>
+  `${format(quantityValue(segment, initial), digits)} / ${format(quantityValue(segment, final), digits)}`;
 
 function situation(segment: SegmentDesign) {
   const critical =
@@ -319,9 +323,9 @@ export function DesignResults({
           <CardHeader>
             <CardTitle>Dimensionamento por trecho</CardTitle>
             <CardDescription>
-              Valores iniciais e finais apresentados separadamente. DN com * foi
+              Valores no início e no fim de plano (ini / fim). DN com * foi
               imposto pelo projetista. τ é a tensão trativa usada no critério de
-              autolimpeza.
+              autolimpeza. Clique no trecho para ver o memorial.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -357,10 +361,7 @@ export function DesignResults({
                         </a>
                       </TableCell>
                       <TableCell>
-                        {format(quantityValue(segment, "initialDischarge"))}
-                      </TableCell>
-                      <TableCell>
-                        {format(quantityValue(segment, "finalDischarge"))}
+                        {pair(segment, "initialDischarge", "finalDischarge")}
                       </TableCell>
                       <TableCell>
                         {choice
@@ -368,26 +369,25 @@ export function DesignResults({
                           : "—"}
                       </TableCell>
                       <TableCell>{choice?.material ?? "—"}</TableCell>
-                      <TableCell>{format(choice?.slope, 6)}</TableCell>
+                      <TableCell>{format(choice?.slope, 5)}</TableCell>
                       <TableCell>
-                        {format(quantityValue(segment, "initialVelocity"))}
+                        {pair(segment, "initialVelocity", "finalVelocity", 2)}
                       </TableCell>
                       <TableCell>
-                        {format(quantityValue(segment, "finalVelocity"))}
+                        {pair(
+                          segment,
+                          "initialDepthRatio",
+                          "finalDepthRatio",
+                          2,
+                        )}
                       </TableCell>
                       <TableCell>
-                        {format(quantityValue(segment, "initialDepthRatio"))}
-                      </TableCell>
-                      <TableCell>
-                        {format(quantityValue(segment, "finalDepthRatio"))}
-                      </TableCell>
-                      <TableCell>
-                        {format(quantityValue(segment, "tractiveTension"), 3)}
+                        {format(quantityValue(segment, "tractiveTension"), 2)}
                       </TableCell>
                       <TableCell>{format(choice?.upstreamDropM, 3)}</TableCell>
                       <TableCell>
                         <span
-                          className={`rounded-full border px-2 py-0.5 text-xs ${state.className}`}
+                          className={`whitespace-nowrap rounded-full border px-2 py-0.5 text-xs ${state.className}`}
                         >
                           {state.text}
                         </span>
@@ -558,7 +558,7 @@ export function DesignPanel({
           </CardDescription>
         </CardHeader>
         <CardContent
-          className={`flex flex-wrap items-center gap-3 ${tabbed ? "justify-end px-0" : ""}`}
+          className={`flex flex-wrap items-center gap-3 ${tabbed ? "justify-end px-1" : ""}`}
         >
           <Button
             disabled={disabled || design.isFetching}

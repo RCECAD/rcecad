@@ -26,11 +26,14 @@ export function MemorialTrace({ memorial }: { memorial: CalculationMemorial }) {
         {new Date(memorial.generatedAt).toLocaleString("pt-BR")} · regras{" "}
         {memorial.rulesetVersion}
       </p>
-      <Card>
-        <CardHeader>
-          <CardTitle>Fórmulas aplicadas</CardTitle>
-        </CardHeader>
-        <CardContent>
+      <details className="group rounded-xl border bg-card p-4">
+        <summary className="cursor-pointer font-medium">
+          Fórmulas aplicadas ({memorial.formulas.length})
+          <span className="ml-2 text-xs font-normal text-muted-foreground">
+            Cada grandeza dos trechos aponta para o ID da fórmula.
+          </span>
+        </summary>
+        <div className="mt-4">
           <Table>
             <TableHeader>
               <TableRow>
@@ -44,18 +47,20 @@ export function MemorialTrace({ memorial }: { memorial: CalculationMemorial }) {
                 <TableRow key={formula.id} id={`formula-${formula.id}`}>
                   <TableCell>{formula.id}</TableCell>
                   <TableCell>{label(quantityLabels, formula.key)}</TableCell>
-                  <TableCell className="whitespace-normal font-mono text-xs">
-                    {formula.expression}
+                  <TableCell className="min-w-80 whitespace-normal">
+                    <div className="max-h-20 overflow-auto break-all font-mono text-xs">
+                      {formula.expression}
+                    </div>
                   </TableCell>
-                  <TableCell className="whitespace-normal text-xs">
+                  <TableCell className="max-w-56 whitespace-normal text-xs">
                     {formula.reference} ({formula.sourceId})
                   </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
-        </CardContent>
-      </Card>
+        </div>
+      </details>
       {memorial.appliedContributions.length > 0 && (
         <Card>
           <CardHeader>
@@ -109,7 +114,8 @@ export function SegmentMemorial({
             {segment.limits.map((limit) => (
               <TableRow key={limit.key}>
                 <TableCell>
-                  {label(limitLabels, limit.key)} {unitLabel(limit.unit)}
+                  {label(limitLabels, limit.key)}
+                  {unitLabel(limit.unit) && ` (${unitLabel(limit.unit)})`}
                 </TableCell>
                 <TableCell className="whitespace-normal">
                   {bound(limit.lowerBound)}
@@ -143,11 +149,6 @@ export function SegmentMemorial({
                   {quantity.formulaId}
                 </a>
               </dd>
-              {formula && (
-                <dd className="font-mono text-xs text-muted-foreground">
-                  {formula.expression}
-                </dd>
-              )}
             </div>
           );
         })}

@@ -58,10 +58,11 @@ function SortableTable<T extends { id: string }>({
   columns: Column<T>[];
   caption: string;
 }) {
-  const [sort, setSort] = useState<{ key: string; asc: boolean }>();
+  // Codes sort naturally by default (1-2 before 1-10), unlike the API order.
+  const [sort, setSort] = useState({ key: columns[0].key, asc: true });
   const sorted = useMemo(() => {
-    const column = columns.find((item) => item.key === sort?.key);
-    if (!column || !sort) return rows;
+    const column = columns.find((item) => item.key === sort.key);
+    if (!column) return rows;
     return [...rows].sort((a, b) => {
       const left = column.value(a);
       const right = column.value(b);
@@ -78,50 +79,52 @@ function SortableTable<T extends { id: string }>({
     });
   }, [rows, columns, sort]);
   return (
-    <Table aria-label={caption}>
-      <TableHeader>
-        <TableRow>
-          {columns.map((column) => (
-            <TableHead
-              key={column.key}
-              aria-sort={
-                sort?.key === column.key
-                  ? sort.asc
-                    ? "ascending"
-                    : "descending"
-                  : undefined
-              }
-            >
-              <Button
-                variant="ghost"
-                size="sm"
-                className="-ml-2 h-8 px-2"
-                onClick={() =>
-                  setSort({
-                    key: column.key,
-                    asc: sort?.key === column.key ? !sort.asc : true,
-                  })
+    <div className="max-h-[28rem] overflow-auto rounded-md border">
+      <Table aria-label={caption} className="text-xs">
+        <TableHeader className="sticky top-0 z-10 bg-card">
+          <TableRow>
+            {columns.map((column) => (
+              <TableHead
+                key={column.key}
+                aria-sort={
+                  sort?.key === column.key
+                    ? sort.asc
+                      ? "ascending"
+                      : "descending"
+                    : undefined
                 }
               >
-                {column.label}
-                <ArrowUpDown className="size-3.5" aria-hidden="true" />
-              </Button>
-            </TableHead>
-          ))}
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {sorted.map((row) => (
-          <TableRow key={row.id}>
-            {columns.map((column) => (
-              <TableCell key={column.key}>
-                {column.render?.(row) ?? column.value(row) ?? "—"}
-              </TableCell>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="-ml-2 h-8 px-2"
+                  onClick={() =>
+                    setSort({
+                      key: column.key,
+                      asc: sort?.key === column.key ? !sort.asc : true,
+                    })
+                  }
+                >
+                  {column.label}
+                  <ArrowUpDown className="size-3.5" aria-hidden="true" />
+                </Button>
+              </TableHead>
             ))}
           </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+        </TableHeader>
+        <TableBody>
+          {sorted.map((row) => (
+            <TableRow key={row.id}>
+              {columns.map((column) => (
+                <TableCell key={column.key}>
+                  {column.render?.(row) ?? column.value(row) ?? "—"}
+                </TableCell>
+              ))}
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
   );
 }
 

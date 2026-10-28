@@ -155,6 +155,11 @@ function ExportHistory({ projectId }: { projectId: string }) {
         <h2 id="export-history" className="text-base font-semibold">
           Histórico de exportações
         </h2>
+        {exports.isPending && (
+          <p role="status" className="mt-2 text-sm text-muted-foreground">
+            Carregando...
+          </p>
+        )}
         {exports.isError && (
           <p role="alert" className="mt-2 text-sm text-destructive">
             {exports.error.message}
@@ -188,6 +193,11 @@ function ExportHistory({ projectId }: { projectId: string }) {
           Cada validação ou exportação guarda o memorial e os dados de entrada
           usados, com hash de conferência.
         </p>
+        {snapshots.isPending && (
+          <p role="status" className="mt-2 text-sm text-muted-foreground">
+            Carregando...
+          </p>
+        )}
         {snapshots.isError && (
           <p role="alert" className="mt-2 text-sm text-destructive">
             {snapshots.error.message}
