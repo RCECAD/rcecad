@@ -72,9 +72,10 @@ describe("CDRE outcomes", () => {
     await user.click(
       screen.getByRole("tab", { name: "Resultados por Trecho" }),
     );
-    expect(
-      within(screen.getByRole("table")).getByText("0", { exact: true }),
-    ).toBeVisible();
+    const [, qi] = within(
+      screen.getByRole("row", { name: /T-01/ }),
+    ).getAllByRole("cell");
+    expect(qi).toHaveTextContent(/^0$/);
     await user.click(screen.getByRole("link", { name: "T-01" }));
     expect(
       screen.getByRole("tab", { name: "Memória de Cálculo" }),
