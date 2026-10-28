@@ -3,7 +3,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { CircleCheck, CircleX, GitBranch, TriangleAlert } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useId, useState } from "react";
+import { flushSync } from "react-dom";
 import { z } from "zod";
 import { projectQueryKeys } from "@/api/client/query-keys";
 import { parseClientJson } from "@/api/client/response";
@@ -52,6 +53,7 @@ import {
   quantityValue,
   SegmentDetails,
 } from "./segment-details";
+import { TabList, tabId } from "./tab-list";
 import { useUnsavedChanges } from "./unsaved-changes-provider";
 
 export { designStatusLabels, quantityValue } from "./segment-details";
@@ -113,6 +115,7 @@ export function DesignResults({
   const [tab, setTab] = useState("summary");
   const [page, setPage] = useState(0);
   const [selectedSegment, setSelectedSegment] = useState<string>();
+  const panelId = useId();
   const visible = (value: string) => !tabbed || tab === value;
   const attention = design.segments.filter(
     (s) =>
@@ -131,336 +134,345 @@ export function DesignResults({
     count: design.segments.filter((segment) => segment.status === status)
       .length,
   }));
-  const tabs = [
+  const tabs: [string, string][] = [
     ["summary", "Resumo Executivo"],
     ["table", "Resultados por Trecho"],
     ["memory", "Memória de Cálculo"],
     ["findings", "Não conformidades"],
-    ...(network ? [["drawing", "Planta e Perfil"]] : []),
+    ...(network ? [["drawing", "Planta e Perfil"] as [string, string]] : []),
   ];
+  const pageEnd = Math.min(page * 5 + 5, design.segments.length);
   return (
     <div className="space-y-6">
       {tabbed && (
-        <div
-          role="tablist"
-          aria-label="Resultados do projeto"
+        <TabList
+          label="Resultados do projeto"
+          panelId={panelId}
+          tabs={tabs}
+          value={tab}
+          onChange={setTab}
           className="grid grid-cols-2 gap-1 rounded-md bg-card p-1.5 sm:grid-cols-5"
-        >
-          {tabs.map(([value, text]) => (
-            <button
-              key={value}
-              type="button"
-              role="tab"
-              aria-selected={tab === value}
-              className={`rounded px-3 py-1.5 text-sm font-medium ${tab === value ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
-              onClick={() => setTab(value)}
-            >
-              {text}
-            </button>
-          ))}
-        </div>
+        />
       )}
-      {tabbed && visible("summary") && (
-        <>
-          <section className="rounded-lg border border-border/80 bg-card/40 px-6 py-4">
-            <h2 className="mb-3 text-base font-semibold">
-              Identificação do Projeto
-            </h2>
-            <dl className="grid gap-x-4 gap-y-4 sm:grid-cols-3">
-              {[
-                ["Nome do projeto", project?.name],
-                ["Localidade", project?.location],
-                ["Responsável Técnico", project?.technicalManager],
-                ["Contratante", project?.contractor],
-                ["Revisão", project?.revision],
-              ].map(([text, value]) => (
-                <div key={text}>
-                  <dt className="text-xs text-muted-foreground">{text}</dt>
-                  <dd className="mt-1 break-words text-sm">
-                    {value || "Não informado"}
-                  </dd>
-                </div>
-              ))}
-            </dl>
-          </section>
-          <section className="rounded-lg border border-border/80 bg-card/40 px-6 py-4">
-            <h2 className="mb-3 text-base font-semibold">
-              Parâmetros Globais Adotados
-            </h2>
-            <p className="mb-3 text-xs text-muted-foreground">
-              Regra de cálculo: {design.rulesetVersionId}
-              {summary &&
-                ` · ${summary.network.segmentCount} trechos, ${summary.network.nodeCount} nós, ${format(summary.network.totalLengthM, 2)} m de rede`}
-            </p>
-            <AdoptedParameters items={design.adoptedParameters} />
-          </section>
-          <section className="rounded-lg border border-border/80 bg-card/40 px-6 py-4">
-            <h2 className="mb-3 text-base font-semibold">
-              Estatísticas do projeto
-            </h2>
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              {[
-                {
-                  text: "Total de trechos",
-                  count: design.segments.length,
-                  Icon: GitBranch,
-                  color: "border-slate-300 text-slate-700",
-                },
-                {
-                  text: "Conformes",
-                  count: compliant,
-                  Icon: CircleCheck,
-                  color: "border-teal-300 bg-teal-50 text-teal-700",
-                },
-                {
-                  text: "Em atenção",
-                  count: attention,
-                  Icon: TriangleAlert,
-                  color: "border-amber-300 bg-amber-50 text-amber-700",
-                },
-                {
-                  text: "Não conformes",
-                  count: noncompliant,
-                  Icon: CircleX,
-                  color: "border-rose-300 bg-rose-50 text-rose-700",
-                },
-              ].map(({ text, count, Icon, color }) => (
-                <fieldset
-                  key={text}
-                  aria-label={text}
-                  className={`flex items-center justify-between gap-2 rounded-lg border p-3 ${color}`}
-                >
-                  <div>
-                    <Icon className="mb-2 size-6" aria-hidden="true" />
-                    <p className="text-xs">{text}</p>
+      <div
+        {...(tabbed && {
+          role: "tabpanel",
+          id: panelId,
+          "aria-labelledby": tabId(panelId, tab),
+        })}
+        className="space-y-6"
+      >
+        {tabbed && visible("summary") && (
+          <>
+            <section className="rounded-lg border border-border/80 bg-card/40 px-6 py-4">
+              <h2 className="mb-3 text-base font-semibold">
+                Identificação do Projeto
+              </h2>
+              <dl className="grid gap-x-4 gap-y-4 sm:grid-cols-3">
+                {[
+                  ["Nome do projeto", project?.name],
+                  ["Localidade", project?.location],
+                  ["Responsável Técnico", project?.technicalManager],
+                  ["Contratante", project?.contractor],
+                  ["Revisão", project?.revision],
+                ].map(([text, value]) => (
+                  <div key={text}>
+                    <dt className="text-xs text-muted-foreground">{text}</dt>
+                    <dd className="mt-1 break-words text-sm">
+                      {value || "Não informado"}
+                    </dd>
                   </div>
-                  <p className="text-5xl font-semibold">{count}</p>
-                </fieldset>
-              ))}
+                ))}
+              </dl>
+            </section>
+            <section className="rounded-lg border border-border/80 bg-card/40 px-6 py-4">
+              <h2 className="mb-3 text-base font-semibold">
+                Parâmetros Globais Adotados
+              </h2>
+              <p className="mb-3 text-xs text-muted-foreground">
+                Regra de cálculo: {design.rulesetVersionId}
+                {summary &&
+                  ` · ${summary.network.segmentCount} trechos, ${summary.network.nodeCount} nós, ${format(summary.network.totalLengthM, 2)} m de rede`}
+              </p>
+              <AdoptedParameters items={design.adoptedParameters} />
+            </section>
+            <section className="rounded-lg border border-border/80 bg-card/40 px-6 py-4">
+              <h2 className="mb-3 text-base font-semibold">
+                Estatísticas do projeto
+              </h2>
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                {[
+                  {
+                    text: "Total de trechos",
+                    count: design.segments.length,
+                    Icon: GitBranch,
+                    color: "border-slate-300 text-slate-700",
+                  },
+                  {
+                    text: "Conformes",
+                    count: compliant,
+                    Icon: CircleCheck,
+                    color: "border-teal-300 bg-teal-50 text-teal-700",
+                  },
+                  {
+                    text: "Em atenção",
+                    count: attention,
+                    Icon: TriangleAlert,
+                    color: "border-amber-300 bg-amber-50 text-amber-700",
+                  },
+                  {
+                    text: "Não conformes",
+                    count: noncompliant,
+                    Icon: CircleX,
+                    color: "border-rose-300 bg-rose-50 text-rose-700",
+                  },
+                ].map(({ text, count, Icon, color }) => (
+                  <fieldset
+                    key={text}
+                    aria-label={text}
+                    className={`flex items-center justify-between gap-2 rounded-lg border p-3 ${color}`}
+                  >
+                    <div>
+                      <Icon className="mb-2 size-6" aria-hidden="true" />
+                      <p className="text-xs">{text}</p>
+                    </div>
+                    <p className="text-5xl font-semibold tabular-nums">
+                      {count}
+                    </p>
+                  </fieldset>
+                ))}
+              </div>
+            </section>
+            <div
+              role="status"
+              className={`rounded-lg border p-4 text-sm ${noncompliant > 0 ? "border-rose-300 bg-rose-50 text-rose-700" : attention > 0 ? "border-amber-300 bg-amber-50 text-amber-800" : "border-teal-300 bg-teal-50 text-teal-700"}`}
+            >
+              {noncompliant > 0
+                ? "Projeto com pendências de dimensionamento."
+                : attention > 0
+                  ? "Projeto dimensionado com alertas. Consulte as não conformidades e execute a validação."
+                  : "Todos os trechos foram dimensionados. Execute a validação para confirmar as pendências do projeto."}
             </div>
-          </section>
-          <div
-            role="status"
-            className={`rounded-lg border p-4 text-sm ${noncompliant > 0 ? "border-rose-300 bg-rose-50 text-rose-700" : attention > 0 ? "border-amber-300 bg-amber-50 text-amber-800" : "border-teal-300 bg-teal-50 text-teal-700"}`}
-          >
-            {noncompliant > 0
-              ? "Projeto com pendências de dimensionamento."
-              : attention > 0
-                ? "Projeto dimensionado com alertas. Consulte as não conformidades e execute a validação."
-                : "Todos os trechos foram dimensionados. Execute a validação para confirmar as pendências do projeto."}
+          </>
+        )}
+        {!tabbed && (
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {counts.map(({ status, count }) => (
+              <Card key={status}>
+                <CardContent className="pt-5">
+                  <p className="text-sm text-muted-foreground">
+                    {designStatusLabels[status]}
+                  </p>
+                  <p className="text-3xl font-semibold">{count}</p>
+                </CardContent>
+              </Card>
+            ))}
           </div>
-        </>
-      )}
-      {!tabbed && (
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          {counts.map(({ status, count }) => (
-            <Card key={status}>
-              <CardContent className="pt-5">
-                <p className="text-sm text-muted-foreground">
-                  {designStatusLabels[status]}
-                </p>
-                <p className="text-3xl font-semibold">{count}</p>
+        )}
+        {tabbed && visible("memory") && memorial && (
+          <MemorialTrace memorial={memorial} />
+        )}
+        {visible("memory") && (
+          <>
+            <p className="text-sm text-muted-foreground">
+              Regras aplicadas: {design.rulesetVersionId}. Os resultados
+              representam os dados salvos no momento deste cálculo.
+            </p>
+            {design.justifications.map((text) => (
+              <p key={text} className="text-sm">
+                {text}
+              </p>
+            ))}
+          </>
+        )}
+        {visible("findings") && design.nonconformities.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Ocorrências do projeto</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Findings items={design.nonconformities} />
+            </CardContent>
+          </Card>
+        )}
+        {tabbed && visible("drawing") && network && (
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Planta da rede</CardTitle>
+                <CardDescription>
+                  Coordenadas do DXF; cores pela situação de cada trecho.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <NetworkPlan network={network} design={design} />
               </CardContent>
             </Card>
-          ))}
-        </div>
-      )}
-      {tabbed && visible("memory") && memorial && (
-        <MemorialTrace memorial={memorial} />
-      )}
-      {visible("memory") && (
-        <>
-          <p className="text-sm text-muted-foreground">
-            Regras aplicadas: {design.rulesetVersionId}. Os resultados
-            representam os dados salvos no momento deste cálculo.
-          </p>
-          {design.justifications.map((text) => (
-            <p key={text} className="text-sm">
-              {text}
-            </p>
-          ))}
-        </>
-      )}
-      {visible("findings") && design.nonconformities.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Ocorrências do projeto</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Findings items={design.nonconformities} />
-          </CardContent>
-        </Card>
-      )}
-      {tabbed && visible("drawing") && network && (
-        <div className="space-y-6">
-          <Card>
+            <Card>
+              <CardHeader>
+                <CardTitle>Perfil longitudinal</CardTitle>
+                <CardDescription>
+                  Terreno, cota de fundo e geratriz superior calculadas, de
+                  montante para jusante.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <LongitudinalProfile network={network} design={design} />
+              </CardContent>
+            </Card>
+          </div>
+        )}
+        {visible("table") && (
+          <Card className="rounded-lg border border-border/80 bg-card/40 shadow-none ring-0">
             <CardHeader>
-              <CardTitle>Planta da rede</CardTitle>
+              <CardTitle>Dimensionamento por trecho</CardTitle>
               <CardDescription>
-                Coordenadas do DXF; cores pela situação de cada trecho.
+                Valores no início e no fim de plano (ini / fim). DN com * foi
+                imposto pelo projetista. τ é a tensão trativa usada no critério
+                de autolimpeza. Clique no trecho para ver o memorial.
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <NetworkPlan network={network} design={design} />
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle>Perfil longitudinal</CardTitle>
-              <CardDescription>
-                Terreno, cota de fundo e geratriz superior calculadas, de
-                montante para jusante.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <LongitudinalProfile network={network} design={design} />
-            </CardContent>
-          </Card>
-        </div>
-      )}
-      {visible("table") && (
-        <Card className="rounded-lg border border-border/80 bg-card/40 shadow-none ring-0">
-          <CardHeader>
-            <CardTitle>Dimensionamento por trecho</CardTitle>
-            <CardDescription>
-              Valores no início e no fim de plano (ini / fim). DN com * foi
-              imposto pelo projetista. τ é a tensão trativa usada no critério de
-              autolimpeza. Clique no trecho para ver o memorial.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  {tableColumns.map((text) => (
-                    <TableHead key={text}>{text}</TableHead>
-                  ))}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {(tabbed
-                  ? design.segments.slice(page * 5, page * 5 + 5)
-                  : design.segments
-                ).map((segment) => {
-                  const choice = isCalculated(segment) ? segment.choice : null;
-                  const state = situation(segment);
-                  return (
-                    <TableRow key={segment.segmentId}>
-                      <TableCell>
-                        <a
-                          href={`#result-${segment.segmentId}`}
-                          className="font-medium text-primary underline"
-                          onClick={() => {
-                            if (tabbed) {
-                              setTab("memory");
-                              setSelectedSegment(segment.segmentId);
-                            }
-                          }}
-                        >
-                          {segment.segmentCode}
-                        </a>
-                      </TableCell>
-                      <TableCell>
-                        {pair(segment, "initialDischarge", "finalDischarge")}
-                      </TableCell>
-                      <TableCell>
-                        {choice
-                          ? `${choice.diameterMm}${choice.diameterImposed ? "*" : ""}`
-                          : "—"}
-                      </TableCell>
-                      <TableCell>{choice?.material ?? "—"}</TableCell>
-                      <TableCell>{format(choice?.slope, 5)}</TableCell>
-                      <TableCell>
-                        {pair(segment, "initialVelocity", "finalVelocity", 2)}
-                      </TableCell>
-                      <TableCell>
-                        {pair(
-                          segment,
-                          "initialDepthRatio",
-                          "finalDepthRatio",
-                          2,
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {format(quantityValue(segment, "tractiveTension"), 2)}
-                      </TableCell>
-                      <TableCell>{format(choice?.upstreamDropM, 3)}</TableCell>
-                      <TableCell>
-                        <span
-                          className={`whitespace-nowrap rounded-full border px-2 py-0.5 text-xs ${state.className}`}
-                        >
-                          {state.text}
-                        </span>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-            {tabbed && (
-              <div className="mt-4 flex items-center justify-between gap-3 text-xs text-muted-foreground">
-                <span>
-                  {Math.min(page * 5 + 5, design.segments.length)} de{" "}
-                  {design.segments.length} trechos
-                </span>
-                <div className="flex gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={page === 0}
-                    onClick={() => setPage(page - 1)}
-                  >
-                    Anterior
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={(page + 1) * 5 >= design.segments.length}
-                    onClick={() => setPage(page + 1)}
-                  >
-                    Próxima
-                  </Button>
+              <Table className="tabular-nums">
+                <TableHeader>
+                  <TableRow>
+                    {tableColumns.map((text) => (
+                      <TableHead key={text}>{text}</TableHead>
+                    ))}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {(tabbed
+                    ? design.segments.slice(page * 5, page * 5 + 5)
+                    : design.segments
+                  ).map((segment) => {
+                    const choice = isCalculated(segment)
+                      ? segment.choice
+                      : null;
+                    const state = situation(segment);
+                    return (
+                      <TableRow key={segment.segmentId}>
+                        <TableCell>
+                          <a
+                            href={`#result-${segment.segmentId}`}
+                            className="font-medium text-primary underline"
+                            onClick={() => {
+                              if (!tabbed) return;
+                              // Commit before the browser follows the hash, so the target exists.
+                              flushSync(() => {
+                                setTab("memory");
+                                setSelectedSegment(segment.segmentId);
+                              });
+                            }}
+                          >
+                            {segment.segmentCode}
+                          </a>
+                        </TableCell>
+                        <TableCell>
+                          {pair(segment, "initialDischarge", "finalDischarge")}
+                        </TableCell>
+                        <TableCell>
+                          {choice
+                            ? `${choice.diameterMm}${choice.diameterImposed ? "*" : ""}`
+                            : "—"}
+                        </TableCell>
+                        <TableCell>{choice?.material ?? "—"}</TableCell>
+                        <TableCell>{format(choice?.slope, 5)}</TableCell>
+                        <TableCell>
+                          {pair(segment, "initialVelocity", "finalVelocity", 2)}
+                        </TableCell>
+                        <TableCell>
+                          {pair(
+                            segment,
+                            "initialDepthRatio",
+                            "finalDepthRatio",
+                            2,
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {format(quantityValue(segment, "tractiveTension"), 2)}
+                        </TableCell>
+                        <TableCell>
+                          {format(choice?.upstreamDropM, 3)}
+                        </TableCell>
+                        <TableCell>
+                          <span
+                            className={`whitespace-nowrap rounded-full border px-2 py-0.5 text-xs ${state.className}`}
+                          >
+                            {state.text}
+                          </span>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+              {tabbed && (
+                <div className="mt-4 flex items-center justify-between gap-3 text-xs text-muted-foreground">
+                  <span>
+                    {pageEnd === 0 ? 0 : page * 5 + 1}–{pageEnd} de{" "}
+                    {design.segments.length} trechos
+                  </span>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={page === 0}
+                      onClick={() => setPage(page - 1)}
+                    >
+                      Anterior
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={(page + 1) * 5 >= design.segments.length}
+                      onClick={() => setPage(page + 1)}
+                    >
+                      Próxima
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
-      {(visible("memory") || visible("findings")) && (
-        <section aria-label="Detalhes do cálculo" className="space-y-3">
-          <h2 className="text-xl font-semibold">
-            Detalhes e ocorrências por trecho
-          </h2>
-          {design.segments
-            .filter(
-              (segment) =>
-                !tabbed ||
-                tab !== "findings" ||
-                !isCalculated(segment) ||
-                segment.nonconformities.length > 0,
-            )
-            .map((segment) => (
-              <SegmentDetails
-                key={segment.segmentId}
-                segment={segment}
-                memorial={memorial}
-                expanded={
-                  selectedSegment === segment.segmentId ? true : undefined
-                }
-              />
-            ))}
-          {tabbed &&
-            tab === "findings" &&
-            design.nonconformities.length === 0 &&
-            design.segments.every(
-              (s) => isCalculated(s) && s.nonconformities.length === 0,
-            ) && (
-              <p className="text-sm text-muted-foreground">
-                Nenhuma não conformidade encontrada.
-              </p>
-            )}
-        </section>
-      )}
+              )}
+            </CardContent>
+          </Card>
+        )}
+        {(visible("memory") || visible("findings")) && (
+          <section aria-label="Detalhes do cálculo" className="space-y-3">
+            <h2 className="text-xl font-semibold">
+              Detalhes e ocorrências por trecho
+            </h2>
+            {design.segments
+              .filter(
+                (segment) =>
+                  !tabbed ||
+                  tab !== "findings" ||
+                  !isCalculated(segment) ||
+                  segment.nonconformities.length > 0,
+              )
+              .map((segment) => (
+                <SegmentDetails
+                  key={segment.segmentId}
+                  segment={segment}
+                  memorial={memorial}
+                  hasFormulaLinks={tabbed && tab === "memory"}
+                  expanded={
+                    selectedSegment === segment.segmentId ? true : undefined
+                  }
+                />
+              ))}
+            {tabbed &&
+              tab === "findings" &&
+              design.nonconformities.length === 0 &&
+              design.segments.every(
+                (s) => isCalculated(s) && s.nonconformities.length === 0,
+              ) && (
+                <p className="text-sm text-muted-foreground">
+                  Nenhuma não conformidade encontrada.
+                </p>
+              )}
+          </section>
+        )}
+      </div>
     </div>
   );
 }
@@ -571,7 +583,7 @@ export function DesignPanel({
               });
             }}
           >
-            {design.isFetching ? "Calculando..." : "Calcular dimensionamento"}
+            {design.isFetching ? "Calculando…" : "Calcular dimensionamento"}
           </Button>
           <Button
             variant="outline"
@@ -634,7 +646,7 @@ export function DesignPanel({
       )}
       {design.isFetching && (
         <p role="status" className="text-sm">
-          Calculando os trechos de montante para jusante...
+          Calculando os trechos de montante para jusante…
         </p>
       )}
     </section>

@@ -85,7 +85,7 @@ function SnapshotDetail({
       ),
     retry: false,
   });
-  if (detail.isPending) return <p className="text-xs">Carregando...</p>;
+  if (detail.isPending) return <p className="text-xs">Carregando…</p>;
   if (detail.isError)
     return <p className="text-xs text-destructive">{detail.error.message}</p>;
   const outcomes = Object.entries(
@@ -157,7 +157,7 @@ function ExportHistory({ projectId }: { projectId: string }) {
         </h2>
         {exports.isPending && (
           <p role="status" className="mt-2 text-sm text-muted-foreground">
-            Carregando...
+            Carregando…
           </p>
         )}
         {exports.isError && (
@@ -195,7 +195,7 @@ function ExportHistory({ projectId }: { projectId: string }) {
         </p>
         {snapshots.isPending && (
           <p role="status" className="mt-2 text-sm text-muted-foreground">
-            Carregando...
+            Carregando…
           </p>
         )}
         {snapshots.isError && (

@@ -1,8 +1,8 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { ArrowUpDown } from "lucide-react";
-import { type ReactNode, useMemo, useState } from "react";
+import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
+import { type ReactNode, useId, useMemo, useState } from "react";
 import { projectQueryKeys } from "@/api/client/query-keys";
 import { parseClientJson } from "@/api/client/response";
 import { projectDetailResponseSchema } from "@/api/contracts/spring";
@@ -24,6 +24,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { nodeRows, segmentRows } from "./network-geometry";
+import { TabList, tabId } from "./tab-list";
 
 const elementLabels: Record<string, string> = {
   COLLECTOR: "Coletor",
@@ -41,6 +42,22 @@ const number = (value: number | null | undefined, digits = 3) =>
   value === null || value === undefined
     ? "—"
     : value.toLocaleString("pt-BR", { maximumFractionDigits: digits });
+
+function SortIcon({
+  active,
+  ascending,
+}: {
+  active: boolean;
+  ascending: boolean;
+}) {
+  const Icon = !active ? ArrowUpDown : ascending ? ArrowUp : ArrowDown;
+  return (
+    <Icon
+      className={`size-3.5 ${active ? "" : "opacity-50"}`}
+      aria-hidden="true"
+    />
+  );
+}
 
 type Column<T> = {
   key: string;
@@ -79,8 +96,8 @@ function SortableTable<T extends { id: string }>({
     });
   }, [rows, columns, sort]);
   return (
-    <div className="max-h-[28rem] overflow-auto rounded-md border">
-      <Table aria-label={caption} className="text-xs">
+    <div className="max-h-[28rem] overflow-auto overscroll-contain rounded-md border">
+      <Table aria-label={caption} className="text-xs tabular-nums">
         <TableHeader className="sticky top-0 z-10 bg-card">
           <TableRow>
             {columns.map((column) => (
@@ -106,13 +123,26 @@ function SortableTable<T extends { id: string }>({
                   }
                 >
                   {column.label}
-                  <ArrowUpDown className="size-3.5" aria-hidden="true" />
+                  <SortIcon
+                    active={sort.key === column.key}
+                    ascending={sort.asc}
+                  />
                 </Button>
               </TableHead>
             ))}
           </TableRow>
         </TableHeader>
         <TableBody>
+          {sorted.length === 0 && (
+            <TableRow>
+              <TableCell
+                colSpan={columns.length}
+                className="py-6 text-center text-muted-foreground"
+              >
+                Nenhum código corresponde ao filtro.
+              </TableCell>
+            </TableRow>
+          )}
           {sorted.map((row) => (
             <TableRow key={row.id}>
               {columns.map((column) => (
@@ -240,6 +270,13 @@ const nodeColumns: Column<NodeRow>[] = [
   },
 ];
 
+const viewTabs = [
+  ["segments", "Trechos"],
+  ["nodes", "Nós"],
+] as const;
+const matchesCode = (code: string, term: string) =>
+  code.toLocaleLowerCase("pt-BR").includes(term);
+
 export function NetworkTable({ projectId }: { projectId: string }) {
   const [view, setView] = useState<"segments" | "nodes">("segments");
   const [search, setSearch] = useState("");
@@ -254,9 +291,24 @@ export function NetworkTable({ projectId }: { projectId: string }) {
     retry: false,
     refetchOnWindowFocus: false,
   });
+  const panelId = useId();
   const term = search.trim().toLocaleLowerCase("pt-BR");
-  const matches = (code: string) =>
-    code.toLocaleLowerCase("pt-BR").includes(term);
+  const segments = useMemo(
+    () =>
+      network.data
+        ? segmentRows(network.data)
+            .filter((row) => matchesCode(row.segment.code, term))
+            .map((row) => ({ ...row, id: row.segment.id }))
+        : [],
+    [network.data, term],
+  );
+  const nodes = useMemo(
+    () =>
+      network.data
+        ? nodeRows(network.data).filter((row) => matchesCode(row.code, term))
+        : [],
+    [network.data, term],
+  );
   return (
     <Card className="rounded-lg border border-border/80 bg-card/40 shadow-none ring-0">
       <CardHeader>
@@ -268,59 +320,55 @@ export function NetworkTable({ projectId }: { projectId: string }) {
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex flex-wrap items-center gap-3">
-          <div
-            role="tablist"
-            aria-label="Visão da rede"
+          <TabList
+            label="Visão da rede"
+            panelId={panelId}
+            tabs={viewTabs}
+            value={view}
+            onChange={setView}
             className="flex gap-1 rounded-md bg-card p-1"
-          >
-            {(
-              [
-                ["segments", "Trechos"],
-                ["nodes", "Nós"],
-              ] as const
-            ).map(([value, label]) => (
-              <button
-                key={value}
-                type="button"
-                role="tab"
-                aria-selected={view === value}
-                className={`rounded px-3 py-1 text-sm ${view === value ? "bg-background shadow-sm" : "text-muted-foreground"}`}
-                onClick={() => setView(value)}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
+          />
           <Input
             type="search"
             aria-label="Filtrar rede por código"
-            placeholder="Filtrar por código..."
+            autoComplete="off"
+            spellCheck={false}
+            placeholder="Filtrar por código…"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             className="max-w-xs"
           />
         </div>
-        {network.isPending && <p className="text-sm">Carregando rede...</p>}
+        {network.isPending && (
+          <p role="status" className="text-sm">
+            Carregando rede…
+          </p>
+        )}
         {network.isError && (
           <p role="alert" className="text-sm text-destructive">
             {network.error.message}
           </p>
         )}
-        {network.data && view === "segments" && (
-          <SortableTable
-            caption="Trechos da rede"
-            columns={segmentColumns}
-            rows={segmentRows(network.data)
-              .filter((row) => matches(row.segment.code))
-              .map((row) => ({ ...row, id: row.segment.id }))}
-          />
-        )}
-        {network.data && view === "nodes" && (
-          <SortableTable
-            caption="Nós da rede"
-            columns={nodeColumns}
-            rows={nodeRows(network.data).filter((row) => matches(row.code))}
-          />
+        {network.data && (
+          <div
+            role="tabpanel"
+            id={panelId}
+            aria-labelledby={tabId(panelId, view)}
+          >
+            {view === "segments" ? (
+              <SortableTable
+                caption="Trechos da rede"
+                columns={segmentColumns}
+                rows={segments}
+              />
+            ) : (
+              <SortableTable
+                caption="Nós da rede"
+                columns={nodeColumns}
+                rows={nodes}
+              />
+            )}
+          </div>
         )}
       </CardContent>
     </Card>

@@ -111,10 +111,12 @@ export function SegmentDetails({
   segment,
   expanded,
   memorial,
+  hasFormulaLinks = false,
 }: {
   segment: SegmentDesign;
   expanded?: boolean;
   memorial?: CalculationMemorial;
+  hasFormulaLinks?: boolean;
 }) {
   const traced: MemorialSegment | undefined = memorial?.segments.find(
     (item) => item.segmentId === segment.segmentId,
@@ -136,7 +138,7 @@ export function SegmentDetails({
         ))}
         {isCalculated(segment) && (
           <>
-            <p className="text-sm">
+            <p className="text-sm tabular-nums">
               DN {segment.choice.diameterMm} mm
               {segment.choice.diameterImposed ? " (imposto)" : ""} ·{" "}
               {segment.choice.material} · declividade{" "}
@@ -145,7 +147,11 @@ export function SegmentDetails({
               {format(segment.choice.upstreamDropM, 3)} m
             </p>
             {traced && memorial ? (
-              <SegmentMemorial segment={traced} formulas={memorial.formulas} />
+              <SegmentMemorial
+                segment={traced}
+                formulas={memorial.formulas}
+                hasFormulaLinks={hasFormulaLinks}
+              />
             ) : (
               <Quantities items={segment.quantities} />
             )}

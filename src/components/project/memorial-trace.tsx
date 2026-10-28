@@ -13,6 +13,14 @@ import { label, limitLabels, quantityLabels, unitLabel } from "./design-labels";
 type Formula = CalculationMemorial["formulas"][number];
 export type MemorialSegment = CalculationMemorial["segments"][number];
 
+const FORMULAS_ID = "memorial-formulas";
+
+// Fragment navigation does not reliably open a closed <details>.
+function openFormulas() {
+  const formulas = document.getElementById(FORMULAS_ID);
+  if (formulas instanceof HTMLDetailsElement) formulas.open = true;
+}
+
 const show = (value: unknown) =>
   typeof value === "number"
     ? value.toLocaleString("pt-BR", { maximumFractionDigits: 6 })
@@ -26,7 +34,7 @@ export function MemorialTrace({ memorial }: { memorial: CalculationMemorial }) {
         {new Date(memorial.generatedAt).toLocaleString("pt-BR")} · regras{" "}
         {memorial.rulesetVersion}
       </p>
-      <details className="group rounded-xl border bg-card p-4">
+      <details id={FORMULAS_ID} className="group rounded-xl border bg-card p-4">
         <summary className="cursor-pointer font-medium">
           Fórmulas aplicadas ({memorial.formulas.length})
           <span className="ml-2 text-xs font-normal text-muted-foreground">
@@ -48,7 +56,7 @@ export function MemorialTrace({ memorial }: { memorial: CalculationMemorial }) {
                   <TableCell>{formula.id}</TableCell>
                   <TableCell>{label(quantityLabels, formula.key)}</TableCell>
                   <TableCell className="min-w-80 whitespace-normal">
-                    <div className="max-h-20 overflow-auto break-all font-mono text-xs">
+                    <div className="max-h-20 overflow-auto overscroll-contain break-all font-mono text-xs">
                       {formula.expression}
                     </div>
                   </TableCell>
@@ -87,9 +95,11 @@ export function MemorialTrace({ memorial }: { memorial: CalculationMemorial }) {
 export function SegmentMemorial({
   segment,
   formulas,
+  hasFormulaLinks = false,
 }: {
   segment: MemorialSegment;
   formulas: Formula[];
+  hasFormulaLinks?: boolean;
 }) {
   const byId = new Map(formulas.map((formula) => [formula.id, formula]));
   const bound = (value: MemorialSegment["limits"][number]["lowerBound"]) =>
@@ -141,13 +151,20 @@ export function SegmentMemorial({
               </dt>
               <dd>
                 {show(quantity.value)} {unitLabel(quantity.unit)}{" "}
-                <a
-                  href={`#formula-${quantity.formulaId}`}
-                  title={formula?.expression}
-                  className="text-xs text-primary underline"
-                >
-                  {quantity.formulaId}
-                </a>
+                {hasFormulaLinks ? (
+                  <a
+                    href={`#formula-${quantity.formulaId}`}
+                    title={formula?.expression}
+                    className="text-xs text-primary underline"
+                    onClick={openFormulas}
+                  >
+                    {quantity.formulaId}
+                  </a>
+                ) : (
+                  <span className="text-xs text-muted-foreground">
+                    {quantity.formulaId}
+                  </span>
+                )}
               </dd>
             </div>
           );

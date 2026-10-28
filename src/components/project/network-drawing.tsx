@@ -9,21 +9,51 @@ const WIDTH = 800;
 const HEIGHT = 420;
 const PAD = 40;
 const selectClass =
-  "h-9 rounded-md border border-input bg-background px-2 text-sm";
+  "h-9 rounded-md border border-input bg-background px-2 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
+// Phones would shrink the 800-unit viewBox until the 10px labels are unreadable.
+const svgFrameClass = "overflow-x-auto overscroll-x-contain rounded-md border";
+const svgClass = "w-full min-w-[640px] bg-background";
 const format = (value: number, digits = 2) =>
   value.toLocaleString("pt-BR", { maximumFractionDigits: digits });
 
-function statusColor(design: NetworkDesign | undefined, segmentId: string) {
+// Dash patterns keep the status readable without relying on color alone.
+const statusStyles = {
+  ok: { stroke: "#0d9488", dash: undefined, text: "Conforme" },
+  warning: { stroke: "#d97706", dash: "10 4", text: "Em atenção" },
+  critical: { stroke: "#e11d48", dash: "10 3 2 3", text: "Não conforme" },
+  none: { stroke: "#94a3b8", dash: "2 4", text: "Sem cálculo" },
+} as const;
+
+function segmentStatus(
+  design: NetworkDesign | undefined,
+  segmentId: string,
+): keyof typeof statusStyles {
   const outcome = design?.segments.find((s) => s.segmentId === segmentId);
-  if (!outcome) return "#94a3b8";
+  if (!outcome) return "none";
   if (
     !isCalculated(outcome) ||
     outcome.nonconformities.some((n) => n.severity === "CRITICAL")
   )
-    return "#e11d48";
+    return "critical";
   return outcome.nonconformities.some((n) => n.severity === "WARNING")
-    ? "#d97706"
-    : "#0d9488";
+    ? "warning"
+    : "ok";
+}
+
+function Swatch({ stroke, dash }: { stroke: string; dash?: string }) {
+  return (
+    <svg width="24" height="6" aria-hidden="true">
+      <line
+        x1={0}
+        y1={3}
+        x2={24}
+        y2={3}
+        stroke={stroke}
+        strokeWidth={2}
+        strokeDasharray={dash}
+      />
+    </svg>
+  );
 }
 
 function scale(values: number[], size: number, invert = false) {
@@ -73,81 +103,75 @@ export function NetworkPlan({
   const segmentLabel = (index: number) => shown[network.nodes.length + index];
   return (
     <figure className="space-y-2">
-      <svg
-        viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
-        role="img"
-        aria-label="Planta da rede"
-        className="w-full rounded-md border bg-background"
-      >
-        {network.segments.map((segment, index) => {
-          const from = byId.get(segment.upstreamNodeId);
-          const to = byId.get(segment.downstreamNodeId);
-          if (!from || !to) return null;
-          return (
-            <g key={segment.id}>
-              <title>{segment.code}</title>
-              <line
-                x1={x(from.x)}
-                y1={y(from.y)}
-                x2={x(to.x)}
-                y2={y(to.y)}
-                stroke={statusColor(design, segment.id)}
-                strokeWidth={3}
+      <div className={svgFrameClass}>
+        <svg
+          viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
+          role="img"
+          aria-label="Planta da rede"
+          className={svgClass}
+        >
+          {network.segments.map((segment, index) => {
+            const from = byId.get(segment.upstreamNodeId);
+            const to = byId.get(segment.downstreamNodeId);
+            if (!from || !to) return null;
+            const status = statusStyles[segmentStatus(design, segment.id)];
+            return (
+              <g key={segment.id}>
+                <title>{segment.code}</title>
+                <line
+                  x1={x(from.x)}
+                  y1={y(from.y)}
+                  x2={x(to.x)}
+                  y2={y(to.y)}
+                  stroke={status.stroke}
+                  strokeDasharray={status.dash}
+                  strokeWidth={3}
+                />
+                {segmentLabel(index) && (
+                  <text
+                    x={segmentMid[index].x}
+                    y={segmentMid[index].y}
+                    fontSize={10}
+                    textAnchor="middle"
+                    className="fill-muted-foreground"
+                  >
+                    {segment.code}
+                  </text>
+                )}
+              </g>
+            );
+          })}
+          {network.nodes.map((node, index) => (
+            <g key={node.id}>
+              <title>{node.code}</title>
+              <circle
+                cx={x(node.x)}
+                cy={y(node.y)}
+                r={4}
+                className="fill-foreground"
               />
-              {segmentLabel(index) && (
+              {nodeLabel(index) && (
                 <text
-                  x={segmentMid[index].x}
-                  y={segmentMid[index].y}
+                  x={x(node.x) + 6}
+                  y={y(node.y) + 12}
                   fontSize={10}
-                  textAnchor="middle"
-                  className="fill-muted-foreground"
+                  className="fill-foreground"
                 >
-                  {segment.code}
+                  {node.code}
                 </text>
               )}
             </g>
-          );
-        })}
-        {network.nodes.map((node, index) => (
-          <g key={node.id}>
-            <title>{node.code}</title>
-            <circle
-              cx={x(node.x)}
-              cy={y(node.y)}
-              r={4}
-              className="fill-foreground"
-            />
-            {nodeLabel(index) && (
-              <text
-                x={x(node.x) + 6}
-                y={y(node.y) + 12}
-                fontSize={10}
-                className="fill-foreground"
-              >
-                {node.code}
-              </text>
-            )}
-          </g>
-        ))}
-      </svg>
+          ))}
+        </svg>
+      </div>
       <p className="text-xs text-muted-foreground">
-        Rótulos próximos demais ficam ocultos; passe o mouse sobre um nó ou
-        trecho para ver o código.
+        Rótulos próximos demais ficam ocultos; todos os códigos estão em
+        Resultados por Trecho.
       </p>
       <figcaption className="flex flex-wrap gap-4 text-xs text-muted-foreground">
-        {(
-          [
-            ["#0d9488", "Conforme"],
-            ["#d97706", "Em atenção"],
-            ["#e11d48", "Não conforme"],
-            ["#94a3b8", "Sem cálculo"],
-          ] as const
-        ).map(([color, text]) => (
+        {Object.values(statusStyles).map(({ stroke, dash, text }) => (
           <span key={text} className="flex items-center gap-1">
-            <span
-              className="inline-block h-1 w-4"
-              style={{ background: color }}
-            />
+            <Swatch stroke={stroke} dash={dash} />
             {text}
           </span>
         ))}
@@ -166,11 +190,30 @@ export function LongitudinalProfile({
   const heads = headNodes(network);
   const [start, setStart] = useState(heads[0]?.id ?? "");
   const path = profilePath(network, start);
+  const picker = (
+    <label className="flex items-center gap-2 text-sm">
+      Início do perfil
+      <select
+        className={selectClass}
+        value={start}
+        onChange={(event) => setStart(event.target.value)}
+      >
+        {heads.map((node) => (
+          <option key={node.id} value={node.id}>
+            {node.code}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
   if (path.length === 0)
     return (
-      <p className="text-sm text-muted-foreground">
-        Nenhum caminho de escoamento a partir deste nó.
-      </p>
+      <div className="space-y-3">
+        {picker}
+        <p className="text-sm text-muted-foreground">
+          Nenhum caminho de escoamento a partir deste nó.
+        </p>
+      </div>
     );
   const byId = new Map(network.nodes.map((node) => [node.id, node]));
   const stations = path.map(({ segment, start: distance }) => {
@@ -221,110 +264,108 @@ export function LongitudinalProfile({
   const nodeLabels = [...ordered.slice(1), ordered[0]];
   return (
     <figure className="space-y-3">
-      <label className="flex items-center gap-2 text-sm">
-        Início do perfil
-        <select
-          className={selectClass}
-          value={start}
-          onChange={(event) => setStart(event.target.value)}
+      {picker}
+      <div className={svgFrameClass}>
+        <svg
+          viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
+          role="img"
+          aria-label="Perfil longitudinal"
+          className={svgClass}
         >
-          {heads.map((node) => (
-            <option key={node.id} value={node.id}>
-              {node.code}
-            </option>
-          ))}
-        </select>
-      </label>
-      <svg
-        viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
-        role="img"
-        aria-label="Perfil longitudinal"
-        className="w-full rounded-md border bg-background"
-      >
-        <polyline
-          points={line(
-            stations.flatMap((s) => [
-              [s.from, s.upGround] as [number, number | null],
-              [s.to, s.downGround] as [number, number | null],
-            ]),
-          )}
-          fill="none"
-          stroke="#78716c"
-          strokeWidth={2}
-        />
-        {stations.map((s, index) => (
-          <g key={s.segment.id}>
-            <title>
-              {`${s.segment.code}: CF ${format(s.upInvert, 3)} → ${format(s.downInvert, 3)} m`}
-            </title>
-            <line
-              x1={x(s.from)}
-              y1={y(s.upInvert)}
-              x2={x(s.to)}
-              y2={y(s.downInvert)}
-              stroke="#2563eb"
-              strokeWidth={2}
-            />
-            {s.diameter > 0 && (
+          <polyline
+            points={line(
+              stations.flatMap((s) => [
+                [s.from, s.upGround] as [number, number | null],
+                [s.to, s.downGround] as [number, number | null],
+              ]),
+            )}
+            fill="none"
+            stroke="#78716c"
+            strokeWidth={2}
+          />
+          {stations.map((s, index) => (
+            <g key={s.segment.id}>
+              <title>
+                {`${s.segment.code}: CF ${format(s.upInvert, 3)} → ${format(s.downInvert, 3)} m`}
+              </title>
               <line
                 x1={x(s.from)}
-                y1={y(s.upInvert + s.diameter)}
+                y1={y(s.upInvert)}
                 x2={x(s.to)}
-                y2={y(s.downInvert + s.diameter)}
+                y2={y(s.downInvert)}
                 stroke="#2563eb"
-                strokeDasharray="4 3"
+                strokeWidth={2}
               />
-            )}
-            <line
-              x1={x(s.from)}
-              x2={x(s.from)}
-              y1={PAD / 2}
-              y2={HEIGHT - PAD / 2}
-              stroke="#e2e8f0"
-            />
-            {nodeLabels[index] && (
-              <text
-                x={x(s.from) + 3}
-                y={HEIGHT - 8}
-                fontSize={10}
-                className="fill-muted-foreground"
-              >
-                {byId.get(s.segment.upstreamNodeId)?.code}
-              </text>
-            )}
-          </g>
-        ))}
-        {nodeLabels[stations.length] && (
+              {s.diameter > 0 && (
+                <line
+                  x1={x(s.from)}
+                  y1={y(s.upInvert + s.diameter)}
+                  x2={x(s.to)}
+                  y2={y(s.downInvert + s.diameter)}
+                  stroke="#2563eb"
+                  strokeDasharray="4 3"
+                />
+              )}
+              <line
+                x1={x(s.from)}
+                x2={x(s.from)}
+                y1={PAD / 2}
+                y2={HEIGHT - PAD / 2}
+                stroke="#e2e8f0"
+              />
+              {nodeLabels[index] && (
+                <text
+                  x={x(s.from) + 3}
+                  y={HEIGHT - 8}
+                  fontSize={10}
+                  className="fill-muted-foreground"
+                >
+                  {byId.get(s.segment.upstreamNodeId)?.code}
+                </text>
+              )}
+            </g>
+          ))}
+          {nodeLabels[stations.length] && (
+            <text
+              x={x(total) - 3}
+              y={HEIGHT - 8}
+              fontSize={10}
+              textAnchor="end"
+              className="fill-muted-foreground"
+            >
+              {
+                byId.get(stations[stations.length - 1].segment.downstreamNodeId)
+                  ?.code
+              }
+            </text>
+          )}
+          <text x={PAD} y={14} fontSize={10} className="fill-muted-foreground">
+            {format(Math.max(...elevations), 2)} m
+          </text>
           <text
-            x={x(total) - 3}
-            y={HEIGHT - 8}
+            x={PAD}
+            y={HEIGHT - PAD + 12}
             fontSize={10}
-            textAnchor="end"
             className="fill-muted-foreground"
           >
-            {
-              byId.get(stations[stations.length - 1].segment.downstreamNodeId)
-                ?.code
-            }
+            {format(Math.min(...elevations), 2)} m · {format(total, 1)} m de
+            extensão
           </text>
-        )}
-        <text x={PAD} y={14} fontSize={10} className="fill-muted-foreground">
-          {format(Math.max(...elevations), 2)} m
-        </text>
-        <text
-          x={PAD}
-          y={HEIGHT - PAD + 12}
-          fontSize={10}
-          className="fill-muted-foreground"
-        >
-          {format(Math.min(...elevations), 2)} m · {format(total, 1)} m de
-          extensão
-        </text>
-      </svg>
+        </svg>
+      </div>
       <figcaption className="flex flex-wrap gap-4 text-xs text-muted-foreground">
-        <span>— Terreno (cinza)</span>
-        <span>— Cota de fundo (azul)</span>
-        <span>- - Geratriz superior (DN calculado)</span>
+        {(
+          [
+            ["#78716c", undefined, "Terreno"],
+            ["#2563eb", undefined, "Cota de fundo"],
+            ["#2563eb", "4 3", "Geratriz superior (DN calculado)"],
+          ] as const
+        ).map(([stroke, dash, text]) => (
+          <span key={text} className="flex items-center gap-1">
+            <Swatch stroke={stroke} dash={dash} />
+            {text}
+          </span>
+        ))}
         {!design && <span>Sem cálculo: cotas importadas do DXF.</span>}
       </figcaption>
     </figure>
