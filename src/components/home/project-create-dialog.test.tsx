@@ -1,4 +1,10 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MAX_DXF_BYTES } from "@/api/contracts/spring";
@@ -65,8 +71,10 @@ describe("project upload dialog", () => {
   afterEach(() => vi.unstubAllGlobals());
 
   it("previews before importing a file above the old 5 MB limit and preserves metadata in both requests", async () => {
+    const warning =
+      "1 node(s) without an identified type were assumed as PV: [PV-02]";
     fetchMock
-      .mockResolvedValueOnce(Response.json(preview))
+      .mockResolvedValueOnce(Response.json({ ...preview, warnings: [warning] }))
       .mockResolvedValueOnce(Response.json({ id }, { status: 201 }));
     const { user, file } = await fillImport(6 * 1024 * 1024);
     await user.type(
@@ -93,9 +101,20 @@ describe("project upload dialog", () => {
       basin: "Centro",
     });
     expect(mocks.push).not.toHaveBeenCalled();
+    const summary = await screen.findByRole("region", {
+      name: "Pré-visualização do DXF",
+    });
     expect(
-      await screen.findByRole("region", { name: "Pré-visualização do DXF" }),
-    ).toHaveTextContent("1 trechos");
+      within(summary)
+        .getAllByRole("definition")
+        .map((item) => item.textContent),
+    ).toEqual(["1", "2", "1"]);
+    expect(summary).toHaveTextContent(
+      "1 nó será importado como poço de visita (PV).",
+    );
+    expect(summary).toHaveTextContent("Nós para conferir: PV-02");
+    expect(summary).not.toHaveTextContent(warning);
+    expect(screen.getByRole("button", { name: "Fechar" })).toBeVisible();
     submitImport();
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
     const [importPath, importInit] = fetchMock.mock.calls[1];
@@ -128,7 +147,7 @@ describe("project upload dialog", () => {
     fetchMock
       .mockResolvedValueOnce(
         Response.json(
-          { error: "Há outros uploads em processamento." },
+          { error: "Too many uploads", code: "UPLOADS_BUSY" },
           { status: 503 },
         ),
       )
@@ -137,7 +156,7 @@ describe("project upload dialog", () => {
     const { file } = await fillImport();
     submitImport();
     expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Há outros uploads em processamento.",
+      "Há outros arquivos em processamento.",
     );
     expect(screen.getByLabelText("Nome do projeto")).toHaveValue("Rede");
     expect(
@@ -156,7 +175,10 @@ describe("project upload dialog", () => {
     fetchMock
       .mockResolvedValueOnce(Response.json(preview))
       .mockResolvedValueOnce(
-        Response.json({ error: "Uploads ocupados." }, { status: 503 }),
+        Response.json(
+          { error: "Too many uploads", code: "UPLOADS_BUSY" },
+          { status: 503 },
+        ),
       )
       .mockResolvedValueOnce(Response.json({ id }, { status: 201 }));
     const { file } = await fillImport();
@@ -164,7 +186,7 @@ describe("project upload dialog", () => {
     await screen.findByRole("region", { name: "Pré-visualização do DXF" });
     submitImport();
     expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Uploads ocupados.",
+      "Há outros arquivos em processamento.",
     );
     submitImport();
     await waitFor(() =>

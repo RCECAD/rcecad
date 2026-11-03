@@ -20,7 +20,7 @@ export function HomeProjectsSummary({
   summary,
 }: Readonly<HomeProjectsSummaryProps>) {
   return (
-    <div className="flex flex-nowrap items-center gap-2">
+    <div className="flex min-w-0 flex-wrap items-center gap-2">
       {orderedStatuses.map((status, index) => {
         const meta = getStatusMeta(status);
 

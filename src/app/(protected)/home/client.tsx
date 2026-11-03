@@ -6,7 +6,9 @@ import { useEffect, useMemo, useState } from "react";
 import { HomeProjectCard } from "@/components/home/home-project-card";
 import { HomeProjectsSummary } from "@/components/home/home-projects-summary";
 import { HomeProjectsTable } from "@/components/home/home-projects-table";
+import { ProjectCreateDialog } from "@/components/home/project-create-dialog";
 import { Button } from "@/components/ui/button";
+import { FeedbackActions } from "@/components/ui/feedback";
 import { Input } from "@/components/ui/input";
 import { EmptyState } from "@/components/ui/page-state";
 import type { HomeProjectsPayload } from "@/domain/entities";
@@ -17,6 +19,7 @@ type HomeClientProps = {
 };
 
 export function HomeClient({ payload }: Readonly<HomeClientProps>) {
+  const [mode, setMode] = useState<"create" | "import" | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
@@ -43,9 +46,12 @@ export function HomeClient({ payload }: Readonly<HomeClientProps>) {
       transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
       className="mx-auto flex w-full max-w-5xl flex-col gap-5 px-6 pb-16 pt-10"
     >
-      <div className="space-y-5">
+      {mode && (
+        <ProjectCreateDialog mode={mode} onClose={() => setMode(null)} />
+      )}
+      <div className="flex min-w-0 flex-col gap-5">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div className="space-y-1">
+          <div className="flex min-w-0 flex-col gap-1">
             <h2 className="text-2xl font-semibold tracking-tight text-foreground">
               Últimos projetos
             </h2>
@@ -54,7 +60,7 @@ export function HomeClient({ payload }: Readonly<HomeClientProps>) {
             </p>
           </div>
 
-          <div className="relative min-h-9 md:w-[28rem] md:flex-none">
+          <div className="relative min-h-9 min-w-0 md:flex-1">
             <AnimatePresence initial={false} mode="wait">
               {isExpanded ? (
                 <motion.div
@@ -63,7 +69,7 @@ export function HomeClient({ payload }: Readonly<HomeClientProps>) {
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: 12 }}
                   transition={{ duration: 0.2, ease: "easeOut" }}
-                  className="flex items-center justify-start gap-3 md:absolute md:inset-y-0 md:right-0 md:justify-end"
+                  className="flex flex-wrap items-center justify-start gap-3 md:justify-end"
                 >
                   <HomeProjectsSummary summary={payload.statusSummary} />
                   <Button
@@ -83,7 +89,7 @@ export function HomeClient({ payload }: Readonly<HomeClientProps>) {
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: 12 }}
                   transition={{ duration: 0.2, ease: "easeOut" }}
-                  className="flex justify-start md:absolute md:inset-y-0 md:right-0 md:justify-end"
+                  className="flex justify-start md:justify-end"
                 >
                   <Button
                     type="button"
@@ -135,6 +141,32 @@ export function HomeClient({ payload }: Readonly<HomeClientProps>) {
                 </div>
                 <HomeProjectsTable
                   projects={filteredProjects}
+                  emptyAction={
+                    <FeedbackActions
+                      actions={
+                        debouncedQuery
+                          ? [
+                              {
+                                label: "Limpar busca",
+                                onClick: () => {
+                                  setQuery("");
+                                  setDebouncedQuery("");
+                                },
+                              },
+                            ]
+                          : [
+                              {
+                                label: "Criar projeto",
+                                onClick: () => setMode("create"),
+                              },
+                              {
+                                label: "Importar DXF",
+                                onClick: () => setMode("import"),
+                              },
+                            ]
+                      }
+                    />
+                  }
                   emptyText={
                     debouncedQuery
                       ? "Nenhum projeto corresponde à busca."
@@ -166,7 +198,17 @@ export function HomeClient({ payload }: Readonly<HomeClientProps>) {
                   <div className="md:col-span-3">
                     <EmptyState
                       title="Nenhum projeto encontrado"
-                      description="Quando houver projetos disponíveis, eles aparecerão aqui."
+                      description="Crie seu primeiro projeto ou importe um desenho DXF para começar."
+                      actions={[
+                        {
+                          label: "Criar projeto",
+                          onClick: () => setMode("create"),
+                        },
+                        {
+                          label: "Importar DXF",
+                          onClick: () => setMode("import"),
+                        },
+                      ]}
                     />
                   </div>
                 )}

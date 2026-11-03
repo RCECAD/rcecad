@@ -4,8 +4,8 @@ import { Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
-import { expectNoContent } from "@/api/client/response";
-import { Button } from "@/components/ui/button";
+import { expectNoContent, getErrorMessage } from "@/api/client/response";
+import { ConfirmButton } from "@/components/ui/confirm-button";
 
 export function DeleteProjectButton({
   projectId,
@@ -17,20 +17,17 @@ export function DeleteProjectButton({
   const router = useRouter();
   const [pending, setPending] = useState(false);
   return (
-    <Button
+    <ConfirmButton
       type="button"
       variant="ghost"
       size="icon-sm"
       disabled={pending}
       className="text-muted-foreground hover:text-destructive"
       aria-label={`Excluir ${name}`}
-      onClick={async () => {
-        if (
-          !window.confirm(
-            `Excluir o projeto "${name}"? A rede, os cálculos registrados e o histórico serão removidos definitivamente.`,
-          )
-        )
-          return;
+      title={`Excluir o projeto "${name}"?`}
+      description="A rede, os cálculos registrados e o histórico serão removidos definitivamente. Esta ação não pode ser desfeita."
+      confirmLabel="Excluir projeto"
+      onConfirm={async () => {
         setPending(true);
         try {
           await expectNoContent(
@@ -41,7 +38,10 @@ export function DeleteProjectButton({
           router.refresh();
         } catch (error) {
           toast.error(
-            error instanceof Error ? error.message : "Erro ao excluir.",
+            getErrorMessage(
+              error,
+              "Não foi possível excluir o projeto. Tente novamente.",
+            ),
           );
         } finally {
           setPending(false);
@@ -49,6 +49,6 @@ export function DeleteProjectButton({
       }}
     >
       <Trash2 className="size-4" />
-    </Button>
+    </ConfirmButton>
   );
 }

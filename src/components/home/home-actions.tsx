@@ -2,13 +2,13 @@
 
 import { motion } from "framer-motion";
 import { FilePlus2, Zap } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ProjectCreateDialog } from "@/components/home/project-create-dialog";
 import { Card, CardContent } from "@/components/ui/card";
 
 const actions = [
   {
-    title: "Novo Projeto",
+    title: "Novo projeto",
     description: "Comece pelo básico.",
     icon: FilePlus2,
     mode: "create" as const,
@@ -23,6 +23,14 @@ const actions = [
 
 export function HomeActions() {
   const [mode, setMode] = useState<"create" | "import" | null>(null);
+  useEffect(() => {
+    const showImport = () => {
+      if (window.location.hash === "#import-project") setMode("import");
+    };
+    showImport();
+    window.addEventListener("hashchange", showImport);
+    return () => window.removeEventListener("hashchange", showImport);
+  }, []);
   return (
     <div className="grid gap-4 md:grid-cols-2">
       {mode && (
@@ -38,6 +46,7 @@ export function HomeActions() {
         return (
           <motion.button
             key={action.title}
+            id={action.mode === "import" ? "import-project" : "create-project"}
             type="button"
             onClick={() => setMode(action.mode)}
             initial={{ opacity: 0, y: 12 }}
@@ -52,7 +61,7 @@ export function HomeActions() {
                 <div className="flex size-14 items-center justify-center rounded-xl">
                   <Icon className={`size-12 ${iconColor}`} />
                 </div>
-                <div>
+                <div className="flex min-w-0 flex-col gap-1">
                   <h3 className="text-2xl font-semibold tracking-tight text-foreground">
                     {action.title}
                   </h3>
