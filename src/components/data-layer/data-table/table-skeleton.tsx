@@ -13,7 +13,7 @@ export function TableSkeleton({ rows = 10 }: { rows?: number }) {
       </div>
 
       {/* rows */}
-      <div className="p-3 space-y-3">
+      <div className="flex min-w-0 flex-col gap-3 p-3">
         {Array.from({ length: rows }).map((_, i) => (
           // biome-ignore lint/suspicious/noArrayIndexKey: <>
           <div key={i} className="flex gap-3 items-center">

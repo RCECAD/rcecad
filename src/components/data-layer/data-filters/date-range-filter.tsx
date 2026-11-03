@@ -28,8 +28,8 @@ export function DateRangeFilter({ column }: DateRangeFilterProps) {
           <Button variant="outline" className="w-60 justify-start">
             <CalendarIcon className="mr-2 h-4 w-4" />
             {value.from || value.to
-              ? `${value.from?.toLocaleDateString() ?? ""} - ${
-                  value.to?.toLocaleDateString() ?? ""
+              ? `${value.from?.toLocaleDateString("pt-BR") ?? ""} - ${
+                  value.to?.toLocaleDateString("pt-BR") ?? ""
                 }`
               : "Selecionar período"}
           </Button>
@@ -57,6 +57,7 @@ export function DateRangeFilter({ column }: DateRangeFilterProps) {
         <Button
           variant="ghost"
           size="icon"
+          aria-label="Limpar período"
           onClick={() => column.setFilterValue(undefined)}
         >
           <X className="h-4 w-4" />

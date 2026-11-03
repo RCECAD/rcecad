@@ -12,6 +12,7 @@ import {
   getDefaultClassNames,
   type Locale,
 } from "react-day-picker";
+import { ptBR } from "react-day-picker/locale";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -21,7 +22,7 @@ function Calendar({
   showOutsideDays = true,
   captionLayout = "label",
   buttonVariant = "ghost",
-  locale,
+  locale = ptBR,
   formatters,
   components,
   ...props

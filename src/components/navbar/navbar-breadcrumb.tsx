@@ -26,13 +26,13 @@ const segmentLabels: Record<string, string> = {
   account: "Conta",
   dashboard: "Painel",
   edit: "Editar",
-  home: "Home",
+  home: "Início",
   profile: "Perfil",
   project: "Projetos",
   reports: "Relatórios",
   settings: "Configurações",
-  overview: "Visão Geral",
-  "general-data": "Dados Gerais",
+  overview: "Visão geral",
+  "general-data": "Dados gerais",
   hydraulics: "Hidráulica",
   flows: "Vazões",
   paving: "Pavimentação",
@@ -69,12 +69,15 @@ function formatSegmentLabel(segment: string) {
   return decodedSegment
     .split(" ")
     .filter(Boolean)
-    .map((word) => {
+    .map((word, index) => {
       if (/^\d+$/.test(word) || /^[a-f0-9-]{8,}$/i.test(word)) {
         return word;
       }
 
-      return `${word.charAt(0).toUpperCase()}${word.slice(1).toLowerCase()}`;
+      const normalizedWord = word.toLowerCase();
+      return index === 0
+        ? `${normalizedWord.charAt(0).toUpperCase()}${normalizedWord.slice(1)}`
+        : normalizedWord;
     })
     .join(" ");
 }

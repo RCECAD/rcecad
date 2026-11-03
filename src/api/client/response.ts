@@ -1,17 +1,11 @@
 import { z } from "zod";
+import { apiErrorMessage } from "@/lib/api-feedback";
 
 const zClientError = z.object({
   error: z.string().trim().min(1),
   code: z.string().optional(),
   items: z.array(z.unknown()).optional(),
 });
-const errorMessages: Record<string, string> = {
-  DXF_INVALID_FORMAT: "Exporte o desenho no formato DXF de texto (ASCII).",
-  DXF_CORRUPTED:
-    "O arquivo DXF está incompleto ou corrompido. Confira o desenho e tente novamente.",
-  DXF_NO_NETWORK:
-    "O DXF não contém uma rede compatível. Confira as camadas e os identificadores dos trechos.",
-};
 
 export class ClientApiError extends Error {
   constructor(
@@ -19,10 +13,21 @@ export class ClientApiError extends Error {
     readonly status?: number,
     readonly code?: string,
     readonly items?: unknown[],
+    readonly originalMessage?: string,
   ) {
     super(message);
     this.name = "ClientApiError";
   }
+}
+
+export function getErrorMessage(
+  error: unknown,
+  fallback = "Não foi possível concluir a operação. Tente novamente.",
+): string {
+  if (error instanceof ClientApiError) return error.message;
+  if (error instanceof TypeError)
+    return "Não foi possível conectar ao serviço. Verifique sua conexão e tente novamente.";
+  return fallback;
 }
 
 export async function expectNoContent(
@@ -45,21 +50,25 @@ export async function parseClientJson<T>(
     const payload: unknown = await response.json().catch(() => null);
     const error = zClientError.safeParse(payload);
     throw new ClientApiError(
-      error.success
-        ? (errorMessages[error.data.code ?? ""] ?? error.data.error)
-        : message,
+      apiErrorMessage(
+        error.success ? error.data.error : undefined,
+        error.success ? error.data.code : undefined,
+        response.status,
+        message,
+      ),
       response.status,
       error.success ? error.data.code : undefined,
       error.success ? error.data.items : undefined,
+      error.success ? error.data.error : undefined,
     );
   }
 
-  const payload: unknown = await response.json();
+  const payload: unknown = await response.json().catch(() => null);
   const parsed = schema.safeParse(payload);
 
   if (!parsed.success) {
     throw new ClientApiError(
-      "A API retornou dados incompatíveis com o contrato.",
+      "Não foi possível ler os dados recebidos. Atualize a página e tente novamente.",
     );
   }
 
