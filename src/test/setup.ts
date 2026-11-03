@@ -15,6 +15,14 @@ class ResizeObserver {
 }
 
 if (typeof window !== "undefined") {
+  // jsdom does not implement the pointer capture and scrolling APIs used by Radix Select.
+  Object.defineProperties(HTMLElement.prototype, {
+    hasPointerCapture: { configurable: true, value: () => false },
+    setPointerCapture: { configurable: true, value: () => {} },
+    releasePointerCapture: { configurable: true, value: () => {} },
+    scrollIntoView: { configurable: true, value: () => {} },
+  });
+
   Object.defineProperty(window, "ResizeObserver", {
     writable: true,
     value: ResizeObserver,

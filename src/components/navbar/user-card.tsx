@@ -20,7 +20,7 @@ export const UserCard = () => {
       }}
     >
       <LogOut className="size-4" aria-hidden="true" />
-      Sair
+      {pending ? "Saindo..." : "Sair"}
     </Button>
   );
 };

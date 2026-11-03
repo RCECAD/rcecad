@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Feedback } from "@/components/ui/feedback";
 import {
   Field,
   FieldDescription,
@@ -14,6 +15,7 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { portugueseValidation } from "@/lib/form-validation";
 import { type RegisterFormValues, registerSchema } from "@/schemas/register";
 import { registerAction } from "../actions";
 
@@ -27,7 +29,7 @@ export function RegisterForm() {
     clearErrors,
     formState: { isSubmitting, errors },
   } = useForm<RegisterFormValues>({
-    resolver: zodResolver(registerSchema),
+    resolver: zodResolver(registerSchema, portugueseValidation),
     defaultValues: {
       cnpj: "",
       email: "",
@@ -95,7 +97,7 @@ export function RegisterForm() {
 
   if (needsLogin) {
     return (
-      <div className="space-y-4" role="status">
+      <div className="flex min-w-0 flex-col gap-4" role="status">
         <p>
           Sua conta foi criada, mas não foi possível entrar automaticamente.
         </p>
@@ -108,7 +110,7 @@ export function RegisterForm() {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} noValidate aria-busy={isSubmitting}>
-      <fieldset disabled={isSubmitting} className="space-y-4">
+      <fieldset disabled={isSubmitting} className="flex min-w-0 flex-col gap-4">
         {/* Campo: CNPJ */}
         <Controller
           name="cnpj"
@@ -223,13 +225,13 @@ export function RegisterForm() {
           )}
         />
 
-        {/* Campo: Confirmar Senha */}
+        {/* Campo: Confirmar senha */}
         <Controller
           name="confirmPassword"
           control={control}
           render={({ field, fieldState }) => (
             <Field data-invalid={fieldState.invalid}>
-              <FieldLabel htmlFor={field.name}>Confirmar Senha</FieldLabel>
+              <FieldLabel htmlFor={field.name}>Confirmar senha</FieldLabel>
               <Input
                 {...field}
                 id={field.name}
@@ -251,15 +253,18 @@ export function RegisterForm() {
           )}
         />
         {errors.root?.server?.message && (
-          <p role="alert" className="text-sm text-destructive">
-            {errors.root.server.message}
-          </p>
+          <Feedback
+            tone="error"
+            title="Não foi possível concluir o cadastro"
+            description={errors.root.server.message}
+            actions={[{ label: "Fazer login", href: "/auth/login" }]}
+          />
         )}
         <p className="text-sm text-muted-foreground">
           O cadastro consulta o CNPJ e pode levar alguns segundos.
         </p>
         <Button type="submit" className="w-full" disabled={isSubmitting}>
-          {isSubmitting ? "Criando..." : "Criar Conta"}
+          {isSubmitting ? "Criando..." : "Criar conta"}
         </Button>
       </fieldset>
     </form>

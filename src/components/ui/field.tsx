@@ -5,7 +5,12 @@ import { cn } from "@/lib/utils";
 type FieldProps = HTMLAttributes<HTMLDivElement>;
 
 export function Field({ className, ...props }: Readonly<FieldProps>) {
-  return <div className={cn("space-y-1.5", className)} {...props} />;
+  return (
+    <div
+      className={cn("flex min-w-0 flex-col gap-1.5", className)}
+      {...props}
+    />
+  );
 }
 
 type FieldLabelProps = ComponentProps<typeof Label>;

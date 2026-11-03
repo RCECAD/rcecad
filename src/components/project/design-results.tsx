@@ -136,8 +136,8 @@ export function DesignResults({
   }));
   const tabs: [string, string][] = [
     ["summary", "Resumo Executivo"],
-    ["table", "Resultados por Trecho"],
-    ["memory", "Memória de Cálculo"],
+    ["table", "Resultados por trecho"],
+    ["memory", "Memória de cálculo"],
     ["findings", "Não conformidades"],
     ...(network ? [["drawing", "Planta e Perfil"] as [string, string]] : []),
   ];

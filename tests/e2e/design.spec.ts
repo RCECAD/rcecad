@@ -55,10 +55,12 @@ test("CDRE: importa, salva dados de campo, calcula, invalida resultados e valida
       `Contribuição de tempo seco ${segment.code}`,
       { exact: true },
     );
-    await input.selectOption("false");
+    await input.click();
+    await page.getByRole("option", { name: "Não", exact: true }).click();
     await page
       .getByLabel(`Tipo de elemento ${segment.code}`, { exact: true })
-      .selectOption("COLLECTOR");
+      .click();
+    await page.getByRole("option", { name: "Coletor", exact: true }).click();
     const row = page.getByRole("row").filter({ has: input });
     await row
       .getByRole("button", { name: "Salvar trecho", exact: true })
@@ -75,7 +77,8 @@ test("CDRE: importa, salva dados de campo, calcula, invalida resultados e valida
     `Categoria de recobrimento ${network.segments[0].code}`,
     { exact: true },
   );
-  await category.selectOption("SIDEWALK");
+  await category.click();
+  await page.getByRole("option", { name: "Passeio", exact: true }).click();
   const pavingRow = page.getByRole("row").filter({ has: category });
   await pavingRow
     .getByRole("button", { name: "Salvar trecho", exact: true })
@@ -109,18 +112,28 @@ test("CDRE: importa, salva dados de campo, calcula, invalida resultados e valida
   expect(initial?.value).toBe(1.5);
 
   await page.getByRole("button", { name: "Vazões", exact: true }).click();
-  const contribution = page.getByLabel(
-    `Contribuição inicial ${first.segmentCode}`,
-    { exact: true },
-  );
-  await contribution.fill("2");
-  const flowRow = page.getByRole("row").filter({ has: contribution });
-  await flowRow
-    .getByRole("button", { name: "Salvar trecho", exact: true })
+  await page
+    .getByLabel("Nome da contribuição", { exact: true })
+    .fill("Contribuição E2E");
+  await page
+    .getByRole("combobox", { name: "Tipo da contribuição", exact: true })
+    .click();
+  await page.getByRole("option", { name: "Industrial", exact: true }).click();
+  await page
+    .getByRole("combobox", { name: "Destino da contribuição", exact: true })
+    .click();
+  await page
+    .getByRole("group", { name: "Trechos", exact: true })
+    .getByRole("option", { name: first.segmentCode, exact: true })
+    .click();
+  await page.getByLabel("Vazão inicial (L/s)", { exact: true }).fill("2");
+  await page.getByLabel("Vazão final (L/s)", { exact: true }).fill("2");
+  await page
+    .getByRole("button", { name: "Adicionar contribuição", exact: true })
     .click();
   await expect(
-    flowRow.getByRole("button", { name: "Salvar trecho", exact: true }),
-  ).toBeDisabled();
+    page.getByRole("row").filter({ hasText: "Contribuição E2E" }),
+  ).toContainText("Industrial");
   await page.getByRole("button", { name: "Resultados", exact: true }).click();
   await expect(
     page.getByText("Dimensionamento por trecho", { exact: true }),
@@ -129,9 +142,9 @@ test("CDRE: importa, salva dados de campo, calcula, invalida resultados e valida
     .getByRole("button", { name: "Calcular dimensionamento", exact: true })
     .click();
   await expect(
-    page.getByRole("tab", { name: "Resumo Executivo" }),
+    page.getByRole("tab", { name: "Resumo executivo" }),
   ).toBeVisible();
-  await page.getByRole("tab", { name: "Resultados por Trecho" }).click();
+  await page.getByRole("tab", { name: "Resultados por trecho" }).click();
   await expect(
     page.getByText("Dimensionamento por trecho", { exact: true }),
   ).toBeVisible();
@@ -150,7 +163,7 @@ test("CDRE: importa, salva dados de campo, calcula, invalida resultados e valida
     .getByRole("button", { name: "Validar projeto", exact: true })
     .click();
   await expect(
-    page.getByText("Projeto apto a concluir:", { exact: false }),
+    page.getByText("Projeto apto a concluir", { exact: false }),
   ).toBeVisible();
   const updatedNetwork = projectDetailResponseSchema.parse(
     await (await api.get(`${base}/network`)).json(),
@@ -158,7 +171,7 @@ test("CDRE: importa, salva dados de campo, calcula, invalida resultados e valida
   expect(updatedNetwork.project.status).toBe("validated");
   await page.reload();
   await expect(
-    page.getByText("Execute a validação para consultar as pendências atuais."),
+    page.getByText("O projeto ainda não foi validado nesta sessão"),
   ).toBeVisible();
   expect(page.url()).toContain(`${appUrl}/project/${project.id}/validation`);
 });

@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { History, ShieldCheck, Trash2 } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
 import { z } from "zod";
 import {
   invalidateProjectDependents,
@@ -31,8 +32,22 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { ConfirmButton } from "@/components/ui/confirm-button";
+import {
+  Feedback,
+  FeedbackActions,
+  RequestError,
+} from "@/components/ui/feedback";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { NonconformityDetails } from "./nonconformity-details";
 
 // Accepted by Spring for generic domain findings besides the profile standards.
 const GENERIC_SOURCE = "cdre-engine:check-generico";
@@ -46,8 +61,6 @@ const severityLabels = {
   WARNING: "Alerta",
   INFO: "Informação",
 } as const;
-const selectClass =
-  "h-9 w-full rounded-md border border-input bg-background px-2 text-sm";
 
 function useProjectList<T>(
   projectId: string,
@@ -82,11 +95,23 @@ function DecisionHistory({
     z.array(nonconformityDecisionSchema),
     "Não foi possível carregar o histórico.",
   );
-  if (history.isPending) return <p className="text-xs">Carregando...</p>;
+  if (history.isPending)
+    return (
+      <p role="status" className="text-xs">
+        Carregando histórico de decisões...
+      </p>
+    );
   if (history.isError)
-    return <p className="text-xs text-destructive">{history.error.message}</p>;
+    return (
+      <RequestError
+        title="Não foi possível carregar o histórico"
+        error={history.error}
+        onRetry={() => void history.refetch()}
+        retrying={history.isFetching}
+      />
+    );
   return (
-    <ol className="space-y-1 text-xs text-muted-foreground">
+    <ol className="flex min-w-0 flex-col gap-1 text-xs text-muted-foreground">
       {history.data.map((entry) => (
         <li key={entry.id}>
           {new Date(entry.occurredAt).toLocaleString("pt-BR")} ·{" "}
@@ -126,6 +151,7 @@ function NonconformityItem({
       ),
     onSuccess: async () => {
       setJustification("");
+      toast.success("Decisão registrada.");
       await queryClient.invalidateQueries({
         queryKey: projectQueryKeys.nonconformities(projectId),
       });
@@ -133,32 +159,25 @@ function NonconformityItem({
   });
   const canAccept = item.status === "OPEN" && item.severity !== "CRITICAL";
   return (
-    <li className="space-y-2 rounded-lg border p-4 text-sm">
+    <li className="flex min-w-0 flex-col gap-2 rounded-lg border p-4 text-sm">
       <div className="flex flex-wrap items-start justify-between gap-2">
-        <p className="font-medium">
-          {severityLabels[item.severity]} · {item.ruleCode}
-          {item.segmentCode && ` · trecho ${item.segmentCode}`}
+        <p className="text-xs text-muted-foreground">
+          {item.segmentCode
+            ? `Trecho ${item.segmentCode}`
+            : "Ocorrência do projeto"}
         </p>
         <span className="rounded-full border px-2 py-0.5 text-xs">
           {statusLabels[item.status]}
         </span>
       </div>
-      <p>{item.description}</p>
-      <p className="text-xs text-muted-foreground">
-        Fonte: {item.sourceId}
-        {item.observedValue && ` · observado ${item.observedValue}`}
-        {item.expectedLimit && ` · limite ${item.expectedLimit}`}
-      </p>
+      <NonconformityDetails item={item} />
       {item.justification && (
         <p className="text-xs">Justificativa: {item.justification}</p>
-      )}
-      {item.waiverJustification && (
-        <p className="text-xs">Exceção aprovada: {item.waiverJustification}</p>
       )}
       {canAccept && (
         <div className="flex flex-col gap-2 sm:flex-row">
           <Input
-            aria-label={`Justificativa para aceitar ${item.ruleCode}`}
+            aria-label={`Justificativa para aceitar esta ocorrência${item.segmentCode ? ` no trecho ${item.segmentCode}` : ""}`}
             placeholder="Justificativa para aceitar"
             maxLength={2000}
             value={justification}
@@ -200,13 +219,24 @@ function NonconformityItem({
           <History className="size-4" /> Histórico
         </Button>
       </div>
+      {item.status !== "RESOLVED" && (
+        <FeedbackActions
+          actions={[
+            {
+              label: "Revisar dados do projeto",
+              href: `/project/${projectId}/${item.segmentId ? `sizing#segment-${item.segmentId}` : "hydraulics"}`,
+            },
+          ]}
+        />
+      )}
       {showHistory && (
         <DecisionHistory projectId={projectId} nonconformityId={item.id} />
       )}
       {decide.isError && (
-        <p role="alert" className="text-xs text-destructive">
-          {decide.error.message}
-        </p>
+        <RequestError
+          title="Não foi possível registrar a decisão"
+          error={decide.error}
+        />
       )}
     </li>
   );
@@ -311,6 +341,9 @@ function WaiversCard({
       ),
     onSuccess: async () => {
       setDraft(emptyWaiver);
+      toast.success("Aprovação de exceção registrada.", {
+        description: "Valide o projeto novamente para conferir o resultado.",
+      });
       await afterChange();
     },
   });
@@ -322,7 +355,10 @@ function WaiversCard({
         }),
         "Não foi possível remover a aprovação.",
       ),
-    onSuccess: afterChange,
+    onSuccess: async () => {
+      toast.success("Aprovação removida.");
+      await afterChange();
+    },
   });
   const set = (patch: Partial<WaiverDraft>) => setDraft({ ...draft, ...patch });
   const submit = () => {
@@ -354,13 +390,16 @@ function WaiversCard({
           fixam diâmetro/declividade. Para alterar, remova e registre de novo.
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="flex min-w-0 flex-col gap-4">
         {waivers.isError && (
-          <p role="alert" className="text-sm text-destructive">
-            {waivers.error.message}
-          </p>
+          <RequestError
+            title="Não foi possível carregar as aprovações"
+            error={waivers.error}
+            onRetry={() => void waivers.refetch()}
+            retrying={waivers.isFetching}
+          />
         )}
-        <ul className="space-y-2">
+        <ul className="flex min-w-0 flex-col gap-2">
           {waivers.data?.map((waiver) => (
             <li
               key={waiver.id}
@@ -378,18 +417,18 @@ function WaiversCard({
                   {new Date(waiver.approvedAt).toLocaleString("pt-BR")}
                 </p>
               </div>
-              <Button
+              <ConfirmButton
                 size="icon-sm"
                 variant="ghost"
                 aria-label={`Remover aprovação do trecho ${waiver.segmentCode}`}
                 disabled={remove.isPending}
-                onClick={() => {
-                  if (window.confirm("Remover esta aprovação?"))
-                    remove.mutate(waiver.id);
-                }}
+                title="Remover esta aprovação?"
+                description="A regra ou o parâmetro voltará a ser avaliado sem esta exceção. Valide o projeto novamente após a remoção."
+                confirmLabel="Remover aprovação"
+                onConfirm={() => remove.mutate(waiver.id)}
               >
                 <Trash2 className="size-4" />
-              </Button>
+              </ConfirmButton>
             </li>
           ))}
           {waivers.data?.length === 0 && (
@@ -398,49 +437,96 @@ function WaiversCard({
             </li>
           )}
         </ul>
+        {network.isError && (
+          <RequestError
+            title="Não foi possível carregar os trechos"
+            error={network.error}
+            onRetry={() => void network.refetch()}
+            retrying={network.isFetching}
+          />
+        )}
+        {profile.isError && (
+          <RequestError
+            title="Não foi possível carregar as fontes normativas"
+            error={profile.error}
+            onRetry={() => void profile.refetch()}
+            retrying={profile.isFetching}
+          />
+        )}
+        {network.data?.segments.length === 0 && (
+          <Feedback
+            title="Nenhum trecho disponível para aprovação"
+            description="Cadastre a rede antes de registrar exceções."
+            actions={[
+              {
+                label: "Cadastrar rede",
+                href: `/project/${projectId}/sizing#network-topology`,
+              },
+            ]}
+          />
+        )}
         <fieldset
+          disabled={
+            create.isPending ||
+            network.isPending ||
+            network.isError ||
+            network.data?.segments.length === 0
+          }
           aria-label="Nova aprovação"
           className="grid gap-3 rounded-md border p-4 md:grid-cols-3"
         >
-          <select
-            aria-label="Tipo de aprovação"
-            className={selectClass}
+          <Select
             value={draft.type}
-            onChange={(event) =>
-              set({ type: event.target.value as WaiverDraft["type"] })
+            onValueChange={(value) =>
+              set({ type: value as WaiverDraft["type"] })
             }
           >
-            <option value="RULE">Rebaixar regra</option>
-            <option value="PARAMETER">Fixar parâmetro</option>
-          </select>
-          <select
-            aria-label="Trecho da aprovação"
-            className={selectClass}
-            value={draft.segmentId}
-            onChange={(event) => set({ segmentId: event.target.value })}
+            <SelectTrigger aria-label="Tipo de aprovação" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="RULE">Rebaixar regra</SelectItem>
+              <SelectItem value="PARAMETER">Fixar parâmetro</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select
+            value={draft.segmentId || "unset"}
+            onValueChange={(value) =>
+              set({ segmentId: value === "unset" ? "" : value })
+            }
           >
-            <option value="">Trecho...</option>
-            {network.data?.segments.map((segment) => (
-              <option key={segment.id} value={segment.id}>
-                {segment.code}
-              </option>
-            ))}
-          </select>
+            <SelectTrigger aria-label="Trecho da aprovação" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="unset">Trecho...</SelectItem>
+              {network.data?.segments.map((segment) => (
+                <SelectItem key={segment.id} value={segment.id}>
+                  {segment.code}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           {draft.type === "RULE" ? (
             <>
-              <select
-                aria-label="Fonte normativa"
-                className={selectClass}
-                value={draft.sourceId}
-                onChange={(event) => set({ sourceId: event.target.value })}
+              <Select
+                value={draft.sourceId || "unset"}
+                onValueChange={(value) =>
+                  set({ sourceId: value === "unset" ? "" : value })
+                }
               >
-                <option value="">Fonte...</option>
-                {sources.map((source) => (
-                  <option key={source} value={source}>
-                    {source}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger aria-label="Fonte normativa" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="unset">Fonte...</SelectItem>
+                  {sources.map((source) => (
+                    <SelectItem key={source} value={source}>
+                      {source}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <Input
                 aria-label="Código da regra"
                 placeholder="Código da regra"
@@ -448,36 +534,37 @@ function WaiversCard({
                 value={draft.ruleCode}
                 onChange={(event) => set({ ruleCode: event.target.value })}
               />
-              <select
-                aria-label="Nova severidade"
-                className={selectClass}
+              <Select
                 value={draft.downgradeTo}
-                onChange={(event) =>
-                  set({
-                    downgradeTo: event.target
-                      .value as WaiverDraft["downgradeTo"],
-                  })
+                onValueChange={(value) =>
+                  set({ downgradeTo: value as WaiverDraft["downgradeTo"] })
                 }
               >
-                <option value="WARNING">Alerta</option>
-                <option value="INFO">Informação</option>
-              </select>
+                <SelectTrigger aria-label="Nova severidade" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="WARNING">Alerta</SelectItem>
+                  <SelectItem value="INFO">Informação</SelectItem>
+                </SelectContent>
+              </Select>
             </>
           ) : (
             <>
-              <select
-                aria-label="Parâmetro fixado"
-                className={selectClass}
+              <Select
                 value={draft.parameter}
-                onChange={(event) =>
-                  set({
-                    parameter: event.target.value as WaiverDraft["parameter"],
-                  })
+                onValueChange={(value) =>
+                  set({ parameter: value as WaiverDraft["parameter"] })
                 }
               >
-                <option value="DIAMETER">Diâmetro (mm)</option>
-                <option value="SLOPE">Declividade (m/m)</option>
-              </select>
+                <SelectTrigger aria-label="Parâmetro fixado" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="DIAMETER">Diâmetro (mm)</SelectItem>
+                  <SelectItem value="SLOPE">Declividade (m/m)</SelectItem>
+                </SelectContent>
+              </Select>
               <Input
                 aria-label="Valor aprovado"
                 type="number"
@@ -498,14 +585,32 @@ function WaiversCard({
           />
           <div className="md:col-span-3">
             <Button onClick={submit} disabled={create.isPending}>
-              Registrar aprovação
+              {create.isPending ? "Registrando..." : "Registrar aprovação"}
             </Button>
           </div>
         </fieldset>
-        {(invalid || create.isError || remove.isError) && (
-          <p role="alert" className="text-sm text-destructive">
-            {invalid ?? create.error?.message ?? remove.error?.message}
-          </p>
+        {invalid && (
+          <Feedback
+            tone="error"
+            title="Revise os dados da aprovação"
+            description={invalid}
+          />
+        )}
+        {(create.isError || remove.isError) && (
+          <RequestError
+            title="Não foi possível atualizar as aprovações"
+            error={create.error ?? remove.error}
+          />
+        )}
+        {create.isSuccess && !draft.segmentId && (
+          <Feedback
+            tone="success"
+            title="Aprovação registrada"
+            description="Valide novamente para aplicar a exceção e conferir as pendências."
+            actions={[
+              { label: "Voltar à validação", href: "#project-validation" },
+            ]}
+          />
         )}
       </CardContent>
     </Card>
@@ -525,35 +630,50 @@ export function NonconformityPanel({ projectId }: { projectId: string }) {
     "Não foi possível carregar as não conformidades.",
   );
   return (
-    <div className="space-y-6">
+    <div className="flex min-w-0 flex-col gap-6">
       <Card className="rounded-lg border border-border/80 bg-card/40 shadow-none ring-0">
         <CardHeader>
           <CardTitle>Não conformidades registradas</CardTitle>
           <CardDescription>
-            Achados do motor guardados a cada validação. Alertas e informações
+            Ocorrências registradas a cada validação. Alertas e informações
             podem ser aceitos com justificativa; críticas exigem aprovação de
             exceção.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <select
-            aria-label="Filtrar por situação"
-            className={`${selectClass} max-w-56`}
-            value={status}
-            onChange={(event) => setStatus(event.target.value as typeof status)}
+        <CardContent className="flex min-w-0 flex-col gap-4">
+          <Select
+            value={status || "all"}
+            onValueChange={(value) =>
+              setStatus(value === "all" ? "" : (value as typeof status))
+            }
           >
-            <option value="OPEN">Abertas</option>
-            <option value="ACCEPTED">Aceitas</option>
-            <option value="RESOLVED">Resolvidas</option>
-            <option value="">Todas</option>
-          </select>
-          {tracked.isPending && <p className="text-sm">Carregando...</p>}
-          {tracked.isError && (
-            <p role="alert" className="text-sm text-destructive">
-              {tracked.error.message}
+            <SelectTrigger
+              aria-label="Filtrar por situação"
+              className="w-full max-w-56"
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="OPEN">Abertas</SelectItem>
+              <SelectItem value="ACCEPTED">Aceitas</SelectItem>
+              <SelectItem value="RESOLVED">Resolvidas</SelectItem>
+              <SelectItem value="all">Todas</SelectItem>
+            </SelectContent>
+          </Select>
+          {tracked.isPending && (
+            <p role="status" className="text-sm">
+              Carregando não conformidades...
             </p>
           )}
-          <ul className="space-y-3">
+          {tracked.isError && (
+            <RequestError
+              title="Não foi possível carregar as não conformidades"
+              error={tracked.error}
+              onRetry={() => void tracked.refetch()}
+              retrying={tracked.isFetching}
+            />
+          )}
+          <ul className="flex min-w-0 flex-col gap-3">
             {tracked.data?.map((item) => (
               <NonconformityItem
                 key={item.id}
@@ -571,10 +691,16 @@ export function NonconformityPanel({ projectId }: { projectId: string }) {
             ))}
           </ul>
           {tracked.data?.length === 0 && (
-            <p className="text-sm text-muted-foreground">
-              Nenhuma não conformidade nesta situação. Execute a validação para
-              registrar os achados atuais.
-            </p>
+            <Feedback
+              title="Nenhuma não conformidade nesta situação"
+              description="Execute a validação para registrar as ocorrências atuais ou consulte as outras situações."
+              actions={[
+                ...(status
+                  ? [{ label: "Mostrar todas", onClick: () => setStatus("") }]
+                  : []),
+                { label: "Voltar à validação", href: "#project-validation" },
+              ]}
+            />
           )}
         </CardContent>
       </Card>

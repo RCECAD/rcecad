@@ -1,10 +1,12 @@
 import { FolderOpen } from "lucide-react";
 import { useId } from "react";
+import { type FeedbackAction, FeedbackActions } from "@/components/ui/feedback";
 import { Skeleton } from "@/components/ui/skeleton";
 
 type EmptyStateProps = {
   description: string;
   title: string;
+  actions?: FeedbackAction[];
 };
 
 type PageLoadingProps = {
@@ -14,6 +16,7 @@ type PageLoadingProps = {
 export function EmptyState({
   description,
   title,
+  actions,
 }: Readonly<EmptyStateProps>) {
   const titleId = useId();
 
@@ -30,6 +33,11 @@ export function EmptyState({
         {title}
       </h2>
       <p className="mt-2 text-sm text-muted-foreground">{description}</p>
+      {actions?.length ? (
+        <div className="mt-5 flex justify-center">
+          <FeedbackActions actions={actions} />
+        </div>
+      ) : null}
     </section>
   );
 }
@@ -42,11 +50,11 @@ export function PageLoading({
       aria-label={label}
       aria-busy="true"
       aria-live="polite"
-      className="mx-auto w-full max-w-5xl space-y-6 px-6 py-10"
+      className="flex min-w-0 flex-col gap-6 mx-auto w-full max-w-5xl px-6 py-10"
       role="status"
     >
       <span className="sr-only">{label}</span>
-      <div className="space-y-3">
+      <div className="flex min-w-0 flex-col gap-3">
         <Skeleton className="h-8 w-48" />
         <Skeleton className="h-4 w-72" />
       </div>
@@ -54,7 +62,7 @@ export function PageLoading({
         {["first", "second", "third"].map((item) => (
           <div
             key={item}
-            className="space-y-4 rounded-xl border border-border bg-card p-5"
+            className="flex min-w-0 flex-col gap-4 rounded-xl border border-border bg-card p-5"
           >
             <Skeleton className="h-5 w-2/3" />
             <Skeleton className="h-4 w-full" />

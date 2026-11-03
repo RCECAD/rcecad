@@ -2,11 +2,13 @@
 "use client";
 
 import { flexRender } from "@tanstack/react-table";
+import type { ReactNode } from "react";
 import { useDataLayer } from "@/components/data-layer/data-layer-context";
 import {
   DataTablePagination,
   type DataTablePaginationLabels,
 } from "@/components/data-layer/data-table/data-table-pagination";
+import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -27,11 +29,12 @@ type DataTableProps = {
   paginationLabels?: Partial<DataTablePaginationLabels>;
   showPagination?: boolean;
   dataCount: number;
+  emptyAction?: ReactNode;
 };
 
 const defaultLabels: DataTableLabels = {
   emptyText: "Nenhum registro encontrado.",
-  totalText: "Total de ordens:",
+  totalText: "registro(s) encontrado(s).",
 };
 
 export function DataTable({
@@ -39,6 +42,7 @@ export function DataTable({
   paginationLabels,
   showPagination = true,
   dataCount,
+  emptyAction,
 }: DataTableProps) {
   const { table } = useDataLayer<any>();
 
@@ -48,7 +52,7 @@ export function DataTable({
   const leafColumns = table.getAllLeafColumns();
 
   return (
-    <div className="space-y-3">
+    <div className="flex min-w-0 flex-col gap-3">
       <div className="rounded-md border">
         <Table>
           <TableHeader>
@@ -75,7 +79,24 @@ export function DataTable({
                   colSpan={leafColumns.length}
                   className="h-24 text-center"
                 >
-                  {mergedLabels.emptyText}
+                  <p role="status">{mergedLabels.emptyText}</p>
+                  <div className="mt-3 flex justify-center">
+                    {emptyAction ??
+                      (table.getState().columnFilters.length > 0 ||
+                      table.getState().globalFilter ? (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            table.resetColumnFilters();
+                            table.setGlobalFilter("");
+                          }}
+                        >
+                          Limpar filtros
+                        </Button>
+                      ) : null)}
+                  </div>
                 </TableCell>
               </TableRow>
             ) : (

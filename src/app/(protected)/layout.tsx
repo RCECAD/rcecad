@@ -18,7 +18,7 @@ export default async function Layout({
 
   return (
     <UnsavedChangesProvider>
-      <div className="flex h-svh min-w-0 flex-1 flex-col overflow-hidden">
+      <div className="flex h-svh min-w-0 flex-none flex-col overflow-hidden">
         <NavbarContainer>
           <NavbarContent betweenItems={false}>
             <NavbarLogo />

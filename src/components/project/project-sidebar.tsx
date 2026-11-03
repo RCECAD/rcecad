@@ -55,13 +55,13 @@ export function ProjectSidebar({
     () => [
       {
         id: "overview",
-        label: "Visão Geral",
+        label: "Visão geral",
         icon: LayoutGrid,
         href: `/project/${currentProject.id}/overview`,
       },
       {
         id: "general-data",
-        label: "Dados Gerais",
+        label: "Dados gerais",
         icon: FileText,
         href: `/project/${currentProject.id}/general-data`,
       },
@@ -135,7 +135,7 @@ export function ProjectSidebar({
                 {currentProject.name}
               </span>
               <span className="text-xs text-muted-foreground mt-1">
-                RCEcad Project
+                Projeto RCECAD
               </span>
             </div>
           </SelectTrigger>
@@ -151,8 +151,8 @@ export function ProjectSidebar({
 
       {/* Navigation Sections */}
       <SidebarContent className="px-2 py-4">
-        <div className="px-3 py-1 mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground/60">
-          Platform
+        <div className="px-3 py-1 mb-2 text-xs font-semibold tracking-wider text-muted-foreground/60">
+          Etapas do projeto
         </div>
         <SidebarMenu>
           {menuItems.map((item) => {

@@ -12,6 +12,7 @@ import {
   unitLabel,
 } from "./design-labels";
 import { type MemorialSegment, SegmentMemorial } from "./memorial-trace";
+import { NonconformityDetails } from "./nonconformity-details";
 
 export const designStatusLabels = {
   designed: "Dimensionado",
@@ -32,12 +33,6 @@ export const format = (value: number | undefined, digits = 4) =>
   value === undefined
     ? "—"
     : value.toLocaleString("pt-BR", { maximumFractionDigits: digits });
-const severityLabels = {
-  CRITICAL: "Crítica",
-  WARNING: "Alerta",
-  INFO: "Informação",
-};
-
 export function AdoptedParameters({ items }: { items: AdoptedParameter[] }) {
   return (
     <dl className="grid gap-x-4 gap-y-4 sm:grid-cols-3">
@@ -66,20 +61,7 @@ export function Findings({ items }: { items: Nonconformity[] }) {
           key={JSON.stringify(item)}
           className="rounded-md border p-3 text-sm"
         >
-          <p className="font-medium">
-            {severityLabels[item.severity]} · {item.ruleCode}
-          </p>
-          <p>{item.description}</p>
-          <p className="text-muted-foreground">Fonte: {item.sourceId}</p>
-          {item.observedValue !== null && (
-            <p>Valor observado: {item.observedValue}</p>
-          )}
-          {item.expectedLimit !== null && (
-            <p>Limite esperado: {item.expectedLimit}</p>
-          )}
-          {item.waiverJustification && (
-            <p>Justificativa: {item.waiverJustification}</p>
-          )}
+          <NonconformityDetails item={item} />
         </li>
       ))}
     </ul>

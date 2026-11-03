@@ -11,7 +11,7 @@ import {
   invalidateProjectDependents,
   projectQueryKeys,
 } from "@/api/client/query-keys";
-import { parseClientJson } from "@/api/client/response";
+import { getErrorMessage, parseClientJson } from "@/api/client/response";
 import { projectParametersDetailsSchema } from "@/api/contracts/spring";
 import { useUnsavedChanges } from "@/components/project/unsaved-changes-provider";
 import { Button } from "@/components/ui/button";
@@ -23,6 +23,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { ErrorState } from "@/components/ui/error-state";
+import { Feedback, RequestError } from "@/components/ui/feedback";
 import {
   Field,
   FieldDescription,
@@ -37,6 +38,7 @@ import {
 } from "@/components/ui/input-group";
 import { PageLoading } from "@/components/ui/page-state";
 import { Textarea } from "@/components/ui/textarea";
+import { portugueseValidation } from "@/lib/form-validation";
 import {
   type HydraulicsFormValues,
   hydraulicsFormSchema,
@@ -129,6 +131,8 @@ export function HydraulicsForm({ projectId }: Readonly<HydraulicsFormProps>) {
   const {
     data: hydraulicData,
     isError,
+    error: loadError,
+    isFetching,
     isLoading,
     refetch,
   } = useQuery({
@@ -149,7 +153,7 @@ export function HydraulicsForm({ projectId }: Readonly<HydraulicsFormProps>) {
     register,
     reset,
   } = useForm<HydraulicsFormValues>({
-    resolver: zodResolver(hydraulicsFormSchema),
+    resolver: zodResolver(hydraulicsFormSchema, portugueseValidation),
   });
 
   useEffect(() => {
@@ -183,7 +187,6 @@ export function HydraulicsForm({ projectId }: Readonly<HydraulicsFormProps>) {
     },
     onError: (error) => {
       console.error(error);
-      toast.error("Ocorreu um erro ao salvar os parâmetros.");
     },
   });
 
@@ -206,7 +209,11 @@ export function HydraulicsForm({ projectId }: Readonly<HydraulicsFormProps>) {
     return (
       <ErrorState
         title="Não foi possível carregar a hidráulica"
-        description="Não altere os parâmetros até conseguirmos carregar os dados do projeto."
+        description={getErrorMessage(
+          loadError,
+          "Não altere os parâmetros até conseguirmos carregar os dados do projeto.",
+        )}
+        retrying={isFetching}
         onRetry={() => {
           void refetch();
         }}
@@ -216,9 +223,10 @@ export function HydraulicsForm({ projectId }: Readonly<HydraulicsFormProps>) {
 
   return (
     <form
+      noValidate
       onSubmit={handleSubmit((values) => saveMutation.mutate(values))}
       aria-busy={saveMutation.isPending}
-      className="mx-auto max-w-[1088px] space-y-6"
+      className="flex min-w-0 flex-col gap-6 mx-auto max-w-[1088px]"
     >
       <p aria-live="polite" className="sr-only">
         {saveMutation.isPending
@@ -239,7 +247,7 @@ export function HydraulicsForm({ projectId }: Readonly<HydraulicsFormProps>) {
       )}
 
       <Card className="rounded-lg border border-border/80 bg-card/40 shadow-none ring-0">
-        <CardHeader className="pb-4">
+        <CardHeader>
           <CardTitle className="text-lg font-semibold">
             Parâmetros globais do sistema
           </CardTitle>
@@ -380,7 +388,7 @@ export function HydraulicsForm({ projectId }: Readonly<HydraulicsFormProps>) {
           })}
           <Field className="md:col-span-3">
             <FieldLabel htmlFor="justification">
-              Justificativa Técnica (opcional)
+              Justificativa técnica (opcional)
             </FieldLabel>
             <Textarea
               id="justification"
@@ -408,7 +416,7 @@ export function HydraulicsForm({ projectId }: Readonly<HydraulicsFormProps>) {
 
       <Card className="rounded-lg border border-border/80 bg-card/40 shadow-none ring-0">
         <CardHeader>
-          <CardTitle>Regras Ativas e Perfil Normativo</CardTitle>
+          <CardTitle>Regras ativas e perfil normativo</CardTitle>
           <CardDescription>
             Normas e regras utilizadas no dimensionamento
           </CardDescription>
@@ -444,11 +452,36 @@ export function HydraulicsForm({ projectId }: Readonly<HydraulicsFormProps>) {
           </div>
           <p className="text-xs text-muted-foreground sm:col-span-2">
             Consulte as fontes normativas e as justificativas na Memória de
-            Cálculo.
+            cálculo.
           </p>
         </CardContent>
       </Card>
 
+      {saveMutation.isError && (
+        <RequestError
+          reveal
+          title="Não foi possível salvar os parâmetros hidráulicos"
+          error={saveMutation.error}
+          onRetry={() =>
+            void handleSubmit((values) => saveMutation.mutate(values))()
+          }
+          retrying={saveMutation.isPending}
+        />
+      )}
+      {saveMutation.isSuccess && !isDirty && (
+        <Feedback
+          reveal
+          tone="success"
+          title="Parâmetros hidráulicos salvos"
+          description="As alterações foram salvas. Continue para a próxima etapa do projeto."
+          actions={[
+            {
+              label: "Ir para dimensionamento",
+              href: `/project/${projectId}/sizing`,
+            },
+          ]}
+        />
+      )}
       <div className="flex flex-col items-stretch gap-4 pt-2 sm:flex-row sm:items-center">
         {isDirty ? (
           <Button
@@ -463,7 +496,7 @@ export function HydraulicsForm({ projectId }: Readonly<HydraulicsFormProps>) {
         ) : (
           <div className="flex h-12 flex-1 select-none items-center justify-center gap-2 rounded-lg border border-[#818cf8]/35 bg-[#818cf8]/15 px-4 text-sm font-semibold text-[#4f46e5] dark:text-[#a5b4fc]">
             <Lock className="size-4 shrink-0 text-[#6366f1]" />
-            Nenhuma alteração foi feita ainda.
+            Nenhuma alteração pendente.
           </div>
         )}
 

@@ -7,7 +7,7 @@ import type {
   SortingState,
   VisibilityState,
 } from "@tanstack/react-table";
-import { useMemo, useState } from "react";
+import { type ReactNode, useMemo, useState } from "react";
 import { DataLayer } from "@/components/data-layer/data-layer";
 import { DataTable } from "@/components/data-layer/data-table/data-table";
 import { createHomeColumns } from "@/components/home/home-columns";
@@ -15,11 +15,13 @@ import type { Project } from "@/domain/entities";
 
 type HomeProjectsTableProps = {
   emptyText?: string;
+  emptyAction?: ReactNode;
   projects: Array<Project>;
 };
 
 export function HomeProjectsTable({
   emptyText,
+  emptyAction,
   projects,
 }: Readonly<HomeProjectsTableProps>) {
   const [pagination, setPagination] = useState<PaginationState>({
@@ -49,13 +51,14 @@ export function HomeProjectsTable({
       onSortingChange={setSorting}
       rowSelection={rowSelection}
       onRowSelectionChange={setRowSelection}
-      className="space-y-4"
+      className="flex min-w-0 flex-col gap-4"
     >
       <DataTable
         dataCount={projects.length}
+        emptyAction={emptyAction}
         labels={{
           emptyText: emptyText ?? "Nenhum projeto encontrado.",
-          totalText: "projeto(s) selecionados.",
+          totalText: "projeto(s) encontrado(s).",
         }}
         paginationLabels={{
           previous: "Anterior",

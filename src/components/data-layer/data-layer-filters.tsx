@@ -135,7 +135,10 @@ export function FiltersBar({ externalOptions, texts }: FiltersBarProps) {
               {filterableColumns.map(({ column, filter, label }) => {
                 if (filter.type === "text") {
                   return (
-                    <div key={column.id} className="space-y-2 min-w-0">
+                    <div
+                      key={column.id}
+                      className="flex flex-col gap-2 min-w-0"
+                    >
                       <div className="text-xs font-medium text-muted-foreground">
                         {label}
                       </div>
@@ -149,7 +152,10 @@ export function FiltersBar({ externalOptions, texts }: FiltersBarProps) {
 
                 if (filter.type === "select") {
                   return (
-                    <div key={column.id} className="space-y-2  min-w-0">
+                    <div
+                      key={column.id}
+                      className="flex flex-col gap-2 min-w-0"
+                    >
                       <div className="text-xs font-medium text-muted-foreground">
                         {label}
                       </div>
@@ -169,7 +175,10 @@ export function FiltersBar({ externalOptions, texts }: FiltersBarProps) {
 
                 if (filter.type === "numberRange") {
                   return (
-                    <div key={column.id} className="space-y-2 min-w-0">
+                    <div
+                      key={column.id}
+                      className="flex flex-col gap-2 min-w-0"
+                    >
                       <div className="text-xs font-medium text-muted-foreground">
                         {label}
                       </div>
@@ -184,7 +193,10 @@ export function FiltersBar({ externalOptions, texts }: FiltersBarProps) {
 
                 if (filter.type === "dateRange") {
                   return (
-                    <div key={column.id} className="space-y-2 min-w-0">
+                    <div
+                      key={column.id}
+                      className="flex flex-col gap-2 min-w-0"
+                    >
                       <div className="text-xs font-medium text-muted-foreground">
                         {label}
                       </div>

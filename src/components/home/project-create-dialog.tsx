@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { type FormEvent, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
-import { parseClientJson } from "@/api/client/response";
+import { getErrorMessage, parseClientJson } from "@/api/client/response";
 import { type DxfPreview, dxfPreviewSchema } from "@/api/contracts/design";
 import { importDxfRequestSchema, MAX_DXF_BYTES } from "@/api/contracts/spring";
 import { Button } from "@/components/ui/button";
@@ -16,10 +16,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Feedback } from "@/components/ui/feedback";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { formatDxfImportError } from "./dxf-feedback";
+import { DxfImportPreview } from "./dxf-import-preview";
 
 const createdProjectSchema = z.object({ id: z.string().uuid() });
+
+class ProjectInputError extends Error {}
 
 export function ProjectCreateDialog({
   mode,
@@ -43,7 +48,7 @@ export function ProjectCreateDialog({
 
     try {
       const name = String(data.get("name") ?? "").trim();
-      if (!name) throw new Error("Informe o nome do projeto.");
+      if (!name) throw new ProjectInputError("Informe o nome do projeto.");
       let init: RequestInit;
       if (importing) {
         const file = data.get("file");
@@ -52,18 +57,22 @@ export function ProjectCreateDialog({
           !file.name.toLowerCase().endsWith(".dxf") ||
           file.size === 0
         ) {
-          throw new Error("Selecione um arquivo .dxf válido.");
+          throw new ProjectInputError("Selecione um arquivo .dxf válido.");
         }
         if (file.size > MAX_DXF_BYTES)
-          throw new Error("O arquivo DXF deve ter até 300 MB.");
+          throw new ProjectInputError("O arquivo DXF deve ter até 300 MB.");
         if (
           !importDxfRequestSchema.safeParse(Object.fromEntries(data)).success
         ) {
-          throw new Error("Revise os dados do projeto e o arquivo DXF.");
+          throw new ProjectInputError(
+            "Revise os dados do projeto e o arquivo DXF.",
+          );
         }
         const header = await file.slice(0, 18).text();
         if (header.startsWith("AutoCAD Binary DXF"))
-          throw new Error("Exporte o desenho no formato DXF de texto (ASCII).");
+          throw new ProjectInputError(
+            "Exporte o desenho no formato DXF de texto (ASCII).",
+          );
         data.set("name", name);
         init = { method: "POST", body: data };
       } else {
@@ -114,9 +123,14 @@ export function ProjectCreateDialog({
       onClose();
     } catch (cause) {
       setError(
-        cause instanceof Error
-          ? cause.message
-          : "Não foi possível concluir a operação.",
+        importing && !(cause instanceof ProjectInputError)
+          ? formatDxfImportError(cause)
+          : cause instanceof ProjectInputError
+            ? cause.message
+            : getErrorMessage(
+                cause,
+                "Não foi possível criar o projeto. Verifique sua conexão e tente novamente.",
+              ),
       );
     } finally {
       setPending(false);
@@ -144,7 +158,12 @@ export function ProjectCreateDialog({
               : "Informe os dados iniciais. Você poderá completá-los depois."}
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={submit} aria-busy={pending} className="space-y-5">
+        <form
+          onSubmit={submit}
+          noValidate
+          aria-busy={pending}
+          className="space-y-5"
+        >
           <fieldset disabled={pending} className="space-y-4">
             <Field>
               <FieldLabel htmlFor="new-project-name">
@@ -225,34 +244,23 @@ export function ProjectCreateDialog({
               </Field>
             )}
           </fieldset>
-          {preview && (
-            <section
-              aria-label="Pré-visualização do DXF"
-              className="rounded-md border p-3 text-sm space-y-2"
-            >
-              <p className="font-medium">
-                {preview.segmentCount} trechos · {preview.nodeCount} nós
-              </p>
-              <p>Saídas: {preview.outletCodes.join(", ") || "Nenhuma"}</p>
-              {preview.warnings.map((warning) => (
-                <p
-                  key={warning}
-                  role="alert"
-                  className="text-amber-700 dark:text-amber-300"
-                >
-                  {warning}
-                </p>
-              ))}
-              <p className="text-muted-foreground">
-                Confira a rede e confirme a importação. Parâmetros hidráulicos e
-                dados de campo serão preenchidos no projeto.
-              </p>
-            </section>
-          )}
+          <div
+            aria-live="polite"
+            aria-atomic="true"
+            className={preview ? undefined : "sr-only"}
+          >
+            {preview ? <DxfImportPreview preview={preview} /> : null}
+          </div>
           {error && (
-            <p role="alert" className="text-sm text-destructive">
-              {error}
-            </p>
+            <Feedback
+              tone="error"
+              title={
+                importing
+                  ? "Não foi possível importar o DXF"
+                  : "Não foi possível criar o projeto"
+              }
+              description={error}
+            />
           )}
           <DialogFooter>
             <Button

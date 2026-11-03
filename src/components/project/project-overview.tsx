@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { z } from "zod";
 import { projectQueryKeys } from "@/api/client/query-keys";
-import { parseClientJson } from "@/api/client/response";
+import { getErrorMessage, parseClientJson } from "@/api/client/response";
 import {
   projectActionSchema,
   projectOverviewSchema,
@@ -12,9 +12,15 @@ import {
 import { projectDetailResponseSchema } from "@/api/contracts/spring";
 import { OverviewContent } from "@/app/(protected)/project/[projectId]/overview/components/overview-content";
 import { ErrorState } from "@/components/ui/error-state";
+import { RequestError } from "@/components/ui/feedback";
 import { PageLoading } from "@/components/ui/page-state";
+import {
+  actionDetail,
+  correctionPath,
+  progressDescription,
+  validationGuidance,
+} from "@/lib/project-feedback";
 import { projectStatuses } from "@/schemas/general-data";
-import { correctionPath } from "./project-validation";
 
 const actions: Record<string, string> = {
   PROJECT_CREATED: "Projeto criado",
@@ -31,20 +37,11 @@ const actions: Record<string, string> = {
 };
 const stepTitles: Record<string, string> = {
   DXF_IMPORT: "Rede do projeto",
-  GENERAL_DATA: "Dados Gerais",
-  HYDRAULICS: "Dados Hidráulicos",
+  GENERAL_DATA: "Dados gerais",
+  HYDRAULICS: "Dados hidráulicos",
   EXPORT: "Exportação",
 };
 const HISTORY_LIMIT = 100;
-const pendingLabels: Record<string, string> = {
-  "Missing design parameters": "Informar dados hidráulicos",
-  "Missing pipe material": "Informar material da rede",
-  "Missing infiltration rate": "Informar taxa de infiltração",
-  "Missing network segments": "Importar a rede do projeto",
-  "Missing ground elevation": "Informar cota de terreno",
-  "Missing dry-weather discharge answer": "Informar contribuição de tempo seco",
-  "Unknown segment endpoint": "Revisar ligação do trecho",
-};
 export function ProjectOverview({ projectId }: { projectId: string }) {
   const [showAllActions, setShowAllActions] = useState(false);
   const history = useQuery({
@@ -87,10 +84,11 @@ export function ProjectOverview({ projectId }: { projectId: string }) {
     return (
       <ErrorState
         title="Não foi possível carregar a visão geral"
-        description={
-          (overview.error ?? network.error)?.message ??
-          "Não foi possível carregar os dados do projeto."
-        }
+        retrying={overview.isFetching || network.isFetching}
+        description={getErrorMessage(
+          overview.error ?? network.error,
+          "Não foi possível carregar os dados do projeto.",
+        )}
         onRetry={() => {
           void overview.refetch();
           void network.refetch();
@@ -107,7 +105,7 @@ export function ProjectOverview({ projectId }: { projectId: string }) {
       projectId={projectId}
       projectDetails={[
         {
-          label: "Responsável Técnico",
+          label: "Responsável técnico",
           value: project.technicalManager ?? "Não informado",
         },
         { label: "Criado em", value: date(project.createdAt) },
@@ -116,8 +114,9 @@ export function ProjectOverview({ projectId }: { projectId: string }) {
         { label: "Revisão", value: project.revision ?? "Não informada" },
       ]}
       stages={data.steps.map((step) => ({
-        title: stepTitles[step.step] ?? step.step,
-        description: step.detail,
+        title: stepTitles[step.step] ?? "Etapa do projeto",
+        description: progressDescription(step),
+        href: `/project/${projectId}/${({ DXF_IMPORT: "sizing", GENERAL_DATA: "general-data", HYDRAULICS: "hydraulics", EXPORT: "export" } as Record<string, string>)[step.step] ?? "overview"}`,
         complete: step.state === "DONE",
       }))}
       progressPercent={data.progressPercent}
@@ -126,17 +125,30 @@ export function ProjectOverview({ projectId }: { projectId: string }) {
           ? `Os dados mudaram depois do último registro de dimensionamento${data.lastSnapshotAt ? ` (${date(data.lastSnapshotAt)})` : ""}. Valide novamente antes de exportar.`
           : undefined
       }
+      historyFeedback={
+        history.isFetching ? (
+          <p role="status" className="text-sm">
+            Carregando histórico...
+          </p>
+        ) : history.isError ? (
+          <RequestError
+            title="Não foi possível carregar o histórico completo"
+            error={history.error}
+            onRetry={() => void history.refetch()}
+          />
+        ) : undefined
+      }
       onShowAllActions={
         showAllActions ? undefined : () => setShowAllActions(true)
       }
       alerts={data.pendingItems.items.map((item) => ({
-        title: `${pendingLabels[item.title] ?? item.title}${item.target.code ? ` · ${item.target.code}` : ""}`,
+        title: `${validationGuidance(item).title}${item.target.code ? ` · ${item.target.code}` : ""}`,
         href: correctionPath(projectId, item),
       }))}
       recentActions={actionsShown.map((action) => ({
         id: action.id,
-        title: actions[action.type] ?? action.type,
-        detail: action.detail,
+        title: actions[action.type] ?? "Atividade do projeto",
+        detail: actionDetail(action),
         time: date(action.occurredAt),
       }))}
       onRefresh={() => {

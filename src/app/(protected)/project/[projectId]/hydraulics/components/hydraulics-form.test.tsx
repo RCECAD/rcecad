@@ -131,10 +131,9 @@ describe("HydraulicsForm", () => {
     await user.clear(returnCoefficient);
     await user.click(screen.getByRole("button", { name: "Salvar alterações" }));
 
-    expect(await screen.findByText(/expected number/i)).toHaveAttribute(
-      "id",
-      "returnCoefficient-error",
-    );
+    expect(
+      await screen.findByText("Informe um número válido."),
+    ).toHaveAttribute("id", "returnCoefficient-error");
     expect(returnCoefficient).toHaveAttribute(
       "aria-describedby",
       "returnCoefficient-error",

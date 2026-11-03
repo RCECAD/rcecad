@@ -22,6 +22,57 @@ const choice = {
   upstreamDropM: 0,
 };
 describe("CDRE outcomes", () => {
+  it("presents a project parameter finding with readable values and keeps engine details collapsed", async () => {
+    const user = userEvent.setup();
+    const design = networkDesignSchema.parse({
+      projectId: common.segmentId,
+      rulesetVersionId: "nbr-test",
+      justifications: [],
+      adoptedParameters: [],
+      nonconformities: [
+        {
+          ruleCode: "DOMAIN_VALUE_MISMATCH",
+          sourceId: "cdre-engine:check-generico",
+          description:
+            "Valor 2.0 L/s.km para infiltrationRate, medido pelo projeto, está fora do domínio resolvido: >= 0.05 (NBR 9649:1986) e <= 1.0 (NBR 9649:1986).",
+          severity: "CRITICAL",
+          subject: "infiltrationRate",
+          observedValue: "2.0",
+          expectedLimit: ">= 0.05 (NBR 9649:1986) e <= 1.0 (NBR 9649:1986)",
+          waiverJustification: null,
+        },
+      ],
+      segments: [],
+    });
+
+    render(<DesignResults design={design} />);
+
+    expect(
+      screen.getByText("Taxa de infiltração fora da faixa permitida"),
+    ).toBeVisible();
+    expect(screen.getByText("Crítica", { exact: true })).toBeVisible();
+    expect(screen.getByText("2 L/s·km", { exact: true })).toBeVisible();
+    expect(screen.getByText("0,05 a 1 L/s·km", { exact: true })).toBeVisible();
+    expect(screen.getByText("NBR 9649:1986", { exact: true })).toBeVisible();
+    expect(
+      screen.getByText("DOMAIN_VALUE_MISMATCH", { exact: true }),
+    ).not.toBeVisible();
+    expect(
+      screen.getByText("cdre-engine:check-generico", { exact: true }),
+    ).not.toBeVisible();
+    expect(
+      screen.getByText(design.nonconformities[0].description),
+    ).not.toBeVisible();
+
+    await user.click(screen.getByText("Detalhes técnicos", { exact: true }));
+
+    expect(
+      screen.getByText("DOMAIN_VALUE_MISMATCH", { exact: true }),
+    ).toBeVisible();
+    expect(
+      screen.getByText(design.nonconformities[0].description),
+    ).toBeVisible();
+  });
   it("separates critical and warning segments and keeps the four result views usable", async () => {
     const user = userEvent.setup();
     const finding = {
@@ -70,7 +121,7 @@ describe("CDRE outcomes", () => {
       screen.getByRole("group", { name: "Não conformes" }),
     ).toHaveTextContent("Não conformes1");
     await user.click(
-      screen.getByRole("tab", { name: "Resultados por Trecho" }),
+      screen.getByRole("tab", { name: "Resultados por trecho" }),
     );
     const [, qi] = within(
       screen.getByRole("row", { name: /T-01/ }),
@@ -78,7 +129,7 @@ describe("CDRE outcomes", () => {
     expect(qi).toHaveTextContent(/^0 \/ —$/);
     await user.click(screen.getByRole("link", { name: "T-01" }));
     expect(
-      screen.getByRole("tab", { name: "Memória de Cálculo" }),
+      screen.getByRole("tab", { name: "Memória de cálculo" }),
     ).toHaveAttribute("aria-selected", "true");
     expect(screen.getByText("Vazão inicial (Qi)")).toBeVisible();
     await user.click(screen.getByRole("tab", { name: "Não conformidades" }));

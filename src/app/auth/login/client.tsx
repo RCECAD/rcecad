@@ -2,9 +2,12 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
+import { getErrorMessage } from "@/api/client/response";
 import { Button } from "@/components/ui/button";
+import { Feedback } from "@/components/ui/feedback";
 import {
   Field,
   FieldDescription,
@@ -12,6 +15,7 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { portugueseValidation } from "@/lib/form-validation";
 import { type LoginFormValues, loginSchema } from "@/schemas/login";
 import { loginAction } from "../actions";
 
@@ -22,7 +26,7 @@ export function LoginForm() {
     reset,
     formState: { isSubmitting },
   } = useForm<LoginFormValues>({
-    resolver: zodResolver(loginSchema),
+    resolver: zodResolver(loginSchema, portugueseValidation),
     defaultValues: {
       email: "",
       password: "",
@@ -30,23 +34,39 @@ export function LoginForm() {
   });
 
   const router = useRouter();
+  const [error, setError] = useState<string>();
 
   async function onSubmit(values: LoginFormValues) {
-    const result = await loginAction(values);
+    setError(undefined);
+    try {
+      const result = await loginAction(values);
 
-    if (!result.success) {
-      toast.error(result.message);
-      return;
+      if (!result.success) {
+        setError(result.message);
+        return;
+      }
+
+      toast.success("Login realizado com sucesso");
+      reset();
+      router.push("/home");
+      router.refresh();
+    } catch (cause) {
+      setError(
+        getErrorMessage(
+          cause,
+          "Não foi possível entrar. Verifique sua conexão e tente novamente.",
+        ),
+      );
     }
-
-    toast.success("Login realizado com sucesso");
-    reset();
-    router.push("/home");
-    router.refresh();
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+    <form
+      noValidate
+      aria-busy={isSubmitting}
+      onSubmit={handleSubmit(onSubmit)}
+      className="flex min-w-0 flex-col gap-4"
+    >
       <Controller
         name="email"
         control={control}
@@ -63,7 +83,9 @@ export function LoginForm() {
             <FieldDescription>
               Este e-mail será usado para acessar a conta.
             </FieldDescription>
-            {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+            {fieldState.invalid && (
+              <FieldError role="alert" errors={[fieldState.error]} />
+            )}
           </Field>
         )}
       />
@@ -84,11 +106,21 @@ export function LoginForm() {
             <FieldDescription>
               Digite sua senha para acessar a conta.
             </FieldDescription>
-            {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+            {fieldState.invalid && (
+              <FieldError role="alert" errors={[fieldState.error]} />
+            )}
           </Field>
         )}
       />
 
+      {error && (
+        <Feedback
+          tone="error"
+          title="Não foi possível entrar"
+          description={error}
+          actions={[{ label: "Criar uma conta", href: "/auth/register" }]}
+        />
+      )}
       <Button type="submit" className="w-full" disabled={isSubmitting}>
         {isSubmitting ? "Entrando..." : "Entrar"}
       </Button>

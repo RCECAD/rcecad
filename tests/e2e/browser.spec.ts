@@ -61,7 +61,7 @@ test("browser: login, cookie privacy, SSR renewal and logout", async ({
   await context.clearCookies({ name: "rcecad.access_token" });
   await page.goto("/home");
   await expect(
-    page.getByRole("button", { name: /Novo Projeto/ }),
+    page.getByRole("button", { name: /Novo projeto/ }),
   ).toBeVisible();
   expect(refreshes).toBe(1);
   expect(
@@ -80,7 +80,7 @@ test("browser: create, edit, confirm unsaved changes and persist hydraulic value
 }) => {
   await setSession(context);
   await page.goto("/home");
-  await page.getByRole("button", { name: /Novo Projeto/ }).click();
+  await page.getByRole("button", { name: /Novo projeto/ }).click();
   const name = `${testPrefix} Interface`;
   await page.getByLabel("Nome do projeto", { exact: true }).fill(name);
   await page
@@ -89,22 +89,22 @@ test("browser: create, edit, confirm unsaved changes and persist hydraulic value
   await expect(page).toHaveURL(/\/general-data$/);
   const id = new URL(page.url()).pathname.split("/")[2];
   console.log(`Fixture: ${name} | ${id}`);
-  await expect(page.getByLabel("Nome do Projeto", { exact: true })).toHaveValue(
+  await expect(page.getByLabel("Nome do projeto", { exact: true })).toHaveValue(
     name,
   );
   await page.getByLabel("Contratante (opcional)").fill("Prefeitura E2E");
-  await page.getByLabel("Código Interno (opcional)").fill("E2E-42");
+  await page.getByLabel("Código interno (opcional)").fill("E2E-42");
   await page.getByLabel("Revisão (opcional)").fill("rev.2");
   await page
-    .getByLabel("Tipo de Sistema", { exact: true })
+    .getByLabel("Tipo de sistema", { exact: true })
     .fill("Separador absoluto");
-  await page.getByLabel("Etapa/Horizonte", { exact: true }).fill("2026–2046");
+  await page.getByLabel("Etapa/horizonte", { exact: true }).fill("2026–2046");
   await page
     .getByLabel("Observações", { exact: true })
     .fill("Dados artificiais para teste");
   await page.getByLabel("Bacia", { exact: true }).fill("Bacia de teste");
   await page.getByLabel("Setor", { exact: true }).fill("Setor de teste");
-  await page.getByLabel("Área Total (km²)", { exact: true }).fill("2.5");
+  await page.getByLabel("Área total (km²)", { exact: true }).fill("2.5");
   await page.getByRole("button", { name: "Voltar", exact: true }).click();
   await expect(
     page.getByRole("dialog", { name: "Descartar alterações?" }),
@@ -144,7 +144,7 @@ test("browser: create, edit, confirm unsaved changes and persist hydraulic value
     ["Fator de pico horário (K2)", "1.5"],
     ["Material da rede", "PVC JEI"],
     [
-      "Justificativa Técnica (opcional)",
+      "Justificativa técnica (opcional)",
       "Cenário didático para testar persistência",
     ],
   ]) {
@@ -152,7 +152,7 @@ test("browser: create, edit, confirm unsaved changes and persist hydraulic value
   }
   await page.getByRole("button", { name: "Salvar alterações" }).click();
   await expect(
-    page.getByText("Nenhuma alteração foi feita ainda.", { exact: true }),
+    page.getByText("Parâmetros hidráulicos salvos", { exact: true }),
   ).toBeVisible();
   await page.reload();
   await expect(
@@ -161,14 +161,14 @@ test("browser: create, edit, confirm unsaved changes and persist hydraulic value
   await expect(page.getByLabel("Taxa de infiltração (opcional)")).toHaveValue(
     "",
   );
-  await expect(page.getByLabel("Justificativa Técnica (opcional)")).toHaveValue(
+  await expect(page.getByLabel("Justificativa técnica (opcional)")).toHaveValue(
     "Cenário didático para testar persistência",
   );
   await expect(page.getByText("L/s por km", { exact: true })).toBeVisible();
   await page.getByLabel("Taxa de infiltração (opcional)").fill("0.1");
   await page.getByRole("button", { name: "Salvar alterações" }).click();
   await expect(
-    page.getByText("Nenhuma alteração foi feita ainda.", { exact: true }),
+    page.getByText("Parâmetros hidráulicos salvos", { exact: true }),
   ).toBeVisible();
   await page.reload();
   await expect(page.getByLabel("Taxa de infiltração (opcional)")).toHaveValue(
@@ -213,7 +213,9 @@ test("browser: DXF validation, recoverable backend rejection and successful uplo
     await page
       .getByRole("button", { name: "Pré-visualizar DXF", exact: true })
       .click();
-    await expect(page.getByRole("alert")).toHaveText(file.error);
+    await expect(page.getByRole("dialog").getByRole("alert")).toContainText(
+      file.error,
+    );
     await expect(
       page.getByLabel("Nome do projeto", { exact: true }),
     ).toHaveValue(name);
@@ -226,9 +228,14 @@ test("browser: DXF validation, recoverable backend rejection and successful uplo
   await page
     .getByRole("button", { name: "Pré-visualizar DXF", exact: true })
     .click();
-  await expect(
-    page.getByRole("region", { name: "Pré-visualização do DXF" }),
-  ).toContainText("1 trechos");
+  const preview = page.getByRole("region", {
+    name: "Pré-visualização do DXF",
+  });
+  await expect(preview.getByRole("definition")).toHaveText(["1", "2", "1"]);
+  await expect(preview).toContainText(
+    "2 nós serão importados como poços de visita (PV).",
+  );
+  await expect(preview).not.toContainText("assumed as PV");
   await page
     .getByRole("button", { name: "Importar projeto", exact: true })
     .click();

@@ -1,8 +1,7 @@
 "use client";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowUpRight, CircleX, Info, TriangleAlert } from "lucide-react";
-import Link from "next/link";
+import { CircleX, Info, TriangleAlert } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { projectQueryKeys } from "@/api/client/query-keys";
@@ -19,25 +18,18 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Feedback,
+  FeedbackActions,
+  RequestError,
+} from "@/components/ui/feedback";
+import { correctionPath, validationGuidance } from "@/lib/project-feedback";
 import { NonconformityPanel } from "./nonconformity-panel";
 
 const severityLabels = {
   CRITICAL: "Erro crítico",
   ALERT: "Alerta",
   INFO: "Informação",
-};
-const findingTitles: Record<string, string> = {
-  "Design finding: MANNING_N_NOT_JUSTIFIED":
-    "Coeficiente de Manning exige justificativa",
-  "Design finding: DOMAIN_VALUE_MISMATCH":
-    "Parâmetro fora do domínio normativo resolvido",
-  "Missing design parameters": "Parâmetros hidráulicos não informados",
-  "Missing pipe material": "Material da rede não informado",
-  "Missing infiltration rate": "Taxa de infiltração não informada",
-  "Missing ground elevation": "Cota de terreno não informada",
-  "Missing dry-weather discharge answer":
-    "Contribuição de tempo seco não informada",
-  "Missing network segments": "Rede do projeto não cadastrada",
 };
 const severityStyle = {
   CRITICAL: {
@@ -52,15 +44,8 @@ const severityStyle = {
   },
   INFO: { Icon: Info, color: "text-blue-600", badge: "bg-blue-600 text-white" },
 };
-export function correctionPath(projectId: string, item: ValidationItem) {
-  const base = `/project/${projectId}`;
-  if (item.step === "HYDRAULICS") return `${base}/hydraulics`;
-  if (item.step === "DESIGN") return `${base}/sizing`;
-  const anchor = item.target.id
-    ? `#${item.target.type.toLowerCase()}-${item.target.id}`
-    : "";
-  return `${base}/sizing${anchor}`;
-}
+
+export { correctionPath } from "@/lib/project-feedback";
 
 export function ValidationFindings({
   projectId,
@@ -70,47 +55,38 @@ export function ValidationFindings({
   items: ValidationItem[];
 }) {
   return (
-    <ul className="space-y-3">
+    <ul className="flex min-w-0 flex-col gap-3">
       {items.map((item) => {
         const { Icon, color, badge } = severityStyle[item.severity];
+        const guidance = validationGuidance(item);
         return (
           <li
             key={JSON.stringify(item)}
-            className="flex items-start gap-5 rounded-lg border border-border/80 bg-card/40 p-6"
+            className="flex items-start gap-3 rounded-lg border border-border/80 bg-card/40 p-4 sm:gap-5 sm:p-6"
           >
             <Icon
               aria-hidden="true"
               className={`mt-1 size-6 shrink-0 ${color}`}
             />
-            <div className="min-w-0 flex-1 space-y-2">
-              <div className="flex items-start justify-between gap-3">
-                <h3 className="text-sm font-medium">
-                  {findingTitles[item.title] ?? item.title}
-                </h3>
+            <div className="flex flex-col gap-2 min-w-0 flex-1">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <h3 className="text-sm font-medium">{guidance.title}</h3>
                 <span
                   className={`shrink-0 rounded-full px-2 py-0.5 text-xs ${badge}`}
                 >
                   {severityLabels[item.severity]}
                 </span>
               </div>
-              <p className="text-xs font-semibold text-muted-foreground">
-                {severityLabels[item.severity]}
-                {item.target.code && ` · ${item.target.code}`}
-              </p>
-              {findingTitles[item.title] ? (
-                <details className="text-xs text-muted-foreground">
-                  <summary className="cursor-pointer">
-                    Detalhes técnicos e fonte normativa
-                  </summary>
-                  <p className="mt-2">{item.message}</p>
-                </details>
-              ) : (
-                <p className="text-sm">{item.message}</p>
+              {item.target.code && (
+                <p className="text-xs font-semibold text-muted-foreground">
+                  {item.target.code}
+                </p>
               )}
+              <p className="text-sm">{guidance.description}</p>
               <p className="text-xs text-muted-foreground">
                 Etapa relacionada:{" "}
                 {item.step === "HYDRAULICS"
-                  ? "Dados Hidráulicos"
+                  ? "Dados hidráulicos"
                   : item.step === "DESIGN"
                     ? "Dimensionamento"
                     : item.step === "NETWORK"
@@ -118,16 +94,16 @@ export function ValidationFindings({
                       : "Contribuições"}
               </p>
               <p className="text-sm text-muted-foreground">
-                Ação sugerida:{" "}
-                {findingTitles[item.title]
-                  ? "Revise os dados e a fonte normativa na etapa relacionada."
-                  : item.suggestedAction}
+                Ação sugerida: {guidance.action}
               </p>
-              <Button variant="outline" size="sm" asChild>
-                <Link href={correctionPath(projectId, item)}>
-                  Ir para correção <ArrowUpRight className="size-3.5" />
-                </Link>
-              </Button>
+              <FeedbackActions
+                actions={[
+                  {
+                    label: "Ir para correção",
+                    href: correctionPath(projectId, item),
+                  },
+                ]}
+              />
             </div>
           </li>
         );
@@ -170,16 +146,19 @@ export function ProjectValidation({ projectId }: { projectId: string }) {
     }
   }
   return (
-    <div className="mx-auto max-w-[1088px] space-y-6">
+    <div
+      id="project-validation"
+      className="flex min-w-0 flex-col gap-6 mx-auto max-w-[1088px]"
+    >
       <h1 className="text-2xl font-semibold tracking-tight">Validação</h1>
       <Card className="gap-4 rounded-lg border border-border/80 bg-card/40 py-5 shadow-none ring-0">
         <CardHeader>
-          <CardTitle>Resumo de Validação</CardTitle>
+          <CardTitle>Resumo de validação</CardTitle>
           <CardDescription>
             Resolva as pendências antes de concluir o projeto.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="flex min-w-0 flex-col gap-4">
           <div className="grid gap-3 sm:grid-cols-3">
             {(
               [
@@ -211,7 +190,7 @@ export function ProjectValidation({ projectId }: { projectId: string }) {
                 className={`rounded-lg border py-3 shadow-none ring-0 ${color}`}
               >
                 <CardContent className="flex items-center justify-between gap-3 px-3">
-                  <div className="space-y-1">
+                  <div className="flex min-w-0 flex-col gap-1">
                     <Icon className="mb-2 size-7" aria-hidden="true" />
                     <p className="text-sm font-medium">{label}</p>
                     <p className="text-xs">{detail}</p>
@@ -225,6 +204,7 @@ export function ProjectValidation({ projectId }: { projectId: string }) {
           </div>
 
           <Button
+            className="self-start"
             disabled={validation.isFetching}
             onClick={() => void validate()}
           >
@@ -236,17 +216,49 @@ export function ProjectValidation({ projectId }: { projectId: string }) {
         <p role="status">Verificando dados e regras do dimensionamento...</p>
       )}
       {validation.isError && (
-        <p role="alert" className="text-destructive">
-          {validation.error.message}
-        </p>
+        <RequestError
+          title="Não foi possível validar o projeto"
+          error={validation.error}
+          onRetry={() => void validate()}
+          retrying={validation.isFetching}
+          actions={[
+            {
+              label: "Revisar dimensionamento",
+              href: `/project/${projectId}/sizing`,
+            },
+          ]}
+        />
       )}
       {validation.data && !validation.isFetching && !validation.isError && (
         <>
-          <p role="status" className="rounded-lg border p-4 font-medium">
-            {validation.data.readyToConclude
-              ? "Projeto apto a concluir: todos os trechos foram dimensionados e não há pendências críticas."
-              : "Projeto com pendências: revise os itens abaixo antes de concluir."}
-          </p>
+          <Feedback
+            tone={validation.data.readyToConclude ? "success" : "warning"}
+            title={
+              validation.data.readyToConclude
+                ? "Projeto apto a concluir"
+                : "Projeto com pendências"
+            }
+            description={
+              validation.data.readyToConclude
+                ? "Todos os trechos foram dimensionados e não há pendências críticas. Você já pode exportar os documentos."
+                : "Revise os itens abaixo e use os botões de correção para completar os dados. Depois, valide novamente."
+            }
+            actions={
+              validation.data.readyToConclude
+                ? [
+                    {
+                      label: "Exportar documentos",
+                      href: `/project/${projectId}/export`,
+                    },
+                  ]
+                : [
+                    {
+                      label: "Revisar dimensionamento",
+                      href: `/project/${projectId}/sizing`,
+                    },
+                  ]
+            }
+          />
           <fieldset
             aria-label="Filtrar ocorrências de validação"
             className="grid grid-cols-2 gap-1 rounded-md bg-card p-1.5 sm:grid-cols-4"
@@ -291,16 +303,31 @@ export function ProjectValidation({ projectId }: { projectId: string }) {
           {validation.data.items.filter(
             (item) => filter === "ALL" || item.severity === filter,
           ).length === 0 && (
-            <p className="text-muted-foreground">
-              Nenhuma ocorrência neste filtro.
-            </p>
+            <Feedback
+              title="Nenhuma ocorrência neste filtro"
+              description="Selecione outro filtro para consultar as demais ocorrências."
+              actions={
+                filter !== "ALL"
+                  ? [
+                      {
+                        label: "Mostrar todas",
+                        onClick: () => setFilter("ALL"),
+                      },
+                    ]
+                  : undefined
+              }
+            />
           )}
         </>
       )}
       {!validation.data && !validation.isFetching && !validation.isError && (
-        <p className="text-sm text-muted-foreground">
-          Execute a validação para consultar as pendências atuais.
-        </p>
+        <Feedback
+          title="O projeto ainda não foi validado nesta sessão"
+          description="Execute a validação para consultar as pendências atuais e saber se o projeto pode ser exportado."
+          actions={[
+            { label: "Iniciar validação", onClick: () => void validate() },
+          ]}
+        />
       )}
       <NonconformityPanel projectId={projectId} />
     </div>

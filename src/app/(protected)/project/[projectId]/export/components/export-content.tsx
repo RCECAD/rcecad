@@ -1,14 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  ChartNoAxesCombined,
-  CircleCheck,
-  Download,
-  FileText,
-  Table2,
-  TriangleAlert,
-} from "lucide-react";
+import { ChartNoAxesCombined, Download, FileText, Table2 } from "lucide-react";
 import { useState } from "react";
 import { z } from "zod";
 import { downloadFile } from "@/api/client/download";
@@ -25,32 +18,34 @@ import {
 import { ValidationFindings } from "@/components/project/project-validation";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Feedback, RequestError } from "@/components/ui/feedback";
+import { designStatusLabels } from "@/lib/project-feedback";
 
 const documents = [
   {
     id: "memorial",
-    title: "Memorial de Cálculo",
+    title: "Memorial de cálculo",
     description: "Documento técnico com todas as memórias de cálculo",
     icon: FileText,
     format: "pdf",
   },
   {
     id: "spreadsheet",
-    title: "Planilhas de Dimensionamento",
+    title: "Planilhas de dimensionamento",
     description: "Tabelas com dados de todos os trechos",
     icon: Table2,
     format: "xlsx",
   },
   {
     id: "technical-report",
-    title: "Relatório Técnico",
+    title: "Relatório técnico",
     description: "Documento resumido com principais resultados",
     icon: FileText,
     format: "pdf",
   },
   {
     id: "longitudinal-profiles",
-    title: "Gráfico e Diagramas",
+    title: "Gráfico e diagramas",
     description: "Perfis longitudinais e diagramas de vazão",
     icon: ChartNoAxesCombined,
     format: "pdf",
@@ -85,9 +80,21 @@ function SnapshotDetail({
       ),
     retry: false,
   });
-  if (detail.isPending) return <p className="text-xs">Carregando…</p>;
+  if (detail.isPending)
+    return (
+      <p role="status" className="text-xs">
+        Carregando registro de dimensionamento...
+      </p>
+    );
   if (detail.isError)
-    return <p className="text-xs text-destructive">{detail.error.message}</p>;
+    return (
+      <RequestError
+        title="Não foi possível carregar o registro"
+        error={detail.error}
+        onRetry={() => void detail.refetch()}
+        retrying={detail.isFetching}
+      />
+    );
   const outcomes = Object.entries(
     detail.data.segments.reduce<Record<string, number>>((acc, segment) => {
       acc[segment.outcome] = (acc[segment.outcome] ?? 0) + 1;
@@ -107,7 +114,10 @@ function SnapshotDetail({
         <dt className="text-muted-foreground">Trechos por situação</dt>
         <dd>
           {outcomes
-            .map(([outcome, count]) => `${outcome}: ${count}`)
+            .map(
+              ([outcome, count]) =>
+                `${designStatusLabels[outcome] ?? "Situação não identificada"}: ${count}`,
+            )
             .join(" · ")}
         </dd>
       </div>
@@ -156,16 +166,19 @@ function ExportHistory({ projectId }: { projectId: string }) {
           Histórico de exportações
         </h2>
         {exports.isPending && (
-          <p role="status" className="mt-2 text-sm text-muted-foreground">
-            Carregando…
+          <p role="status" className="mt-3 text-sm">
+            Carregando exportações...
           </p>
         )}
         {exports.isError && (
-          <p role="alert" className="mt-2 text-sm text-destructive">
-            {exports.error.message}
-          </p>
+          <RequestError
+            title="Não foi possível carregar o histórico de exportações"
+            error={exports.error}
+            onRetry={() => void exports.refetch()}
+            retrying={exports.isFetching}
+          />
         )}
-        <ul className="mt-4 space-y-2 text-sm">
+        <ul className="flex min-w-0 flex-col gap-2 mt-4 text-sm">
           {exports.data?.map((item) => (
             <li key={item.id} className="rounded-md border px-3 py-2">
               <p className="font-medium">{item.fileName}</p>
@@ -180,7 +193,13 @@ function ExportHistory({ projectId }: { projectId: string }) {
           ))}
           {exports.data?.length === 0 && (
             <li className="text-muted-foreground">
-              Nenhum documento exportado.
+              <Feedback
+                title="Nenhum documento exportado"
+                description="Selecione os documentos e formatos desejados para iniciar a exportação."
+                actions={[
+                  { label: "Selecionar documentos", href: "#export-documents" },
+                ]}
+              />
             </li>
           )}
         </ul>
@@ -194,16 +213,19 @@ function ExportHistory({ projectId }: { projectId: string }) {
           usados, com hash de conferência.
         </p>
         {snapshots.isPending && (
-          <p role="status" className="mt-2 text-sm text-muted-foreground">
-            Carregando…
+          <p role="status" className="mt-3 text-sm">
+            Carregando registros de dimensionamento...
           </p>
         )}
         {snapshots.isError && (
-          <p role="alert" className="mt-2 text-sm text-destructive">
-            {snapshots.error.message}
-          </p>
+          <RequestError
+            title="Não foi possível carregar os registros de dimensionamento"
+            error={snapshots.error}
+            onRetry={() => void snapshots.refetch()}
+            retrying={snapshots.isFetching}
+          />
         )}
-        <ul className="mt-4 space-y-2 text-sm">
+        <ul className="flex min-w-0 flex-col gap-2 mt-4 text-sm">
           {snapshots.data?.map((snapshot) => (
             <li key={snapshot.id} className="rounded-md border px-3 py-2">
               <button
@@ -236,7 +258,16 @@ function ExportHistory({ projectId }: { projectId: string }) {
           ))}
           {snapshots.data?.length === 0 && (
             <li className="text-muted-foreground">
-              Nenhum registro. Valide o projeto para criar o primeiro.
+              <Feedback
+                title="Nenhum dimensionamento registrado"
+                description="Valide o projeto e resolva as pendências para gerar o primeiro registro."
+                actions={[
+                  {
+                    label: "Ir para validação",
+                    href: `/project/${projectId}/validation`,
+                  },
+                ]}
+              />
             </li>
           )}
         </ul>
@@ -262,7 +293,7 @@ export function ExportContent({ projectId }: { projectId: string }) {
   const run = useMutation({
     mutationFn: async () => {
       const names: string[] = [];
-      for (const document of toExport)
+      for (const document of toExport) {
         names.push(
           await downloadFile(
             await fetch(`/api/projects/${projectId}/exports/${document.id}`, {
@@ -272,6 +303,8 @@ export function ExportContent({ projectId }: { projectId: string }) {
             `Não foi possível exportar ${document.title}.`,
           ),
         );
+        setSaved([...names]);
+      }
       return names;
     },
     onMutate: () => {
@@ -315,40 +348,36 @@ export function ExportContent({ projectId }: { projectId: string }) {
         Exportação
       </h1>
 
-      <section
-        aria-labelledby="export-status"
-        className="flex items-center gap-3 rounded-lg border border-border/80 bg-card/40 p-4"
-      >
-        {blocked ? (
-          <TriangleAlert
-            aria-hidden="true"
-            className="size-6 shrink-0 text-amber-600"
-          />
-        ) : (
-          <CircleCheck
-            aria-hidden="true"
-            className="size-6 shrink-0 text-primary"
-          />
-        )}
-        <div className="min-w-0">
-          <h2 id="export-status" className="text-sm font-medium">
-            {blocked
-              ? "Exportação bloqueada pela validação"
-              : "Exportação sujeita à validação"}
-          </h2>
-          <p className="mt-1 text-xs leading-5 text-muted-foreground">
-            Os documentos só são gerados quando o projeto está apto a concluir.
-            Cada exportação valida o projeto novamente e fica registrada no
-            histórico.
-          </p>
-        </div>
-      </section>
+      <Feedback
+        reveal={Boolean(blocked)}
+        tone={blocked ? "warning" : "info"}
+        title={
+          blocked
+            ? "Exportação bloqueada pela validação"
+            : "Exportação sujeita à validação"
+        }
+        description={
+          blocked
+            ? "Corrija as pendências e valide novamente antes de gerar os documentos."
+            : "Os documentos só são gerados quando o projeto está apto a concluir. Cada exportação valida o projeto novamente e fica registrada no histórico."
+        }
+        actions={[
+          {
+            label: "Ir para validação",
+            href: `/project/${projectId}/validation`,
+          },
+        ]}
+      />
 
       {blocked && blocked.length > 0 && (
         <ValidationFindings projectId={projectId} items={blocked} />
       )}
 
-      <section aria-labelledby="export-documents" className={panelClassName}>
+      <section
+        id="export-selection"
+        aria-labelledby="export-documents"
+        className={panelClassName}
+      >
         <h2 id="export-documents" className="text-base font-semibold">
           Documentos
         </h2>
@@ -356,8 +385,9 @@ export function ExportContent({ projectId }: { projectId: string }) {
           Selecione os documentos que serão gerados
         </p>
         <fieldset
+          disabled={run.isPending}
           aria-label="Documentos para exportação"
-          className="mt-4 space-y-3"
+          className="flex min-w-0 flex-col gap-3 mt-4"
         >
           {documents.map(({ id, title, description, icon: Icon, format }) => (
             <label
@@ -407,8 +437,9 @@ export function ExportContent({ projectId }: { projectId: string }) {
           Documentos de um formato desmarcado não são gerados
         </p>
         <fieldset
+          disabled={run.isPending}
           aria-label="Formatos de exportação"
-          className="mt-4 space-y-3"
+          className="flex min-w-0 flex-col gap-3 mt-4"
         >
           {formats.map(({ id, label }) => (
             <label
@@ -445,15 +476,49 @@ export function ExportContent({ projectId }: { projectId: string }) {
           ? "Gerando documentos..."
           : "Exportar documentos selecionados"}
       </Button>
+      {toExport.length === 0 && (
+        <Feedback
+          tone="warning"
+          title="Selecione documentos e formatos compatíveis"
+          description="Marque pelo menos um documento e seu formato para liberar a exportação."
+          actions={[{ label: "Revisar seleção", href: "#export-selection" }]}
+        />
+      )}
       {run.isError && !blocked && (
-        <p role="alert" className="text-sm text-destructive">
-          {run.error.message}
-        </p>
+        <RequestError
+          reveal
+          title={
+            saved.length
+              ? "A exportação foi concluída parcialmente"
+              : "Não foi possível exportar os documentos"
+          }
+          error={run.error}
+          actions={[
+            { label: "Revisar seleção", href: "#export-selection" },
+            {
+              label: "Ir para validação",
+              href: `/project/${projectId}/validation`,
+            },
+          ]}
+        />
       )}
       {saved.length > 0 && (
-        <p role="status" className="text-sm text-teal-700">
-          Documentos gerados: {saved.join(", ")}
-        </p>
+        <Feedback
+          tone="success"
+          title={
+            run.isPending
+              ? "Documentos disponíveis para download"
+              : "Documentos gerados"
+          }
+          description={`O download foi iniciado para: ${saved.join(", ")}. Confira os arquivos na pasta de downloads do navegador.`}
+          actions={[
+            { label: "Ver histórico de exportações", href: "#export-history" },
+            {
+              label: "Voltar à visão geral",
+              href: `/project/${projectId}/overview`,
+            },
+          ]}
+        />
       )}
 
       <section aria-labelledby="export-dxf" className={panelClassName}>
@@ -471,15 +536,31 @@ export function ExportContent({ projectId }: { projectId: string }) {
           onClick={() => dxf.mutate()}
         >
           <Download aria-hidden="true" className="size-4" />
-          Baixar DXF original
+          {dxf.isPending ? "Preparando download..." : "Baixar DXF original"}
         </Button>
         {dxf.isError && (
-          <p role="alert" className="mt-2 text-sm text-destructive">
-            {dxf.error.message}
-          </p>
+          <RequestError
+            title="Não foi possível baixar o DXF original"
+            error={dxf.error}
+            onRetry={() => dxf.mutate()}
+            retrying={dxf.isPending}
+          />
         )}
       </section>
 
+      {dxf.isSuccess && (
+        <Feedback
+          tone="success"
+          title="Download do DXF iniciado"
+          description="Confira o arquivo original na pasta de downloads do navegador."
+          actions={[
+            {
+              label: "Voltar ao dimensionamento",
+              href: `/project/${projectId}/sizing`,
+            },
+          ]}
+        />
+      )}
       <ExportHistory projectId={projectId} />
     </div>
   );

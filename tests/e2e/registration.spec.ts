@@ -6,7 +6,7 @@ async function fillRegistration(page: Page, email = login.email) {
   await page.getByLabel("CNPJ", { exact: true }).fill("00.000.000/0001-91");
   await page.getByLabel("Email", { exact: true }).fill(email);
   await page.getByLabel("Senha", { exact: true }).fill("Registration-fixture!");
-  await page.getByLabel("Confirmar Senha").fill("Registration-fixture!");
+  await page.getByLabel("Confirmar senha").fill("Registration-fixture!");
 }
 
 test.afterEach(async ({ context }) => {
@@ -23,8 +23,8 @@ test("registration: invalid form never reaches the server", async ({
   });
   await fillRegistration(page);
   await page.getByLabel("CNPJ", { exact: true }).fill("123");
-  await page.getByLabel("Confirmar Senha").fill("different");
-  await page.getByRole("button", { name: "Criar Conta" }).click();
+  await page.getByLabel("Confirmar senha").fill("different");
+  await page.getByRole("button", { name: "Criar conta" }).click();
   await expect(page.getByText("O CNPJ deve ter 14 dígitos.")).toBeVisible();
   await expect(page.getByText("As senhas não coincidem.")).toBeVisible();
   expect(submissions).toBe(0);
@@ -35,7 +35,7 @@ test("registration: real Spring rejects duplicate email and CNPJ with field mess
   context,
 }) => {
   await fillRegistration(page);
-  await page.getByRole("button", { name: "Criar Conta" }).click();
+  await page.getByRole("button", { name: "Criar conta" }).click();
   await expect(page.locator("form").getByRole("alert")).toHaveText(
     "Já existe uma conta com este e-mail. Faça login.",
   );
@@ -43,7 +43,7 @@ test("registration: real Spring rejects duplicate email and CNPJ with field mess
   await page
     .getByLabel("Email", { exact: true })
     .fill(`duplicate-${Date.now()}@example.invalid`);
-  await page.getByRole("button", { name: "Criar Conta" }).click();
+  await page.getByRole("button", { name: "Criar conta" }).click();
   await expect(page.locator("form").getByRole("alert")).toHaveText(
     "Já existe uma conta com este CNPJ. Faça login.",
   );
@@ -64,7 +64,7 @@ test("registration: a lost action response keeps the form and allows recovery", 
       await route.abort("connectionfailed");
     else await route.continue();
   });
-  await page.getByRole("button", { name: "Criar Conta" }).click();
+  await page.getByRole("button", { name: "Criar conta" }).click();
   await expect(page.locator("form").getByRole("alert")).toContainText(
     "Não foi possível confirmar o cadastro.",
   );
@@ -72,7 +72,7 @@ test("registration: a lost action response keeps the form and allows recovery", 
     login.email,
   );
   await page.unroute("**/auth/register");
-  await page.getByRole("button", { name: "Criar Conta" }).click();
+  await page.getByRole("button", { name: "Criar conta" }).click();
   await expect(page.locator("form").getByRole("alert")).toHaveText(
     "Já existe uma conta com este e-mail. Faça login.",
   );
