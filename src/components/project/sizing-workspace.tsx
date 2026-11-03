@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { DesignPanel } from "./design-results";
 import { NetworkFieldEditor } from "./network-field-editor";
+import { NetworkTable } from "./network-table";
 import { NetworkTopologyEditor } from "./network-topology-editor";
 import { useUnsavedChanges } from "./unsaved-changes-provider";
 
@@ -39,6 +40,7 @@ export function SizingWorkspace({ projectId }: { projectId: string }) {
           ))}
         </div>
       </div>
+      <NetworkTable projectId={projectId} />
       <NetworkTopologyEditor projectId={projectId} />
       <NetworkFieldEditor projectId={projectId} onDirtyChange={setDirty} />
       <DesignPanel projectId={projectId} disabled={dirty} />
