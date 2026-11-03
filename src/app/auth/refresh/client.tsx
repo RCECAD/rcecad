@@ -37,6 +37,7 @@ export function RefreshSession({ returnTo }: { returnTo: string }) {
           onRetry={() => {
             window.location.reload();
           }}
+          actions={[{ label: "Ir para o login", href: "/auth/login" }]}
         />
       ) : (
         <PageLoading label="Renovando sua sessão" />

@@ -28,8 +28,8 @@ test("live registration: ReceitaWS, account, automatic login, project and later 
     await page.getByLabel("CNPJ", { exact: true }).fill(formatted);
     await page.getByLabel("Email", { exact: true }).fill(email);
     await page.getByLabel("Senha", { exact: true }).fill(password);
-    await page.getByLabel("Confirmar Senha").fill(password);
-    await page.getByRole("button", { name: "Criar Conta" }).click();
+    await page.getByLabel("Confirmar senha").fill(password);
+    await page.getByRole("button", { name: "Criar conta" }).click();
     await expect(page).toHaveURL(/\/home$/, { timeout: 35_000 });
 
     const cookies = (await context.cookies()).filter((cookie) =>
@@ -53,7 +53,7 @@ test("live registration: ReceitaWS, account, automatic login, project and later 
     });
 
     const name = `Cadastro E2E ${Date.now()}`;
-    await page.getByRole("button", { name: /Novo Projeto/ }).click();
+    await page.getByRole("button", { name: /Novo projeto/ }).click();
     await page.getByLabel("Nome do projeto", { exact: true }).fill(name);
     await page
       .getByRole("button", { name: "Criar projeto", exact: true })
@@ -72,7 +72,7 @@ test("live registration: ReceitaWS, account, automatic login, project and later 
     await expect(page.getByText(name, { exact: true })).toBeVisible();
     await page.goto(`/project/${id}/general-data`);
     await expect(
-      page.getByLabel("Nome do Projeto", { exact: true }),
+      page.getByLabel("Nome do projeto", { exact: true }),
     ).toHaveValue(name);
   } finally {
     await context.request.post(`${appUrl}/api/auth/logout`);

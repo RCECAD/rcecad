@@ -5,10 +5,10 @@ import { ErrorState } from "@/components/ui/error-state";
 
 export default function RegisterError({
   error,
-  reset,
+  unstable_retry: unstableRetry,
 }: Readonly<{
   error: Error & { digest?: string };
-  reset: () => void;
+  unstable_retry: () => void;
 }>) {
   useEffect(() => {
     console.error(error);
@@ -16,11 +16,10 @@ export default function RegisterError({
 
   return (
     <ErrorState
-      title="Algo deu errado"
-      description="Houve um erro ao carregar a página de registro."
-      errorMessage={error.message}
-      retryLabel="Tentar Novamente"
-      onRetry={reset}
+      title="Não foi possível carregar o cadastro"
+      description="Tente novamente em alguns instantes ou acesse uma conta existente."
+      onRetry={unstableRetry}
+      actions={[{ label: "Ir para o login", href: "/auth/login" }]}
     />
   );
 }

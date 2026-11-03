@@ -9,7 +9,7 @@ export default function RegisterLoading() {
             <Skeleton className="h-8 w-3/4 mx-auto mb-2" />
             <Skeleton className="h-4 w-1/2 mx-auto mb-8" />
 
-            <div className="space-y-4">
+            <div className="flex min-w-0 flex-col gap-4">
               {[1, 2, 3, 4, 5].map((item) => (
                 <div key={item}>
                   <Skeleton className="h-4 w-1/3 mb-2" />

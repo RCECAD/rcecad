@@ -28,8 +28,8 @@ async function fillForm(confirm = "Test-password!") {
     screen.getByLabelText("Senha", { exact: true }),
     "Test-password!",
   );
-  await user.type(screen.getByLabelText("Confirmar Senha"), confirm);
-  await user.click(screen.getByRole("button", { name: "Criar Conta" }));
+  await user.type(screen.getByLabelText("Confirmar senha"), confirm);
+  await user.click(screen.getByRole("button", { name: "Criar conta" }));
 }
 
 describe("registration UI", () => {
@@ -72,7 +72,7 @@ describe("registration UI", () => {
       "/auth/login",
     );
     expect(
-      screen.queryByRole("button", { name: "Criar Conta" }),
+      screen.queryByRole("button", { name: "Criar conta" }),
     ).not.toBeInTheDocument();
     expect(mocks.push).not.toHaveBeenCalled();
     expect(mocks.register).toHaveBeenCalledOnce();
@@ -103,7 +103,7 @@ describe("registration UI", () => {
       "Não foi possível confirmar o cadastro",
     );
     expect(screen.getByLabelText("Email")).toHaveValue("test@example.com");
-    expect(screen.getByRole("button", { name: "Criar Conta" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Criar conta" })).toBeEnabled();
   });
 
   it("disables fields and submission while registration is pending", async () => {
@@ -120,7 +120,7 @@ describe("registration UI", () => {
     expect(screen.getByLabelText("Email")).toBeDisabled();
     finish({ success: false, message: "Tente novamente." });
     expect(
-      await screen.findByRole("button", { name: "Criar Conta" }),
+      await screen.findByRole("button", { name: "Criar conta" }),
     ).toBeEnabled();
   });
 });

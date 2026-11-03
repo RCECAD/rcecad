@@ -1,7 +1,7 @@
 import { RegisterForm } from "./client";
 
 export const metadata = {
-  title: "Criar Conta - RCECAD",
+  title: "Criar conta - RCECAD",
   description: "Registre sua empresa no RCECAD",
 };
 
