@@ -12,8 +12,8 @@ export function SizingWorkspace({ projectId }: { projectId: string }) {
   const router = useRouter();
   const { requestNavigation } = useUnsavedChanges();
   return (
-    <div className="space-y-8">
-      <div className="space-y-3">
+    <div className="flex min-w-0 flex-col gap-8">
+      <div className="flex min-w-0 flex-col gap-3">
         <h1 className="text-3xl font-bold">Dimensionamento</h1>
         <p className="text-muted-foreground">
           Complete os parâmetros hidráulicos, as cotas e os dados dos trechos

@@ -2,13 +2,18 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { type ChangeEvent, useState } from "react";
+import { type ChangeEvent, useEffect, useState } from "react";
+import { toast } from "sonner";
 import type { z } from "zod";
 import {
   invalidateProjectDependents,
   projectQueryKeys,
 } from "@/api/client/query-keys";
-import { expectNoContent, parseClientJson } from "@/api/client/response";
+import {
+  expectNoContent,
+  getErrorMessage,
+  parseClientJson,
+} from "@/api/client/response";
 import {
   nodeRequestSchema,
   nodeTypeSchema,
@@ -29,10 +34,17 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { ConfirmButton } from "@/components/ui/confirm-button";
+import { RequestError } from "@/components/ui/feedback";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
-const selectClass =
-  "h-9 w-full rounded-md border border-input bg-background px-2 text-sm";
 const nodeTypeLabels = {
   PV: "Poço de visita (PV)",
   TIL: "Terminal de inspeção e limpeza (TIL)",
@@ -144,7 +156,10 @@ function useEntityMutations<T>(
         schema,
         "Não foi possível salvar a alteração da rede.",
       ),
-    onSuccess: done,
+    onSuccess: async () => {
+      toast.success(collection === "nodes" ? "Nó salvo." : "Trecho salvo.");
+      await done();
+    },
   });
   const remove = useMutation({
     mutationFn: async (id: string) =>
@@ -152,7 +167,12 @@ function useEntityMutations<T>(
         await fetch(`${base}/${id}`, { method: "DELETE" }),
         "Não foi possível excluir o item da rede.",
       ),
-    onSuccess: done,
+    onSuccess: async () => {
+      toast.success(
+        collection === "nodes" ? "Nó excluído." : "Trecho excluído.",
+      );
+      await done();
+    },
   });
   return { save, remove };
 }
@@ -195,12 +215,13 @@ function NodeForm({
   );
   const bind = (key: Exclude<keyof NodeDraft, "hasDropTube">) => ({
     value: draft[key],
-    onChange: (event: ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+    onChange: (event: ChangeEvent<HTMLInputElement>) =>
       setDraft({ ...draft, [key]: event.target.value }),
   });
   const reset = () => {
     setEditing("");
     setDraft(emptyNode);
+    setInvalid(false);
   };
   const submit = () => {
     const parsed = toNodeRequest(draft);
@@ -212,25 +233,32 @@ function NodeForm({
       );
   };
   return (
-    <fieldset aria-label="Nó" className="space-y-3 rounded-md border p-4">
+    <fieldset
+      aria-label="Nó"
+      className="flex min-w-0 flex-col gap-3 rounded-md border p-4"
+    >
       <legend className="px-1 text-sm font-medium">Nós</legend>
-      <select
-        aria-label="Nó a editar"
-        className={selectClass}
-        value={editing}
-        onChange={(event) => {
-          const node = nodes.find((item) => item.id === event.target.value);
-          setEditing(event.target.value);
+      <Select
+        value={editing || "new"}
+        onValueChange={(value) => {
+          const id = value === "new" ? "" : value;
+          const node = nodes.find((item) => item.id === id);
+          setEditing(id);
           setDraft(node ? nodeDraft(node) : emptyNode);
         }}
       >
-        <option value="">Novo nó</option>
-        {nodes.map((node) => (
-          <option key={node.id} value={node.id}>
-            {node.code}
-          </option>
-        ))}
-      </select>
+        <SelectTrigger aria-label="Nó a editar" className="w-full">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="new">Novo nó</SelectItem>
+          {nodes.map((node) => (
+            <SelectItem key={node.id} value={node.id}>
+              {node.code}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
       <div className="grid gap-3 sm:grid-cols-2">
         <Input
           aria-label="Código do nó"
@@ -238,17 +266,21 @@ function NodeForm({
           maxLength={50}
           {...bind("code")}
         />
-        <select
-          aria-label="Tipo do nó"
-          className={selectClass}
-          {...bind("type")}
+        <Select
+          value={draft.type}
+          onValueChange={(type) => setDraft({ ...draft, type })}
         >
-          {nodeTypeSchema.options.map((type) => (
-            <option key={type} value={type}>
-              {nodeTypeLabels[type]}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger aria-label="Tipo do nó" className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {nodeTypeSchema.options.map((type) => (
+              <SelectItem key={type} value={type}>
+                {nodeTypeLabels[type]}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <NumberField label="Coordenada X" {...bind("x")} />
         <NumberField label="Coordenada Y" {...bind("y")} />
         <NumberField label="Cota de fundo (m)" {...bind("invertElevation")} />
@@ -270,27 +302,31 @@ function NodeForm({
       </div>
       <div className="flex flex-wrap gap-2">
         <Button size="sm" disabled={save.isPending} onClick={submit}>
-          {editing ? "Salvar nó" : "Adicionar nó"}
+          {save.isPending
+            ? "Salvando..."
+            : editing
+              ? "Salvar nó"
+              : "Adicionar nó"}
         </Button>
         {editing && (
-          <Button
+          <ConfirmButton
             size="sm"
             variant="destructive"
             disabled={remove.isPending}
-            onClick={() => {
-              if (window.confirm(`Excluir o nó ${draft.code}?`))
-                remove.mutate(editing, { onSuccess: reset });
-            }}
+            title={`Excluir o nó ${draft.code}?`}
+            description="Esta alteração remove o item da rede e exige um novo dimensionamento."
+            confirmLabel="Excluir nó"
+            onConfirm={() => remove.mutate(editing, { onSuccess: reset })}
           >
             Excluir nó
-          </Button>
+          </ConfirmButton>
         )}
       </div>
       {(invalid || save.isError || remove.isError) && (
         <p role="alert" className="text-sm text-destructive">
           {invalid
             ? "Informe código, tipo, coordenadas e cota de fundo numéricas."
-            : (save.error?.message ?? remove.error?.message)}
+            : getErrorMessage(save.error ?? remove.error)}
         </p>
       )}
     </fieldset>
@@ -316,12 +352,13 @@ function SegmentForm({
   );
   const bind = (key: keyof SegmentDraft) => ({
     value: draft[key],
-    onChange: (event: ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+    onChange: (event: ChangeEvent<HTMLInputElement>) =>
       setDraft({ ...draft, [key]: event.target.value }),
   });
   const reset = () => {
     setEditing("");
     setDraft(emptySegment);
+    setInvalid(false);
   };
   const submit = () => {
     const parsed = toSegmentRequest(draft);
@@ -333,32 +370,37 @@ function SegmentForm({
       );
   };
   const nodeOptions = nodes.map((node) => (
-    <option key={node.id} value={node.id}>
+    <SelectItem key={node.id} value={node.id}>
       {node.code}
-    </option>
+    </SelectItem>
   ));
   return (
-    <fieldset aria-label="Trecho" className="space-y-3 rounded-md border p-4">
+    <fieldset
+      aria-label="Trecho"
+      className="flex min-w-0 flex-col gap-3 rounded-md border p-4"
+    >
       <legend className="px-1 text-sm font-medium">Trechos</legend>
-      <select
-        aria-label="Trecho a editar"
-        className={selectClass}
-        value={editing}
-        onChange={(event) => {
-          const segment = segments.find(
-            (item) => item.id === event.target.value,
-          );
-          setEditing(event.target.value);
+      <Select
+        value={editing || "new"}
+        onValueChange={(value) => {
+          const id = value === "new" ? "" : value;
+          const segment = segments.find((item) => item.id === id);
+          setEditing(id);
           setDraft(segment ? segmentDraft(segment) : emptySegment);
         }}
       >
-        <option value="">Novo trecho</option>
-        {segments.map((segment) => (
-          <option key={segment.id} value={segment.id}>
-            {segment.code}
-          </option>
-        ))}
-      </select>
+        <SelectTrigger aria-label="Trecho a editar" className="w-full">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="new">Novo trecho</SelectItem>
+          {segments.map((segment) => (
+            <SelectItem key={segment.id} value={segment.id}>
+              {segment.code}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
       <div className="grid gap-3 sm:grid-cols-2">
         <Input
           aria-label="Código do trecho"
@@ -367,22 +409,40 @@ function SegmentForm({
           className="sm:col-span-2"
           {...bind("code")}
         />
-        <select
-          aria-label="Nó de montante"
-          className={selectClass}
-          {...bind("upstreamNodeId")}
+        <Select
+          value={draft.upstreamNodeId || "unset"}
+          onValueChange={(value) =>
+            setDraft({
+              ...draft,
+              upstreamNodeId: value === "unset" ? "" : value,
+            })
+          }
         >
-          <option value="">Montante...</option>
-          {nodeOptions}
-        </select>
-        <select
-          aria-label="Nó de jusante"
-          className={selectClass}
-          {...bind("downstreamNodeId")}
+          <SelectTrigger aria-label="Nó de montante" className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="unset">Montante...</SelectItem>
+            {nodeOptions}
+          </SelectContent>
+        </Select>
+        <Select
+          value={draft.downstreamNodeId || "unset"}
+          onValueChange={(value) =>
+            setDraft({
+              ...draft,
+              downstreamNodeId: value === "unset" ? "" : value,
+            })
+          }
         >
-          <option value="">Jusante...</option>
-          {nodeOptions}
-        </select>
+          <SelectTrigger aria-label="Nó de jusante" className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="unset">Jusante...</SelectItem>
+            {nodeOptions}
+          </SelectContent>
+        </Select>
         <NumberField
           label="Cota de fundo a montante (m)"
           {...bind("upstreamInvert")}
@@ -394,27 +454,31 @@ function SegmentForm({
       </div>
       <div className="flex flex-wrap gap-2">
         <Button size="sm" disabled={save.isPending} onClick={submit}>
-          {editing ? "Salvar trecho" : "Adicionar trecho"}
+          {save.isPending
+            ? "Salvando..."
+            : editing
+              ? "Salvar trecho"
+              : "Adicionar trecho"}
         </Button>
         {editing && (
-          <Button
+          <ConfirmButton
             size="sm"
             variant="destructive"
             disabled={remove.isPending}
-            onClick={() => {
-              if (window.confirm(`Excluir o trecho ${draft.code}?`))
-                remove.mutate(editing, { onSuccess: reset });
-            }}
+            title={`Excluir o trecho ${draft.code}?`}
+            description="Esta alteração remove o item da rede e exige um novo dimensionamento."
+            confirmLabel="Excluir trecho"
+            onConfirm={() => remove.mutate(editing, { onSuccess: reset })}
           >
             Excluir trecho
-          </Button>
+          </ConfirmButton>
         )}
       </div>
       {(invalid || save.isError || remove.isError) && (
         <p role="alert" className="text-sm text-destructive">
           {invalid
             ? "Informe código, nós de montante e jusante e as cotas de fundo."
-            : (save.error?.message ?? remove.error?.message)}
+            : getErrorMessage(save.error ?? remove.error)}
         </p>
       )}
     </fieldset>
@@ -423,6 +487,14 @@ function SegmentForm({
 
 export function NetworkTopologyEditor({ projectId }: { projectId: string }) {
   const [open, setOpen] = useState(false);
+  useEffect(() => {
+    const revealEditor = () => {
+      if (window.location.hash === "#network-topology") setOpen(true);
+    };
+    revealEditor();
+    window.addEventListener("hashchange", revealEditor);
+    return () => window.removeEventListener("hashchange", revealEditor);
+  }, []);
   const network = useQuery({
     queryKey: projectQueryKeys.network(projectId),
     queryFn: async ({ signal }) =>
@@ -435,9 +507,12 @@ export function NetworkTopologyEditor({ projectId }: { projectId: string }) {
     refetchOnWindowFocus: false,
   });
   return (
-    <Card className="rounded-lg border border-border/80 bg-card/40 shadow-none ring-0">
-      <CardHeader className="flex flex-row items-start justify-between gap-3">
-        <div>
+    <Card
+      id="network-topology"
+      className="scroll-mt-6 rounded-lg border border-border/80 bg-card/40 shadow-none ring-0"
+    >
+      <CardHeader className="flex flex-col items-start justify-between gap-4 sm:flex-row">
+        <div className="flex min-w-0 flex-col gap-1.5">
           <CardTitle>Topologia da rede</CardTitle>
           <CardDescription>
             Adicione, corrija ou exclua nós e trechos sem reimportar o DXF. Um
@@ -447,12 +522,18 @@ export function NetworkTopologyEditor({ projectId }: { projectId: string }) {
         <Button
           variant="outline"
           size="sm"
+          className="shrink-0"
           aria-expanded={open}
           onClick={() => setOpen(!open)}
         >
           {open ? "Fechar edição" : "Editar topologia"}
         </Button>
       </CardHeader>
+      {open && network.isPending && (
+        <CardContent>
+          <p role="status">Carregando topologia...</p>
+        </CardContent>
+      )}
       {open && network.data && (
         <CardContent className="grid gap-4 lg:grid-cols-2">
           <NodeForm projectId={projectId} nodes={network.data.nodes} />
@@ -465,9 +546,12 @@ export function NetworkTopologyEditor({ projectId }: { projectId: string }) {
       )}
       {open && network.isError && (
         <CardContent>
-          <p role="alert" className="text-sm text-destructive">
-            {network.error.message}
-          </p>
+          <RequestError
+            title="Não foi possível carregar a topologia"
+            error={network.error}
+            onRetry={() => void network.refetch()}
+            retrying={network.isFetching}
+          />
         </CardContent>
       )}
     </Card>

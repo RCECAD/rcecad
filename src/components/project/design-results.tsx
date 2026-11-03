@@ -29,6 +29,11 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
+  Feedback,
+  FeedbackActions,
+  RequestError,
+} from "@/components/ui/feedback";
+import {
   Table,
   TableBody,
   TableCell,
@@ -36,15 +41,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { parameterLabels } from "@/lib/nonconformity-feedback";
+import { designStatusLabels } from "@/lib/project-feedback";
+import { NonconformityDetails } from "./nonconformity-details";
 import { useUnsavedChanges } from "./unsaved-changes-provider";
 
-export const designStatusLabels = {
-  designed: "Dimensionado",
-  verified: "Verificado (DN imposto)",
-  conflicted: "Conflito de regras",
-  infeasible: "Inviável",
-  notEvaluated: "Bloqueado a montante",
-} as const;
+export { designStatusLabels } from "@/lib/project-feedback";
 export function quantityValue(
   segment: SegmentDesign,
   key: string,
@@ -57,11 +59,6 @@ const format = (value: number | undefined, digits = 4) =>
   value === undefined
     ? "—"
     : value.toLocaleString("pt-BR", { maximumFractionDigits: digits });
-const severityLabels = {
-  CRITICAL: "Crítica",
-  WARNING: "Alerta",
-  INFO: "Informação",
-};
 const quantityLabels: Record<string, string> = {
   initialDischarge: "Vazão inicial (Qi)",
   finalDischarge: "Vazão final (Qf)",
@@ -74,15 +71,6 @@ const quantityLabels: Record<string, string> = {
   manningN: "Manning",
   upstreamCover: "Recobrimento de montante",
   downstreamCover: "Recobrimento de jusante",
-};
-const parameterLabels: Record<string, string> = {
-  returnCoefficient: "Coeficiente de retorno",
-  peakDailyFactor: "Fator de pico diário (K1)",
-  peakHourlyFactor: "Fator de pico horário (K2)",
-  perCapitaFlow: "Consumo per capita",
-  infiltrationRate: "Taxa de infiltração",
-  initialPopulation: "População inicial",
-  finalPopulation: "População final",
 };
 
 function AdoptedParameters({ items }: { items: AdoptedParameter[] }) {
@@ -107,7 +95,10 @@ function AdoptedParameters({ items }: { items: AdoptedParameter[] }) {
 
 function MemorialTrace({ memorial }: { memorial: CalculationMemorial }) {
   return (
-    <section aria-label="Memorial de cálculo" className="space-y-4">
+    <section
+      aria-label="Memorial de cálculo"
+      className="flex min-w-0 flex-col gap-4"
+    >
       <p className="text-sm text-muted-foreground">
         Memorial gerado em{" "}
         {new Date(memorial.generatedAt).toLocaleString("pt-BR")} · regras{" "}
@@ -151,7 +142,7 @@ function MemorialTrace({ memorial }: { memorial: CalculationMemorial }) {
             <CardTitle>Contribuições singulares aplicadas</CardTitle>
           </CardHeader>
           <CardContent>
-            <ul className="space-y-1 text-sm">
+            <ul className="flex min-w-0 flex-col gap-1 text-sm">
               {memorial.appliedContributions.map((item) => (
                 <li key={item.id}>
                   {item.name} · {item.targetCode} → trecho{" "}
@@ -167,28 +158,31 @@ function MemorialTrace({ memorial }: { memorial: CalculationMemorial }) {
   );
 }
 
-function Findings({ items }: { items: Nonconformity[] }) {
+function Findings({
+  items,
+  projectId,
+  segmentId,
+}: {
+  items: Nonconformity[];
+  projectId: string;
+  segmentId?: string;
+}) {
   return (
-    <ul className="space-y-3">
+    <ul className="flex min-w-0 flex-col gap-3">
       {items.map((item) => (
         <li
           key={JSON.stringify(item)}
-          className="rounded-md border p-3 text-sm"
+          className="flex min-w-0 flex-col gap-2 rounded-md border p-3 text-sm"
         >
-          <p className="font-medium">
-            {severityLabels[item.severity]} · {item.ruleCode}
-          </p>
-          <p>{item.description}</p>
-          <p className="text-muted-foreground">Fonte: {item.sourceId}</p>
-          {item.observedValue !== null && (
-            <p>Valor observado: {item.observedValue}</p>
-          )}
-          {item.expectedLimit !== null && (
-            <p>Limite esperado: {item.expectedLimit}</p>
-          )}
-          {item.waiverJustification && (
-            <p>Justificativa: {item.waiverJustification}</p>
-          )}
+          <NonconformityDetails item={item} />
+          <FeedbackActions
+            actions={[
+              {
+                label: "Ir para correção",
+                href: `/project/${projectId}/${!segmentId || item.ruleCode.startsWith("MANNING_N_") || item.ruleCode === "DOMAIN_VALUE_MISMATCH" ? "hydraulics" : `${item.ruleCode === "COVER_BELOW_MINIMUM" ? "paving" : "sizing"}#segment-${segmentId}`}`,
+              },
+            ]}
+          />
         </li>
       ))}
     </ul>
@@ -196,9 +190,11 @@ function Findings({ items }: { items: Nonconformity[] }) {
 }
 
 function SegmentDetails({
+  projectId,
   segment,
   expanded,
 }: {
+  projectId: string;
   segment: SegmentDesign;
   expanded?: boolean;
 }) {
@@ -211,7 +207,7 @@ function SegmentDetails({
       <summary className="cursor-pointer font-medium">
         {segment.segmentCode} · {designStatusLabels[segment.status]}
       </summary>
-      <div className="mt-4 space-y-4">
+      <div className="flex min-w-0 flex-col gap-4 mt-4">
         {segment.justifications.map((text) => (
           <p key={text} className="text-sm">
             {text}
@@ -240,7 +236,11 @@ function SegmentDetails({
               ))}
             </dl>
             {segment.nonconformities.length > 0 ? (
-              <Findings items={segment.nonconformities} />
+              <Findings
+                items={segment.nonconformities}
+                projectId={projectId}
+                segmentId={segment.segmentId}
+              />
             ) : (
               <p className="text-sm text-muted-foreground">
                 Nenhuma ocorrência normativa neste trecho.
@@ -249,7 +249,7 @@ function SegmentDetails({
           </>
         )}
         {segment.status === "conflicted" && (
-          <ul className="space-y-2 text-sm">
+          <ul className="flex min-w-0 flex-col gap-2 text-sm">
             {segment.conflicts.map((conflict) => (
               <li key={conflict.subject}>
                 <strong>{conflict.subject}</strong>: {conflict.reason}
@@ -276,7 +276,7 @@ function SegmentDetails({
           </>
         )}
         {segment.status === "infeasible" && (
-          <div className="space-y-4">
+          <div className="flex min-w-0 flex-col gap-4">
             <p>Nenhum candidato foi aceito. Confira as tentativas:</p>
             {segment.attempts.map((attempt) => (
               <details
@@ -287,8 +287,12 @@ function SegmentDetails({
                   DN {attempt.choice.diameterMm} mm ·{" "}
                   {format(attempt.choice.slope, 6)} m/m
                 </summary>
-                <div className="mt-3 space-y-3">
-                  <Findings items={attempt.blocking} />
+                <div className="flex min-w-0 flex-col gap-3 mt-3">
+                  <Findings
+                    items={attempt.blocking}
+                    projectId={projectId}
+                    segmentId={segment.segmentId}
+                  />
                   <dl className="grid gap-2 text-sm sm:grid-cols-2">
                     {attempt.quantities.map((quantity) => (
                       <div key={quantity.key}>
@@ -343,7 +347,7 @@ export function DesignResults({
       .length,
   }));
   return (
-    <div className="space-y-6">
+    <div className="flex min-w-0 flex-col gap-6">
       {tabbed && (
         <div
           role="tablist"
@@ -351,9 +355,9 @@ export function DesignResults({
           className="grid grid-cols-2 gap-1 rounded-md bg-card p-1.5 sm:grid-cols-4"
         >
           {[
-            ["summary", "Resumo Executivo"],
-            ["table", "Resultados por Trecho"],
-            ["memory", "Memória de Cálculo"],
+            ["summary", "Resumo executivo"],
+            ["table", "Resultados por trecho"],
+            ["memory", "Memória de cálculo"],
             ["findings", "Não conformidades"],
           ].map(([value, label]) => (
             <button
@@ -373,13 +377,13 @@ export function DesignResults({
         <>
           <section className="rounded-lg border border-border/80 bg-card/40 px-6 py-4">
             <h2 className="mb-3 text-base font-semibold">
-              Identificação do Projeto
+              Identificação do projeto
             </h2>
             <dl className="grid gap-x-4 gap-y-4 sm:grid-cols-3">
               {[
                 ["Nome do projeto", project?.name],
                 ["Localidade", project?.location],
-                ["Responsável Técnico", project?.technicalManager],
+                ["Responsável técnico", project?.technicalManager],
                 ["Contratante", project?.contractor],
                 ["Revisão", project?.revision],
               ].map(([label, value]) => (
@@ -394,7 +398,7 @@ export function DesignResults({
           </section>
           <section className="rounded-lg border border-border/80 bg-card/40 px-6 py-4">
             <h2 className="mb-3 text-base font-semibold">
-              Parâmetros Globais Adotados
+              Parâmetros globais adotados
             </h2>
             <p className="mb-3 text-xs text-muted-foreground">
               Regra de cálculo: {design.rulesetVersionId}
@@ -496,7 +500,10 @@ export function DesignResults({
             <CardTitle>Ocorrências do projeto</CardTitle>
           </CardHeader>
           <CardContent>
-            <Findings items={design.nonconformities} />
+            <Findings
+              items={design.nonconformities}
+              projectId={design.projectId}
+            />
           </CardContent>
         </Card>
       )}
@@ -622,7 +629,10 @@ export function DesignResults({
         </Card>
       )}
       {(visible("memory") || visible("findings")) && (
-        <section aria-label="Detalhes do cálculo" className="space-y-3">
+        <section
+          aria-label="Detalhes do cálculo"
+          className="flex min-w-0 flex-col gap-3"
+        >
           <h2 className="text-xl font-semibold">
             Detalhes e ocorrências por trecho
           </h2>
@@ -636,6 +646,7 @@ export function DesignResults({
             )
             .map((segment) => (
               <SegmentDetails
+                projectId={design.projectId}
                 key={segment.segmentId}
                 segment={segment}
                 expanded={
@@ -709,7 +720,7 @@ export function DesignPanel({
     retry: false,
   });
   return (
-    <section aria-label="Cálculo CDRE" className="space-y-5">
+    <section aria-label="Cálculo CDRE" className="flex min-w-0 flex-col gap-5">
       <Card
         className={
           tabbed ? "gap-0 border-0 bg-transparent p-0 shadow-none ring-0" : ""
@@ -746,7 +757,7 @@ export function DesignPanel({
               )
             }
           >
-            Validar projeto
+            Ir para validação
           </Button>
           {disabled && (
             <p role="status" className="text-sm text-muted-foreground">
@@ -756,17 +767,61 @@ export function DesignPanel({
         </CardContent>
       </Card>
       {design.isError && (
-        <div
-          role="alert"
-          className="rounded-lg border border-destructive p-4 space-y-2"
-        >
-          <p className="font-medium">O dimensionamento não foi concluído</p>
-          <p className="text-sm">{design.error.message}</p>
-          <p className="text-sm">
-            Use a validação para consultar os dados faltantes e os trechos que
-            precisam de atenção.
-          </p>
-        </div>
+        <RequestError
+          title="O dimensionamento não foi concluído"
+          error={design.error}
+          onRetry={() => void design.refetch()}
+          retrying={design.isFetching || disabled}
+          actions={[
+            {
+              label: "Consultar pendências",
+              href: `/project/${projectId}/validation`,
+            },
+            {
+              label: "Revisar dados hidráulicos",
+              href: `/project/${projectId}/hydraulics`,
+            },
+          ]}
+        />
+      )}
+      {reportsEnabled && summary.isError && (
+        <RequestError
+          title="Não foi possível carregar o resumo executivo"
+          error={summary.error}
+          onRetry={() => void summary.refetch()}
+          retrying={summary.isFetching}
+        />
+      )}
+      {reportsEnabled && memorial.isError && (
+        <RequestError
+          title="Não foi possível carregar o memorial de cálculo"
+          error={memorial.error}
+          onRetry={() => void memorial.refetch()}
+          retrying={memorial.isFetching}
+        />
+      )}
+      {design.data && !design.isError && !design.isFetching && (
+        <Feedback
+          tone={
+            design.data.segments.length > 0 &&
+            design.data.segments.every(isCalculated)
+              ? "success"
+              : "warning"
+          }
+          title={
+            design.data.segments.length > 0 &&
+            design.data.segments.every(isCalculated)
+              ? "Cálculo concluído"
+              : "Cálculo concluído com pendências"
+          }
+          description="Confira os resultados e execute a validação para verificar se o projeto está apto à exportação."
+          actions={[
+            {
+              label: tabbed ? "Validar resultados" : "Ver resultados",
+              href: `/project/${projectId}/${tabbed ? "validation" : "results"}`,
+            },
+          ]}
+        />
       )}
       {design.data && !design.isError && !design.isFetching && (
         <DesignResults
@@ -778,10 +833,20 @@ export function DesignPanel({
         />
       )}
       {!design.data && !design.isFetching && !design.isError && (
-        <p className="text-sm text-muted-foreground">
-          Nenhum cálculo executado nesta sessão. Os resultados anteriores são
-          descartados quando os dados do projeto mudam.
-        </p>
+        <Feedback
+          title="Nenhum cálculo executado nesta sessão"
+          description="Salve os parâmetros hidráulicos e os dados da rede antes de calcular. Os resultados precisam ser recalculados quando os dados mudam."
+          actions={[
+            {
+              label: "Revisar dados hidráulicos",
+              href: `/project/${projectId}/hydraulics`,
+            },
+            {
+              label: "Revisar rede",
+              href: `/project/${projectId}/sizing#network-topology`,
+            },
+          ]}
+        />
       )}
       {design.isFetching && (
         <p role="status" className="text-sm">

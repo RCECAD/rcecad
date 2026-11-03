@@ -86,7 +86,7 @@ describe("GeneralDataForm", () => {
 
     await user.click(screen.getByRole("button", { name: "Tentar novamente" }));
 
-    expect(await screen.findByLabelText("Nome do Projeto")).toHaveValue(
+    expect(await screen.findByLabelText("Nome do projeto")).toHaveValue(
       completeGeneralData.name,
     );
     expect(fetchMock).toHaveBeenCalledTimes(2);
@@ -98,7 +98,7 @@ describe("GeneralDataForm", () => {
 
     renderForm();
 
-    const projectName = await screen.findByLabelText("Nome do Projeto");
+    const projectName = await screen.findByLabelText("Nome do projeto");
     await user.clear(projectName);
     await user.click(screen.getByRole("button", { name: "Salvar alterações" }));
 
@@ -122,7 +122,7 @@ describe("GeneralDataForm", () => {
 
     renderForm();
 
-    const projectName = await screen.findByLabelText("Nome do Projeto");
+    const projectName = await screen.findByLabelText("Nome do projeto");
     await user.clear(projectName);
     await user.type(projectName, savedData.name);
     await user.click(screen.getByRole("button", { name: "Salvar alterações" }));

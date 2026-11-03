@@ -3,12 +3,17 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Pencil, Plus, Trash2 } from "lucide-react";
 import { type ChangeEvent, useState } from "react";
+import { toast } from "sonner";
 import { z } from "zod";
 import {
   invalidateProjectDependents,
   projectQueryKeys,
 } from "@/api/client/query-keys";
-import { expectNoContent, parseClientJson } from "@/api/client/response";
+import {
+  expectNoContent,
+  getErrorMessage,
+  parseClientJson,
+} from "@/api/client/response";
 import {
   contributionTypeSchema,
   type SingularContribution,
@@ -25,9 +30,20 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { ConfirmButton } from "@/components/ui/confirm-button";
 import { ErrorState } from "@/components/ui/error-state";
+import { Feedback, RequestError } from "@/components/ui/feedback";
 import { Input } from "@/components/ui/input";
 import { PageLoading } from "@/components/ui/page-state";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -43,8 +59,6 @@ const typeLabels: Record<SingularContribution["type"], string> = {
   INSTITUTIONAL: "Institucional",
   OTHER: "Outra",
 };
-const selectClass =
-  "h-9 w-full rounded-md border border-input bg-background px-2 text-sm";
 
 type Draft = {
   name: string;
@@ -135,6 +149,10 @@ export function SingularContributionsEditor({
     onSuccess: async () => {
       setDraft(emptyDraft);
       setEditing(null);
+      toast.success("Contribuição salva.", {
+        description:
+          "Recalcule o dimensionamento para considerar as novas vazões.",
+      });
       await afterChange();
     },
   });
@@ -144,7 +162,10 @@ export function SingularContributionsEditor({
         await fetch(`${base}/${id}`, { method: "DELETE" }),
         "Não foi possível excluir a contribuição.",
       ),
-    onSuccess: afterChange,
+    onSuccess: async () => {
+      toast.success("Contribuição excluída.");
+      await afterChange();
+    },
   });
 
   if (network.isPending || contributions.isPending)
@@ -153,7 +174,8 @@ export function SingularContributionsEditor({
     return (
       <ErrorState
         title="Não foi possível carregar as contribuições"
-        description={(network.error ?? contributions.error)?.message ?? ""}
+        description={getErrorMessage(network.error ?? contributions.error)}
+        retrying={network.isFetching || contributions.isFetching}
         onRetry={() => {
           void network.refetch();
           void contributions.refetch();
@@ -175,21 +197,34 @@ export function SingularContributionsEditor({
   const field = (key: keyof Draft) => ({
     value: draft[key],
     disabled: save.isPending,
-    onChange: (event: ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+    onChange: (event: ChangeEvent<HTMLInputElement>) =>
       setDraft({ ...draft, [key]: event.target.value }),
   });
 
   return (
     <Card className="rounded-lg border border-border/80 bg-card/40 shadow-none ring-0">
       <CardHeader>
-        <CardTitle>Contribuições Singulares</CardTitle>
+        <CardTitle>Contribuições singulares</CardTitle>
         <CardDescription>
           Vazões concentradas em L/s (indústrias, comércios, instituições). Um
           destino em nó entra no trecho que sai dele; as vazões acumulam para
           jusante sem coeficientes de pico.
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="flex min-w-0 flex-col gap-4">
+        {network.data.segments.length === 0 && (
+          <Feedback
+            tone="warning"
+            title="Cadastre a rede antes de adicionar contribuições"
+            description="A contribuição precisa estar associada a um nó ou trecho da rede."
+            actions={[
+              {
+                label: "Cadastrar rede",
+                href: `/project/${projectId}/sizing#network-topology`,
+              },
+            ]}
+          />
+        )}
         <Table>
           <TableHeader>
             <TableRow>
@@ -227,20 +262,18 @@ export function SingularContributionsEditor({
                   >
                     <Pencil className="size-4" />
                   </Button>
-                  <Button
+                  <ConfirmButton
                     size="icon-sm"
                     variant="ghost"
                     aria-label={`Excluir ${item.name}`}
                     disabled={remove.isPending}
-                    onClick={() => {
-                      if (
-                        window.confirm(`Excluir a contribuição ${item.name}?`)
-                      )
-                        remove.mutate(item.id);
-                    }}
+                    title={`Excluir a contribuição ${item.name}?`}
+                    description="Esta contribuição deixará de compor as vazões do projeto. Recalcule o dimensionamento após a exclusão."
+                    confirmLabel="Excluir contribuição"
+                    onConfirm={() => remove.mutate(item.id)}
                   >
                     <Trash2 className="size-4" />
-                  </Button>
+                  </ConfirmButton>
                 </TableCell>
               </TableRow>
             ))}
@@ -255,6 +288,7 @@ export function SingularContributionsEditor({
         </Table>
 
         <fieldset
+          disabled={network.data.segments.length === 0 || save.isPending}
           aria-label={editing ? "Editar contribuição" : "Nova contribuição"}
           className="grid gap-3 rounded-md border p-4 md:grid-cols-6"
         >
@@ -265,38 +299,57 @@ export function SingularContributionsEditor({
             className="md:col-span-2"
             {...field("name")}
           />
-          <select
-            aria-label="Tipo da contribuição"
-            className={selectClass}
-            {...field("type")}
+          <Select
+            value={draft.type}
+            onValueChange={(type) =>
+              setDraft({ ...draft, type: type as Draft["type"] })
+            }
+            disabled={save.isPending}
           >
-            {contributionTypeSchema.options.map((type) => (
-              <option key={type} value={type}>
-                {typeLabels[type]}
-              </option>
-            ))}
-          </select>
-          <select
-            aria-label="Destino da contribuição"
-            className={selectClass}
-            {...field("target")}
+            <SelectTrigger aria-label="Tipo da contribuição" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {contributionTypeSchema.options.map((type) => (
+                <SelectItem key={type} value={type}>
+                  {typeLabels[type]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select
+            value={draft.target || "unset"}
+            onValueChange={(target) =>
+              setDraft({ ...draft, target: target === "unset" ? "" : target })
+            }
+            disabled={save.isPending}
           >
-            <option value="">Destino...</option>
-            <optgroup label="Trechos">
-              {network.data.segments.map((segment) => (
-                <option key={segment.id} value={`segment:${segment.id}`}>
-                  {segment.code}
-                </option>
-              ))}
-            </optgroup>
-            <optgroup label="Nós">
-              {network.data.nodes.map((node) => (
-                <option key={node.id} value={`node:${node.id}`}>
-                  {node.code}
-                </option>
-              ))}
-            </optgroup>
-          </select>
+            <SelectTrigger
+              aria-label="Destino da contribuição"
+              className="w-full"
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="unset">Destino...</SelectItem>
+              <SelectGroup>
+                <SelectLabel>Trechos</SelectLabel>
+                {network.data.segments.map((segment) => (
+                  <SelectItem key={segment.id} value={`segment:${segment.id}`}>
+                    {segment.code}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+              <SelectGroup>
+                <SelectLabel>Nós</SelectLabel>
+                {network.data.nodes.map((node) => (
+                  <SelectItem key={node.id} value={`node:${node.id}`}>
+                    {node.code}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
           <Input
             type="number"
             min="0"
@@ -314,7 +367,11 @@ export function SingularContributionsEditor({
           <div className="flex gap-2 md:col-span-6">
             <Button onClick={submit} disabled={save.isPending}>
               <Plus className="size-4" />
-              {editing ? "Salvar contribuição" : "Adicionar contribuição"}
+              {save.isPending
+                ? "Salvando..."
+                : editing
+                  ? "Salvar contribuição"
+                  : "Adicionar contribuição"}
             </Button>
             {editing && (
               <Button
@@ -329,10 +386,31 @@ export function SingularContributionsEditor({
             )}
           </div>
         </fieldset>
-        {(invalid || save.isError || remove.isError) && (
-          <p role="alert" className="text-sm text-destructive">
-            {invalid ?? save.error?.message ?? remove.error?.message}
-          </p>
+        {invalid && (
+          <Feedback
+            tone="error"
+            title="Revise os dados da contribuição"
+            description={invalid}
+          />
+        )}
+        {(save.isError || remove.isError) && (
+          <RequestError
+            title="Não foi possível atualizar as contribuições"
+            error={save.error ?? remove.error}
+          />
+        )}
+        {save.isSuccess && !editing && !draft.name && (
+          <Feedback
+            tone="success"
+            title="Contribuição salva"
+            description="Execute novamente o dimensionamento para atualizar as vazões."
+            actions={[
+              {
+                label: "Ir para dimensionamento",
+                href: `/project/${projectId}/sizing`,
+              },
+            ]}
+          />
         )}
       </CardContent>
     </Card>

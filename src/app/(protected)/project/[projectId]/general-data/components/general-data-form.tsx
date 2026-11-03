@@ -16,7 +16,7 @@ import {
   invalidateProjectDependents,
   projectQueryKeys,
 } from "@/api/client/query-keys";
-import { parseClientJson } from "@/api/client/response";
+import { getErrorMessage, parseClientJson } from "@/api/client/response";
 import { useUnsavedChanges } from "@/components/project/unsaved-changes-provider";
 import { Button } from "@/components/ui/button";
 import {
@@ -27,10 +27,12 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { ErrorState } from "@/components/ui/error-state";
+import { Feedback, RequestError } from "@/components/ui/feedback";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { PageLoading } from "@/components/ui/page-state";
 import { Textarea } from "@/components/ui/textarea";
+import { portugueseValidation } from "@/lib/form-validation";
 import {
   GENERAL_DATA_DEFAULTS,
   type GeneralDataFormValues,
@@ -52,12 +54,12 @@ type TextFieldConfig = {
 const textFields = [
   {
     name: "name",
-    label: "Nome do Projeto",
+    label: "Nome do projeto",
     placeholder: "Digite o nome do projeto",
   },
   {
     name: "internalCode",
-    label: "Código Interno",
+    label: "Código interno",
     placeholder: "Ex.: 00042",
     optional: true,
   },
@@ -75,7 +77,7 @@ const textFields = [
   },
   {
     name: "technicalManager",
-    label: "Responsável Técnico",
+    label: "Responsável técnico",
     placeholder: "Digite o responsável técnico",
     optional: true,
   },
@@ -139,6 +141,8 @@ export function GeneralDataForm({ projectId }: Readonly<GeneralDataFormProps>) {
   const {
     data: generalData,
     isError,
+    error: loadError,
+    isFetching,
     isLoading,
     refetch,
   } = useQuery({
@@ -159,7 +163,7 @@ export function GeneralDataForm({ projectId }: Readonly<GeneralDataFormProps>) {
     register,
     reset,
   } = useForm<GeneralDataFormValues>({
-    resolver: zodResolver(generalDataSchema),
+    resolver: zodResolver(generalDataSchema, portugueseValidation),
     defaultValues: GENERAL_DATA_DEFAULTS,
   });
 
@@ -188,7 +192,6 @@ export function GeneralDataForm({ projectId }: Readonly<GeneralDataFormProps>) {
     },
     onError: (error) => {
       console.error(error);
-      toast.error("Ocorreu um erro ao salvar os dados gerais.");
     },
   });
 
@@ -211,7 +214,11 @@ export function GeneralDataForm({ projectId }: Readonly<GeneralDataFormProps>) {
     return (
       <ErrorState
         title="Não foi possível carregar os dados gerais"
-        description="Não altere as informações até conseguirmos carregar os dados do projeto."
+        description={getErrorMessage(
+          loadError,
+          "Não altere as informações até conseguirmos carregar os dados do projeto.",
+        )}
+        retrying={isFetching}
         onRetry={() => {
           void refetch();
         }}
@@ -221,9 +228,10 @@ export function GeneralDataForm({ projectId }: Readonly<GeneralDataFormProps>) {
 
   return (
     <form
+      noValidate
       onSubmit={handleSubmit((values) => saveMutation.mutate(values))}
       aria-busy={saveMutation.isPending}
-      className="mx-auto max-w-[1088px] space-y-6 pt-2"
+      className="flex min-w-0 flex-col gap-6 mx-auto max-w-[1088px] pt-2"
     >
       <p aria-live="polite" className="sr-only">
         {saveMutation.isPending
@@ -233,8 +241,8 @@ export function GeneralDataForm({ projectId }: Readonly<GeneralDataFormProps>) {
             : "Nenhuma alteração pendente."}
       </p>
 
-      <h1 className="pb-4 text-2xl font-semibold tracking-tight text-foreground">
-        Dados Gerais
+      <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+        Dados gerais
       </h1>
 
       <Card className="gap-3 rounded-lg border border-border/80 bg-card/40 shadow-none ring-0">
@@ -265,7 +273,7 @@ export function GeneralDataForm({ projectId }: Readonly<GeneralDataFormProps>) {
       </Card>
       <Card className="gap-3 rounded-lg border border-border/80 bg-card/40 shadow-none ring-0">
         <CardHeader>
-          <CardTitle>2. Contexto Técnico</CardTitle>
+          <CardTitle>2. Contexto técnico</CardTitle>
           <CardDescription>
             Características técnicas e escopo do projeto
           </CardDescription>
@@ -274,7 +282,7 @@ export function GeneralDataForm({ projectId }: Readonly<GeneralDataFormProps>) {
           <TextField
             config={{
               name: "systemType",
-              label: "Tipo de Sistema",
+              label: "Tipo de sistema",
               placeholder: "Ex.: Separador absoluto",
             }}
             register={register}
@@ -283,7 +291,7 @@ export function GeneralDataForm({ projectId }: Readonly<GeneralDataFormProps>) {
           <TextField
             config={{
               name: "horizon",
-              label: "Etapa/Horizonte",
+              label: "Etapa/horizonte",
               placeholder: "Ex.: 2026–2046, Fase 1",
             }}
             register={register}
@@ -304,7 +312,7 @@ export function GeneralDataForm({ projectId }: Readonly<GeneralDataFormProps>) {
       </Card>
       <Card className="gap-3 rounded-lg border border-border/80 bg-card/40 shadow-none ring-0">
         <CardHeader>
-          <CardTitle>3. Escopo Espacial</CardTitle>
+          <CardTitle>3. Escopo espacial</CardTitle>
           <CardDescription>
             Delimitação geográfica e setorização do projeto
           </CardDescription>
@@ -329,7 +337,7 @@ export function GeneralDataForm({ projectId }: Readonly<GeneralDataFormProps>) {
             errors={errors}
           />
           <Field>
-            <FieldLabel htmlFor="totalAreaKm2">Área Total (km²)</FieldLabel>
+            <FieldLabel htmlFor="totalAreaKm2">Área total (km²)</FieldLabel>
             <Input
               id="totalAreaKm2"
               type="number"
@@ -375,6 +383,31 @@ export function GeneralDataForm({ projectId }: Readonly<GeneralDataFormProps>) {
         }
         . Definido automaticamente pela validação do projeto.
       </p>
+      {saveMutation.isError && (
+        <RequestError
+          reveal
+          title="Não foi possível salvar os dados gerais"
+          error={saveMutation.error}
+          onRetry={() =>
+            void handleSubmit((values) => saveMutation.mutate(values))()
+          }
+          retrying={saveMutation.isPending}
+        />
+      )}
+      {saveMutation.isSuccess && !isDirty && (
+        <Feedback
+          reveal
+          tone="success"
+          title="Dados gerais salvos"
+          description="As alterações foram salvas. Continue para a próxima etapa do projeto."
+          actions={[
+            {
+              label: "Configurar dados hidráulicos",
+              href: `/project/${projectId}/hydraulics`,
+            },
+          ]}
+        />
+      )}
       <div className="flex flex-col items-stretch gap-4 pt-2 sm:flex-row sm:items-center">
         {isDirty ? (
           <Button
@@ -389,7 +422,7 @@ export function GeneralDataForm({ projectId }: Readonly<GeneralDataFormProps>) {
         ) : (
           <div className="flex h-12 flex-1 select-none items-center justify-center gap-2 rounded-lg border border-[#818cf8]/35 bg-[#818cf8]/15 px-4 text-sm font-semibold text-[#4f46e5] dark:text-[#a5b4fc]">
             <Lock className="size-4 shrink-0 text-[#6366f1]" />
-            Nenhuma alteração foi feita ainda.
+            Nenhuma alteração pendente.
           </div>
         )}
 

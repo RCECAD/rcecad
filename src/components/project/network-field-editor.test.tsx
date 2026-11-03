@@ -58,14 +58,14 @@ const detail = {
   ],
   segments: [segment],
 };
-function setup() {
+function setup(mode: "survey" | "paving" = "survey") {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
   render(
     <QueryClientProvider client={client}>
       <UnsavedChangesProvider>
-        <NetworkFieldEditor projectId={projectId} />
+        <NetworkFieldEditor projectId={projectId} mode={mode} />
       </UnsavedChangesProvider>
     </QueryClientProvider>,
   );
@@ -82,7 +82,7 @@ describe("network field data", () => {
     );
     expect(
       screen.getByLabelText("Contribuição de tempo seco T-01"),
-    ).toHaveValue("");
+    ).toHaveTextContent("Não respondido");
     expect(
       screen.getByRole("button", { name: "Salvar trecho" }),
     ).toBeDisabled();
@@ -101,10 +101,10 @@ describe("network field data", () => {
       old: true,
     });
     client.setQueryData(projectQueryKeys.validation(projectId), { old: true });
-    await user.selectOptions(
+    await user.click(
       await screen.findByLabelText("Contribuição de tempo seco T-01"),
-      "false",
     );
+    await user.click(screen.getByRole("option", { name: "Não" }));
     await user.click(screen.getByRole("button", { name: "Salvar trecho" }));
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
     const sent = JSON.parse(fetchMock.mock.calls[1][1].body);
@@ -126,5 +126,72 @@ describe("network field data", () => {
     expect(
       client.getQueryData(projectQueryKeys.validation(projectId)),
     ).toBeUndefined();
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Salvar trecho" }),
+      ).toBeDisabled(),
+    );
+    expect(
+      screen.getByLabelText("Contribuição de tempo seco T-01"),
+    ).toHaveTextContent("Não");
+  });
+  it("clears a dry-weather answer back to null and restores the clean form state", async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        Response.json({
+          ...detail,
+          segments: [{ ...segment, receivesDryWeatherFlow: true }],
+        }),
+      )
+      .mockResolvedValueOnce(Response.json(segment));
+    vi.stubGlobal("fetch", fetchMock);
+    setup();
+    await user.click(
+      await screen.findByLabelText("Contribuição de tempo seco T-01"),
+    );
+    await user.click(screen.getByRole("option", { name: "Não respondido" }));
+    await user.click(screen.getByRole("button", { name: "Salvar trecho" }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    expect(
+      JSON.parse(fetchMock.mock.calls[1][1].body).receivesDryWeatherFlow,
+    ).toBeNull();
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Salvar trecho" }),
+      ).toBeDisabled(),
+    );
+    expect(
+      screen.getByLabelText("Contribuição de tempo seco T-01"),
+    ).toHaveTextContent("Não respondido");
+  });
+  it("clears paving selections without losing the remaining segment data", async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(Response.json(detail))
+      .mockResolvedValueOnce(
+        Response.json({ ...segment, surfaceMaterial: null }),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+    setup("paving");
+    await user.click(await screen.findByLabelText("Material superficial T-01"));
+    await user.click(screen.getByRole("option", { name: "Não informado" }));
+    await user.click(screen.getByRole("button", { name: "Salvar trecho" }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    expect(JSON.parse(fetchMock.mock.calls[1][1].body)).toEqual({
+      elementType: "COLLECTOR",
+      receivesDryWeatherFlow: null,
+      fixedDiameterMm: 150,
+      material: "Concreto",
+      pavementType: "SIDEWALK",
+      surfaceMaterial: null,
+      surfaceCondition: "FAIR",
+      pavementNotes: "Preservar esta nota",
+    });
+    await waitFor(() =>
+      expect(screen.getByText("Salvo", { exact: true })).toBeInTheDocument(),
+    );
   });
 });

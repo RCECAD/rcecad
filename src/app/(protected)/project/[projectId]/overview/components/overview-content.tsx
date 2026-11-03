@@ -10,16 +10,18 @@ import {
   TriangleAlert,
 } from "lucide-react";
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
+import { Feedback, FeedbackActions } from "@/components/ui/feedback";
 
 const quickActions = [
-  { label: "Completar Dados Gerais", icon: FileText, route: "general-data" },
+  { label: "Completar dados gerais", icon: FileText, route: "general-data" },
   {
     label: "Configurar dados hidráulicos",
     icon: Droplets,
     route: "hydraulics",
   },
-  { label: "Exportar Projeto", icon: Download, route: "export" },
+  { label: "Exportar projeto", icon: Download, route: "export" },
 ];
 
 const panelClassName = "rounded-lg border border-border/80 bg-card/40 p-5";
@@ -35,13 +37,20 @@ export function OverviewContent({
   progressPercent,
   notice,
   onShowAllActions,
+  historyFeedback,
 }: {
+  historyFeedback?: ReactNode;
   progressPercent?: number;
   notice?: string;
   onShowAllActions?: () => void;
   projectId: string;
   projectDetails: { label: string; value: string }[];
-  stages: { title: string; description: string; complete: boolean }[];
+  stages: {
+    title: string;
+    description: string;
+    complete: boolean;
+    href: string;
+  }[];
   alerts: { title: string; href: string }[];
   recentActions: {
     id: string;
@@ -62,21 +71,27 @@ export function OverviewContent({
   );
   return (
     <div className="mx-auto grid w-full min-w-0 gap-5 xl:-mx-4 xl:w-[calc(100%+2rem)] xl:gap-8 xl:grid-cols-[minmax(0,1fr)_350px]">
-      <div className="min-w-0 space-y-5">
+      <div className="flex min-w-0 flex-col gap-5">
         <section aria-labelledby="overview-title" className={panelClassName}>
           <h1 id="overview-title" className="text-base font-semibold">
-            Visão Geral do Projeto
+            Visão geral do projeto
           </h1>
           <p className="mt-1 text-xs text-muted-foreground">
             Status atual: {status}
           </p>
           {notice && (
-            <p
-              role="status"
-              className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-2.5 py-2 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300"
-            >
-              {notice}
-            </p>
+            <Feedback
+              className="mt-3"
+              tone="warning"
+              title="Dimensionamento desatualizado"
+              description={notice}
+              actions={[
+                {
+                  label: "Validar novamente",
+                  href: `/project/${projectId}/validation`,
+                },
+              ]}
+            />
           )}
           <dl className="mt-4 grid gap-x-5 gap-y-3 sm:grid-cols-3">
             {projectDetails.map((detail) => (
@@ -117,7 +132,7 @@ export function OverviewContent({
 
         <section aria-labelledby="overview-stages" className={panelClassName}>
           <h2 id="overview-stages" className="mb-3 text-sm font-semibold">
-            Andamento por Etapas
+            Andamento por etapas
           </h2>
           <ul className="grid gap-2 sm:grid-cols-2 2xl:grid-cols-4">
             {stages.map((stage) => {
@@ -137,6 +152,18 @@ export function OverviewContent({
                   >
                     {stage.description}
                   </p>
+                  <div className="mt-3">
+                    <FeedbackActions
+                      actions={[
+                        {
+                          label: stage.complete
+                            ? "Revisar etapa"
+                            : "Completar etapa",
+                          href: stage.href,
+                        },
+                      ]}
+                    />
+                  </div>
                 </li>
               );
             })}
@@ -145,9 +172,10 @@ export function OverviewContent({
 
         <section aria-labelledby="overview-history" className={panelClassName}>
           <h2 id="overview-history" className="mb-5 text-sm font-semibold">
-            Últimas Ações
+            Últimas ações
           </h2>
-          <ol className="ml-2">
+          {historyFeedback}
+          <ol className="ml-2 mt-3">
             {recentActions.length === 0 && (
               <li className="text-xs text-muted-foreground">
                 Nenhuma ação registrada.
@@ -204,14 +232,28 @@ export function OverviewContent({
               aria-hidden="true"
               className="size-4 shrink-0 text-amber-500"
             />
-            Pendências e Alertas
+            Pendências e alertas
           </h2>
           <p className="mt-2 text-xs text-muted-foreground">
             {alerts.length}{" "}
             {alerts.length === 1 ? "item requer" : "itens requerem"} sua
             atenção.
           </p>
-          <ul className="mt-5 space-y-2">
+          {alerts.length === 0 && (
+            <Feedback
+              className="mt-3"
+              tone="success"
+              title="Nenhuma pendência de cadastro"
+              description="Execute a validação para conferir também as regras do dimensionamento."
+              actions={[
+                {
+                  label: "Ir para validação",
+                  href: `/project/${projectId}/validation`,
+                },
+              ]}
+            />
+          )}
+          <ul className="mt-5 flex max-h-80 flex-col gap-2 overflow-y-auto overscroll-contain pr-1">
             {alerts.map((alert) => (
               <li
                 key={`${alert.href}-${alert.title}`}
@@ -221,9 +263,12 @@ export function OverviewContent({
                   aria-hidden="true"
                   className="mt-0.5 size-4 shrink-0 text-amber-500"
                 />
-                <Link href={alert.href} className="hover:underline">
-                  {alert.title}
-                </Link>
+                <div className="flex min-w-0 flex-1 flex-col gap-2">
+                  <p>{alert.title}</p>
+                  <FeedbackActions
+                    actions={[{ label: "Ir para correção", href: alert.href }]}
+                  />
+                </div>
               </li>
             ))}
           </ul>
@@ -237,7 +282,7 @@ export function OverviewContent({
               className="disabled:opacity-100"
             >
               <RefreshCw aria-hidden="true" />
-              Atualizar
+              {refreshing ? "Atualizando..." : "Atualizar"}
             </Button>
           </div>
         </section>
@@ -250,9 +295,9 @@ export function OverviewContent({
               aria-hidden="true"
               className="size-4 shrink-0 text-blue-500"
             />
-            Ações Rápidas
+            Ações rápidas
           </h2>
-          <div className="mt-5 space-y-2">
+          <div className="mt-5 flex min-w-0 flex-col gap-2">
             {quickActions.map(({ label, icon: Icon, route }) => (
               <Button
                 key={label}

@@ -194,14 +194,14 @@ export function PavingContent({
       <Card className="min-w-0 rounded-lg border border-border/80 bg-card/40 shadow-xs">
         <CardHeader className="pb-2">
           <CardTitle className="text-base font-semibold">
-            Dados de Pavimentação por Trecho
+            Dados de pavimentação por trecho
           </CardTitle>
           <CardDescription>
             Configure o tipo de pavimentação e condição superficial de cada
             trecho
           </CardDescription>
         </CardHeader>
-        <CardContent className="min-w-0 space-y-4">
+        <CardContent className="flex flex-col gap-4 min-w-0">
           <Input
             type="search"
             aria-label="Buscar trechos"
