@@ -15,6 +15,27 @@ const finding: Nonconformity = {
 };
 
 describe("nonconformityFeedback", () => {
+  it("explains the zero infiltration finding with its adopted source and approved exception", () => {
+    const feedback = nonconformityFeedback({
+      ...finding,
+      severity: "INFO",
+      observedValue: "0.0",
+      description:
+        "Valor 0.0 L/s.km para infiltrationRate, adotado de NBR 7367:1988, está fora do domínio resolvido: >= 0.05 (NBR 9649:1986) e <= 1.0 (NBR 9649:1986).",
+      waiverJustification:
+        "NBR 7367:1988 5.4.1.1 prevalece para rede exclusivamente PVC rígido com junta elástica.",
+    });
+    expect(feedback).toMatchObject({
+      ruleLabel: "Conferência dos limites normativos",
+      sourceLabel: "Verificação automática do cálculo hidráulico (CDRE)",
+      parameterLabel: "Taxa de infiltração",
+      observedValue: "0 L/s·km",
+      expectedLimit: "0,05 a 1 L/s·km",
+      technicalDescription:
+        "Taxa de infiltração: o valor de 0 L/s·km está fora da faixa permitida de 0,05 a 1 L/s·km. Valor adotado conforme NBR 7367:1988. Esta ocorrência possui uma exceção aprovada, conforme a justificativa acima.",
+    });
+    expect(feedback.description).toContain("exceção aprovada");
+  });
   it("uses the returned limits and deduplicates normative references", () => {
     expect(
       nonconformityFeedback({

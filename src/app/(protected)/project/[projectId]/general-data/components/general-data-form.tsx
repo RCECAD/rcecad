@@ -231,7 +231,7 @@ export function GeneralDataForm({ projectId }: Readonly<GeneralDataFormProps>) {
       noValidate
       onSubmit={handleSubmit((values) => saveMutation.mutate(values))}
       aria-busy={saveMutation.isPending}
-      className="flex min-w-0 flex-col gap-6 mx-auto max-w-[1088px] pt-2"
+      className="flex w-full min-w-0 flex-col gap-6 pt-2"
     >
       <p aria-live="polite" className="sr-only">
         {saveMutation.isPending

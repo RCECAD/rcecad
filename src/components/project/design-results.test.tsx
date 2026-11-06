@@ -6,6 +6,7 @@ import {
   segmentDesignSchema,
 } from "@/api/contracts/design";
 import { DesignResults, quantityValue } from "./design-results";
+import { NonconformityDetails } from "./nonconformity-details";
 
 const common = {
   segmentId: "11111111-1111-4111-8111-111111111111",
@@ -22,7 +23,38 @@ const choice = {
   upstreamDropM: 0,
 };
 describe("CDRE outcomes", () => {
-  it("presents a project parameter finding with readable values and keeps engine details collapsed", async () => {
+  it("explains the Manning justification finding without exposing engine wording", async () => {
+    const user = userEvent.setup();
+    const description =
+      "Manning n diferente de 0,013 exige justificativa para a tensão trativa e a declividade mínima (5.1.4.1).";
+    render(
+      <NonconformityDetails
+        item={{
+          ruleCode: "MANNING_N_NOT_JUSTIFIED",
+          sourceId: "NBR 9649:1986",
+          description,
+          severity: "WARNING",
+          subject: "manningCoefficient",
+          observedValue: null,
+          expectedLimit: null,
+          waiverJustification: null,
+        }}
+      />,
+    );
+    await user.click(screen.getByText("Detalhes técnicos", { exact: true }));
+    expect(
+      screen.getByText("Justificativa do coeficiente de Manning"),
+    ).toBeVisible();
+    expect(
+      screen.getByText(/O coeficiente de Manning adotado é diferente de 0,013/),
+    ).toBeVisible();
+    expect(screen.getByText("Coeficiente de Manning (n)")).toBeVisible();
+    expect(
+      screen.queryByText("MANNING_N_NOT_JUSTIFIED"),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText(description)).not.toBeInTheDocument();
+  });
+  it("presents readable values and translates the expanded domain check details", async () => {
     const user = userEvent.setup();
     const design = networkDesignSchema.parse({
       projectId: common.segmentId,
@@ -51,26 +83,33 @@ describe("CDRE outcomes", () => {
       screen.getByText("Taxa de infiltração fora da faixa permitida"),
     ).toBeVisible();
     expect(screen.getByText("Crítica", { exact: true })).toBeVisible();
-    expect(screen.getByText("2 L/s·km", { exact: true })).toBeVisible();
-    expect(screen.getByText("0,05 a 1 L/s·km", { exact: true })).toBeVisible();
+    expect(screen.getAllByText("2 L/s·km", { exact: true })[0]).toBeVisible();
+    expect(
+      screen.getAllByText("0,05 a 1 L/s·km", { exact: true })[0],
+    ).toBeVisible();
     expect(screen.getByText("NBR 9649:1986", { exact: true })).toBeVisible();
     expect(
-      screen.getByText("DOMAIN_VALUE_MISMATCH", { exact: true }),
-    ).not.toBeVisible();
+      screen.queryByText("DOMAIN_VALUE_MISMATCH", { exact: true }),
+    ).not.toBeInTheDocument();
     expect(
-      screen.getByText("cdre-engine:check-generico", { exact: true }),
-    ).not.toBeVisible();
+      screen.queryByText("cdre-engine:check-generico", { exact: true }),
+    ).not.toBeInTheDocument();
     expect(
-      screen.getByText(design.nonconformities[0].description),
-    ).not.toBeVisible();
+      screen.queryByText(design.nonconformities[0].description),
+    ).not.toBeInTheDocument();
 
     await user.click(screen.getByText("Detalhes técnicos", { exact: true }));
 
     expect(
-      screen.getByText("DOMAIN_VALUE_MISMATCH", { exact: true }),
+      screen.getByText("Conferência dos limites normativos", { exact: true }),
     ).toBeVisible();
     expect(
-      screen.getByText(design.nonconformities[0].description),
+      screen.getByText("Verificação automática do cálculo hidráulico (CDRE)"),
+    ).toBeVisible();
+    expect(
+      screen.getByText(
+        "Taxa de infiltração: o valor de 2 L/s·km está fora da faixa permitida de 0,05 a 1 L/s·km.",
+      ),
     ).toBeVisible();
   });
   it("separates critical and warning segments and keeps the four result views usable", async () => {

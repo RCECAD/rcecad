@@ -1,12 +1,7 @@
 import type { ReactNode } from "react";
 import { ensureAuthenticated } from "@/api/server/auth";
 import { isDevPreview } from "@/api/server/dev-preview";
-import { NavbarBreadcrumb } from "@/components/navbar/navbar-breadcrumb";
-import { NavbarContainer } from "@/components/navbar/navbar-container";
-import { NavbarContent } from "@/components/navbar/navbar-content";
-import { NavbarCTAs } from "@/components/navbar/navbar-ctas";
-import { NavbarLogo } from "@/components/navbar/navbar-logo";
-import { UserCard } from "@/components/navbar/user-card";
+import { ProtectedNavbar } from "@/components/navbar/protected-navbar";
 import { UnsavedChangesProvider } from "@/components/project/unsaved-changes-provider";
 
 export default async function Layout({
@@ -19,17 +14,7 @@ export default async function Layout({
   return (
     <UnsavedChangesProvider>
       <div className="flex h-svh min-w-0 flex-none flex-col overflow-hidden">
-        <NavbarContainer>
-          <NavbarContent betweenItems={false}>
-            <NavbarLogo />
-            <NavbarCTAs>
-              <NavbarBreadcrumb />
-            </NavbarCTAs>
-            <div className="ml-auto">
-              <UserCard />
-            </div>
-          </NavbarContent>
-        </NavbarContainer>
+        <ProtectedNavbar />
         <div className="flex min-h-0 flex-1 flex-col">{children}</div>
       </div>
     </UnsavedChangesProvider>

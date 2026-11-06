@@ -9,6 +9,18 @@ export const parameterLabels: Record<string, string> = {
   infiltrationRate: "Taxa de infiltração",
   initialPopulation: "População inicial",
   finalPopulation: "População final",
+  manningCoefficient: "Coeficiente de Manning (n)",
+};
+
+const technicalGuidance: Record<
+  string,
+  { label: string; description: string }
+> = {
+  MANNING_N_NOT_JUSTIFIED: {
+    label: "Justificativa do coeficiente de Manning",
+    description:
+      "O coeficiente de Manning adotado é diferente de 0,013. É necessário justificar os critérios usados para a tensão trativa e a declividade mínima (item 5.1.4.1 da norma de referência).",
+  },
 };
 
 const parameterUnits: Record<string, string> = {
@@ -83,6 +95,12 @@ export function nonconformityFeedback(item: Nonconformity) {
   const parameter = subject ? parameterLabels[subject] : undefined;
   const unit = subject ? (parameterUnits[subject] ?? "") : "";
   const limit = presentLimit(item.expectedLimit, unit);
+  const observedValue =
+    item.observedValue === null ? null : formatValue(item.observedValue, unit);
+  const adoptedFrom = isDomain
+    ? item.description.match(/,\s*adotado de (.+?),\s*está/)?.[1]
+    : undefined;
+  const domainExplanation = `${parameter ?? "Parâmetro"}: ${observedValue !== null ? `o valor de ${observedValue}` : "o valor adotado"} está fora ${limit.value ? `da faixa permitida de ${limit.value}` : "dos limites normativos aplicados"}.${adoptedFrom ? ` Valor adotado conforme ${adoptedFrom}.` : ""}${item.waiverJustification ? " Esta ocorrência possui uma exceção aprovada, conforme a justificativa acima." : ""}`;
   const references = [
     ...new Set([
       ...limit.references,
@@ -93,21 +111,35 @@ export function nonconformityFeedback(item: Nonconformity) {
   ];
 
   return {
+    ruleLabel: isDomain
+      ? "Conferência dos limites normativos"
+      : (technicalGuidance[item.ruleCode]?.label ??
+        ruleDescriptions[item.ruleCode]?.replace(/\.$/, "") ??
+        item.ruleCode),
+    sourceLabel:
+      item.sourceId === "cdre-engine:check-generico"
+        ? "Verificação automática do cálculo hidráulico (CDRE)"
+        : item.sourceId.startsWith("cdre-engine:")
+          ? "Motor de cálculo hidráulico CDRE"
+          : item.sourceId,
+    parameterLabel: parameter ?? subject ?? null,
+    technicalDescription: isDomain
+      ? domainExplanation
+      : (technicalGuidance[item.ruleCode]?.description ?? item.description),
     title: isDomain
       ? `${parameter ?? "Parâmetro"} fora da faixa permitida`
       : (ruleDescriptions[item.ruleCode]?.replace(/\.$/, "") ??
         "Ocorrência no dimensionamento"),
     description: isDomain
-      ? parameter
-        ? "Revise o valor informado nos dados hidráulicos do projeto e calcule novamente."
-        : "Revise o parâmetro informado e os limites das normas aplicadas ao projeto."
+      ? item.waiverJustification
+        ? "Esta ocorrência possui uma exceção aprovada. Consulte a justificativa e as referências normativas abaixo."
+        : parameter
+          ? "Revise o valor informado nos dados hidráulicos do projeto e calcule novamente."
+          : "Revise o parâmetro informado e os limites das normas aplicadas ao projeto."
       : ruleDescriptions[item.ruleCode]
         ? null
         : item.description,
-    observedValue:
-      item.observedValue === null
-        ? null
-        : formatValue(item.observedValue, unit),
+    observedValue,
     expectedLimit: limit.value,
     limitLabel: isDomain ? "Faixa permitida" : "Limite esperado",
     references,

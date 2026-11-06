@@ -97,6 +97,30 @@ describe("HydraulicsForm", () => {
     vi.stubGlobal("fetch", fetchMock);
   });
 
+  it("shows conditional infiltration and Manning references without filling project inputs", async () => {
+    const data = details({}, false);
+    data.normativeProfile.standards.push("NBR 7367:1988");
+    fetchMock.mockResolvedValue(createJsonResponse(data));
+    renderForm();
+    const infiltration = await screen.findByLabelText(
+      "Taxa de infiltração (opcional)",
+    );
+    expect(infiltration).toHaveValue(null);
+    expect(infiltration).toHaveAccessibleDescription(
+      /Referência normativa: 0,05 a 1,0 L\/s por km \(NBR 9649:1986\).*0 L\/s por km em rede 100% PVC.*Redes mistas exigem taxa informada/,
+    );
+    const manning = screen.getByLabelText(
+      "Coeficiente de Manning (registro) (opcional)",
+    );
+    expect(manning).toHaveValue(null);
+    expect(manning).toHaveAccessibleDescription(
+      /Referência normativa: 0,013 \(NBR 9649:1986\).*0,010 para PVC com h\/D de 0,20 a 0,75.*fora da faixa: 0,013.*Apenas registro/,
+    );
+    expect(
+      screen.getByLabelText("Vazão per capita"),
+    ).toHaveAccessibleDescription(/dados locais.*sem valor normativo fixo/);
+  });
+
   it("shows a recoverable error instead of an editable default form when loading fails", async () => {
     const user = userEvent.setup();
     fetchMock
@@ -136,7 +160,7 @@ describe("HydraulicsForm", () => {
     ).toHaveAttribute("id", "returnCoefficient-error");
     expect(returnCoefficient).toHaveAttribute(
       "aria-describedby",
-      "returnCoefficient-error",
+      "returnCoefficient-description returnCoefficient-error",
     );
     expect(returnCoefficient).toHaveAttribute("aria-invalid", "true");
   });

@@ -26,11 +26,11 @@ export function NonconformityDetails({ item }: { item: Nonconformity }) {
   const feedback = nonconformityFeedback(item);
   const { label, Icon, style } = severities[item.severity];
   const technicalDetails = [
-    ["Código da regra", item.ruleCode],
-    ["Identificador da fonte", item.sourceId],
-    ["Parâmetro", item.subject],
-    ["Valor observado (original)", item.observedValue],
-    ["Limite esperado (original)", item.expectedLimit],
+    ["Verificação", feedback.ruleLabel],
+    ["Fonte de referência", feedback.sourceLabel],
+    ["Parâmetro", feedback.parameterLabel],
+    ["Valor observado", feedback.observedValue],
+    [feedback.limitLabel, feedback.expectedLimit],
   ];
 
   return (
@@ -92,16 +92,16 @@ export function NonconformityDetails({ item }: { item: Nonconformity }) {
                 value !== null && (
                   <div key={name} className="min-w-0">
                     <dt>{name}</dt>
-                    <dd className="mt-0.5 break-words font-mono text-foreground">
+                    <dd className="mt-0.5 break-words text-foreground">
                       {value}
                     </dd>
                   </div>
                 ),
             )}
           </dl>
-          {item.description !== feedback.description &&
-            item.description !== feedback.title && (
-              <p className="break-words">{item.description}</p>
+          {feedback.technicalDescription !== feedback.description &&
+            feedback.technicalDescription !== feedback.title && (
+              <p className="break-words">{feedback.technicalDescription}</p>
             )}
         </div>
       </details>

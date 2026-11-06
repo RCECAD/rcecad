@@ -44,12 +44,18 @@ test("CDRE: importa, salva dados de campo, calcula, invalida resultados e valida
       exact: true,
     });
     await input.fill("101.5");
-    const row = page.getByRole("row").filter({ has: input });
-    await row.getByRole("button", { name: "Salvar cota", exact: true }).click();
-    await expect(
-      row.getByRole("button", { name: "Salvar cota", exact: true }),
-    ).toBeDisabled();
   }
+  await page
+    .getByRole("button", { name: "Salvar todos os nós", exact: true })
+    .click();
+  await expect(
+    page
+      .getByRole("main")
+      .getByText(
+        `${network.nodes.length} ${network.nodes.length === 1 ? "linha salva" : "linhas salvas"}. Recalcule o dimensionamento para atualizar os resultados.`,
+        { exact: true },
+      ),
+  ).toBeVisible();
   for (const segment of network.segments) {
     const input = page.getByLabel(
       `Contribuição de tempo seco ${segment.code}`,
@@ -61,14 +67,26 @@ test("CDRE: importa, salva dados de campo, calcula, invalida resultados e valida
       .getByLabel(`Tipo de elemento ${segment.code}`, { exact: true })
       .click();
     await page.getByRole("option", { name: "Coletor", exact: true }).click();
-    const row = page.getByRole("row").filter({ has: input });
-    await row
-      .getByRole("button", { name: "Salvar trecho", exact: true })
-      .click();
-    await expect(
-      row.getByRole("button", { name: "Salvar trecho", exact: true }),
-    ).toBeDisabled();
   }
+  await page
+    .getByRole("button", { name: "Salvar todos os trechos", exact: true })
+    .click();
+  await expect(
+    page.getByRole("button", { name: "Atualizar rede", exact: true }),
+  ).toBeEnabled();
+  const savedNetwork = projectDetailResponseSchema.parse(
+    await (await api.get(`${base}/network`)).json(),
+  );
+  expect(
+    savedNetwork.nodes.every((node) => node.terrainElevation === 101.5),
+  ).toBe(true);
+  expect(
+    savedNetwork.segments.every(
+      (segment) =>
+        segment.elementType === "COLLECTOR" &&
+        segment.receivesDryWeatherFlow === false,
+    ),
+  ).toBe(true);
   await page
     .getByRole("main")
     .getByRole("button", { name: "Pavimentação", exact: true })
@@ -113,27 +131,28 @@ test("CDRE: importa, salva dados de campo, calcula, invalida resultados e valida
 
   await page.getByRole("button", { name: "Vazões", exact: true }).click();
   await page
-    .getByLabel("Nome da contribuição", { exact: true })
+    .getByLabel(`Nome da contribuição ${first.segmentCode}`, { exact: true })
     .fill("Contribuição E2E");
   await page
-    .getByRole("combobox", { name: "Tipo da contribuição", exact: true })
+    .getByRole("combobox", {
+      name: `Tipo da contribuição ${first.segmentCode}`,
+      exact: true,
+    })
     .click();
   await page.getByRole("option", { name: "Industrial", exact: true }).click();
   await page
-    .getByRole("combobox", { name: "Destino da contribuição", exact: true })
-    .click();
+    .getByLabel(`Vazão inicial (L/s) ${first.segmentCode}`, { exact: true })
+    .fill("2");
   await page
-    .getByRole("group", { name: "Trechos", exact: true })
-    .getByRole("option", { name: first.segmentCode, exact: true })
-    .click();
-  await page.getByLabel("Vazão inicial (L/s)", { exact: true }).fill("2");
-  await page.getByLabel("Vazão final (L/s)", { exact: true }).fill("2");
-  await page
-    .getByRole("button", { name: "Adicionar contribuição", exact: true })
-    .click();
+    .getByLabel(`Vazão final (L/s) ${first.segmentCode}`, { exact: true })
+    .fill("2");
+  await page.getByRole("button", { name: "Salvar todos", exact: true }).click();
   await expect(
-    page.getByRole("row").filter({ hasText: "Contribuição E2E" }),
-  ).toContainText("Industrial");
+    page.getByText(
+      "1 contribuição salva. Recalcule o dimensionamento para atualizar as vazões.",
+      { exact: true },
+    ),
+  ).toBeVisible();
   await page.getByRole("button", { name: "Resultados", exact: true }).click();
   await expect(
     page.getByText("Dimensionamento por trecho", { exact: true }),
@@ -159,6 +178,9 @@ test("CDRE: importa, salva dados de campo, calcula, invalida resultados e valida
         ?.value,
     ).toBeGreaterThan(initial?.value ?? 0);
   await page.getByRole("button", { name: "Validação", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Validação", exact: true }),
+  ).toBeVisible();
   await page
     .getByRole("button", { name: "Validar projeto", exact: true })
     .click();

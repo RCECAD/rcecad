@@ -146,10 +146,7 @@ export function ProjectValidation({ projectId }: { projectId: string }) {
     }
   }
   return (
-    <div
-      id="project-validation"
-      className="flex min-w-0 flex-col gap-6 mx-auto max-w-[1088px]"
-    >
+    <div id="project-validation" className="flex w-full min-w-0 flex-col gap-6">
       <h1 className="text-2xl font-semibold tracking-tight">Validação</h1>
       <Card className="gap-4 rounded-lg border border-border/80 bg-card/40 py-5 shadow-none ring-0">
         <CardHeader>
