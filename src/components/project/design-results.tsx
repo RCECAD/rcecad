@@ -42,6 +42,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { justificationLabel, rulesetLabel } from "@/lib/memorial-presentation";
 import { memorialToDesign } from "./memorial-to-design";
 import { MemorialTrace } from "./memorial-trace";
 import { LongitudinalProfile, NetworkPlan } from "./network-drawing";
@@ -275,12 +276,12 @@ export function DesignResults({
         {visible("memory") && (
           <>
             <p className="text-sm text-muted-foreground">
-              Regras aplicadas: {design.rulesetVersionId}. Os resultados
-              representam os dados salvos no momento deste cálculo.
+              {rulesetLabel(design.rulesetVersionId)}. Os resultados representam
+              os dados salvos no momento deste cálculo.
             </p>
             {design.justifications.map((text) => (
               <p key={text} className="text-sm">
-                {text}
+                {justificationLabel(text)}
               </p>
             ))}
           </>
@@ -559,7 +560,9 @@ export function DesignPanel({
     <section aria-label="Cálculo CDRE" className="space-y-5">
       <Card
         className={
-          tabbed ? "gap-0 border-0 bg-transparent p-0 shadow-none ring-0" : ""
+          tabbed
+            ? "gap-0 overflow-visible rounded-none border-0 bg-transparent p-0 shadow-none ring-0"
+            : ""
         }
       >
         <CardHeader className={tabbed ? "hidden" : ""}>
@@ -570,31 +573,41 @@ export function DesignPanel({
           </CardDescription>
         </CardHeader>
         <CardContent
-          className={`flex flex-wrap items-center gap-3 ${tabbed ? "justify-end px-1" : ""}`}
+          className={`flex flex-wrap items-center gap-3 ${tabbed ? "px-0" : ""}`}
         >
-          <Button
-            disabled={disabled || design.isFetching}
-            onClick={() => {
-              void design.refetch().then((result) => {
-                if (tabbed && result.isSuccess) {
-                  void summary.refetch();
-                  void memorial.refetch();
-                }
-              });
-            }}
+          {tabbed && !shown && !design.isFetching && !design.isError && (
+            <p className="w-full text-sm text-muted-foreground md:min-w-64 md:flex-1">
+              Nenhum cálculo executado nesta sessão. Os resultados anteriores
+              são descartados quando os dados do projeto mudam.
+            </p>
+          )}
+          <div
+            className={`flex flex-wrap items-center gap-3 ${tabbed ? "md:ml-auto" : ""}`}
           >
-            {design.isFetching ? "Calculando…" : "Calcular dimensionamento"}
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() =>
-              requestNavigation(() =>
-                router.push(`/project/${projectId}/validation`),
-              )
-            }
-          >
-            Validar projeto
-          </Button>
+            <Button
+              disabled={disabled || design.isFetching}
+              onClick={() => {
+                void design.refetch().then((result) => {
+                  if (tabbed && result.isSuccess) {
+                    void summary.refetch();
+                    void memorial.refetch();
+                  }
+                });
+              }}
+            >
+              {design.isFetching ? "Calculando…" : "Calcular dimensionamento"}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() =>
+                requestNavigation(() =>
+                  router.push(`/project/${projectId}/validation`),
+                )
+              }
+            >
+              Validar projeto
+            </Button>
+          </div>
           {disabled && (
             <p role="status" className="text-sm text-muted-foreground">
               Salve ou descarte as alterações da rede antes de calcular.
@@ -638,7 +651,7 @@ export function DesignPanel({
           network={network.data}
         />
       )}
-      {!shown && !design.isFetching && !design.isError && (
+      {!tabbed && !shown && !design.isFetching && !design.isError && (
         <p className="text-sm text-muted-foreground">
           Nenhum cálculo executado nesta sessão. Os resultados anteriores são
           descartados quando os dados do projeto mudam.

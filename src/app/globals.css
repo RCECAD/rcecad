@@ -91,3 +91,17 @@
     @apply bg-background font-sans text-foreground;
   }
 }
+
+@layer utilities {
+  .themed-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-gutter: stable;
+    scrollbar-color: color-mix(in oklch, var(--primary) 45%, var(--border))
+      transparent;
+  }
+
+  .themed-scrollbar:hover {
+    scrollbar-color: color-mix(in oklch, var(--primary) 70%, var(--border))
+      transparent;
+  }
+}

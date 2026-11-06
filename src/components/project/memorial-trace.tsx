@@ -8,6 +8,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  formulaSourceLabel,
+  presentExpression,
+  rulesetLabel,
+} from "@/lib/memorial-presentation";
 import { label, limitLabels, quantityLabels, unitLabel } from "./design-labels";
 
 type Formula = CalculationMemorial["formulas"][number];
@@ -26,47 +31,115 @@ const show = (value: unknown) =>
     ? value.toLocaleString("pt-BR", { maximumFractionDigits: 6 })
     : String(value);
 
+function withOffsets(parts: string[]) {
+  let offset = 0;
+  return parts.map((text) => {
+    const part = { text, offset };
+    offset += text.length + 1;
+    return part;
+  });
+}
+
+function ExpressionText({ text }: { text: string }) {
+  // Display atomic exponents and symbol indices without changing the calculation.
+  return withOffsets(
+    text.split(/(\^\([^()]+\)|\^[+-]?\d+(?:,\d+)?|_[\p{L}\d,]+)/u),
+  ).map(({ text: part, offset }) =>
+    part.startsWith("^") ? (
+      <sup key={offset}>{part.slice(1).replace(/^\((.*)\)$/, "$1")}</sup>
+    ) : part.startsWith("_") ? (
+      <sub key={offset}>{part.slice(1)}</sub>
+    ) : (
+      part
+    ),
+  );
+}
+
+function FormulaDetails({ formula }: { formula: Formula }) {
+  const expression = presentExpression(formula.expression);
+  return (
+    <article
+      id={`formula-${formula.id}`}
+      className="min-w-0 scroll-mt-6 rounded-lg border bg-background p-4 target:ring-2 target:ring-primary/30"
+    >
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <h3 className="font-medium">
+          <span className="mr-2 rounded bg-primary/10 px-2 py-1 text-xs text-primary">
+            {formula.id}
+          </span>
+          {label(quantityLabels, formula.key)}
+        </h3>
+        <p className="max-w-lg text-sm text-muted-foreground">
+          {formulaSourceLabel(formula.sourceId, formula.reference)}
+        </p>
+      </div>
+      <ol
+        aria-label={`Etapas da fórmula ${formula.id}`}
+        className="mt-4 space-y-3"
+      >
+        {withOffsets(expression.steps).map(({ text: step, offset }, index) => (
+          <li
+            key={offset}
+            className="flex min-w-0 items-baseline gap-3 rounded-md bg-muted/40 px-3 py-2"
+          >
+            <span
+              aria-hidden="true"
+              className="shrink-0 text-xs text-muted-foreground"
+            >
+              {index + 1}.
+            </span>
+            <p className="min-w-0 whitespace-pre-wrap break-words font-mono text-sm leading-7 [overflow-wrap:anywhere]">
+              <ExpressionText text={step} />
+            </p>
+          </li>
+        ))}
+      </ol>
+      {expression.variables.length > 0 && (
+        <dl className="mt-4 grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2 xl:grid-cols-3">
+          {expression.variables.map((variable) => (
+            <div key={variable.symbol} className="min-w-0">
+              <dt className="font-mono">
+                <ExpressionText text={variable.symbol} />
+              </dt>
+              <dd className="text-muted-foreground">{variable.meaning}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
+      <details className="mt-4 border-t pt-3 text-xs text-muted-foreground">
+        <summary className="w-fit cursor-pointer">
+          Expressão original e identificação técnica
+        </summary>
+        <pre className="mt-3 whitespace-pre-wrap break-words font-mono leading-6 [overflow-wrap:anywhere]">
+          {formula.expression}
+        </pre>
+        <p className="mt-2">
+          Referência original: {formula.reference} · Fonte: {formula.sourceId}
+        </p>
+      </details>
+    </article>
+  );
+}
+
 export function MemorialTrace({ memorial }: { memorial: CalculationMemorial }) {
   return (
     <section aria-label="Memorial de cálculo" className="space-y-4">
       <p className="text-sm text-muted-foreground">
         Memorial gerado em{" "}
-        {new Date(memorial.generatedAt).toLocaleString("pt-BR")} · regras{" "}
-        {memorial.rulesetVersion}
+        {new Date(memorial.generatedAt).toLocaleString("pt-BR")} ·{" "}
+        {rulesetLabel(memorial.rulesetVersion)}
       </p>
       <details id={FORMULAS_ID} className="group rounded-xl border bg-card p-4">
         <summary className="cursor-pointer font-medium">
           Fórmulas aplicadas ({memorial.formulas.length})
           <span className="ml-2 text-xs font-normal text-muted-foreground">
-            Cada grandeza dos trechos aponta para o ID da fórmula.
+            Consulte as etapas do cálculo e o significado das variáveis.
           </span>
         </summary>
-        <div className="mt-4">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                {["ID", "Grandeza", "Expressão", "Referência"].map((text) => (
-                  <TableHead key={text}>{text}</TableHead>
-                ))}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {memorial.formulas.map((formula) => (
-                <TableRow key={formula.id} id={`formula-${formula.id}`}>
-                  <TableCell>{formula.id}</TableCell>
-                  <TableCell>{label(quantityLabels, formula.key)}</TableCell>
-                  <TableCell className="min-w-80 whitespace-normal">
-                    <div className="max-h-20 overflow-auto overscroll-contain break-all font-mono text-xs">
-                      {formula.expression}
-                    </div>
-                  </TableCell>
-                  <TableCell className="max-w-56 whitespace-normal text-xs">
-                    {formula.reference} ({formula.sourceId})
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+        <div className="mt-4 space-y-4">
+          {memorial.formulas.map((formula) => (
+            <FormulaDetails key={formula.id} formula={formula} />
+          ))}
         </div>
       </details>
       {memorial.appliedContributions.length > 0 && (
@@ -154,7 +227,11 @@ export function SegmentMemorial({
                 {hasFormulaLinks ? (
                   <a
                     href={`#formula-${quantity.formulaId}`}
-                    title={formula?.expression}
+                    title={
+                      formula
+                        ? `Consultar ${quantity.formulaId}: ${label(quantityLabels, formula.key)}`
+                        : `Consultar fórmula ${quantity.formulaId}`
+                    }
                     className="text-xs text-primary underline"
                     onClick={openFormulas}
                   >

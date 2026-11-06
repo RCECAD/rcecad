@@ -226,7 +226,7 @@ export function HydraulicsForm({ projectId }: Readonly<HydraulicsFormProps>) {
       noValidate
       onSubmit={handleSubmit((values) => saveMutation.mutate(values))}
       aria-busy={saveMutation.isPending}
-      className="flex min-w-0 flex-col gap-6 mx-auto max-w-[1088px]"
+      className="flex w-full min-w-0 flex-col gap-6"
     >
       <p aria-live="polite" className="sr-only">
         {saveMutation.isPending
@@ -338,6 +338,7 @@ export function HydraulicsForm({ projectId }: Readonly<HydraulicsFormProps>) {
             const error = errors[field.name];
             const errorId = getErrorId(field.name);
             const baseline = hydraulicData?.defaults[field.name];
+            const descriptionId = `${field.name}-description`;
 
             return (
               <Field key={field.name} data-invalid={Boolean(error)}>
@@ -356,7 +357,12 @@ export function HydraulicsForm({ projectId }: Readonly<HydraulicsFormProps>) {
                     step={field.step}
                     inputMode="decimal"
                     aria-invalid={Boolean(error)}
-                    aria-describedby={error ? errorId : undefined}
+                    aria-describedby={[
+                      descriptionId,
+                      error ? errorId : undefined,
+                    ]
+                      .filter(Boolean)
+                      .join(" ")}
                     aria-errormessage={error ? errorId : undefined}
                     {...register(field.name, {
                       setValueAs: (value: string | null) =>
@@ -367,19 +373,80 @@ export function HydraulicsForm({ projectId }: Readonly<HydraulicsFormProps>) {
                     {field.unit}
                   </InputGroupAddon>
                 </InputGroup>
-                {field.name === "infiltrationRate" && (
-                  <FieldDescription>
-                    Em branco, será definida conforme a norma do material,
-                    quando houver valor aplicável.
-                  </FieldDescription>
-                )}
-                {baseline?.value != null && (
-                  <FieldDescription>
-                    Referência normativa:{" "}
-                    {baseline.value.toLocaleString("pt-BR")}
-                    {baseline.source ? ` (${baseline.source})` : ""}
-                  </FieldDescription>
-                )}
+                <div id={descriptionId} className="space-y-1">
+                  {field.name === "initialPopulation" && (
+                    <FieldDescription>
+                      População atendida no início do plano, conforme o
+                      levantamento do projeto; sem valor normativo fixo.
+                    </FieldDescription>
+                  )}
+                  {field.name === "finalPopulation" && (
+                    <FieldDescription>
+                      População prevista para o horizonte do projeto, conforme o
+                      estudo populacional; sem valor normativo fixo.
+                    </FieldDescription>
+                  )}
+                  {field.name === "perCapitaFlow" && (
+                    <FieldDescription>
+                      Consumo de água por habitante, definido com dados locais
+                      ou diretrizes da prestadora; sem valor normativo fixo no
+                      perfil atual.
+                    </FieldDescription>
+                  )}
+                  {field.name === "infiltrationRate" && (
+                    <>
+                      {hydraulicData?.normativeProfile.standards.includes(
+                        "NBR 9649:1986",
+                      ) && (
+                        <FieldDescription>
+                          Referência normativa: 0,05 a 1,0 L/s por km (NBR
+                          9649:1986)
+                        </FieldDescription>
+                      )}
+                      {hydraulicData?.normativeProfile.standards.includes(
+                        "NBR 7367:1988",
+                      ) && (
+                        <FieldDescription>
+                          Referência normativa: 0 L/s por km em rede 100% PVC
+                          com junta elástica (NBR 7367:1988)
+                        </FieldDescription>
+                      )}
+                      <FieldDescription>
+                        Em branco: conforme o material. Redes mistas exigem taxa
+                        informada.
+                      </FieldDescription>
+                    </>
+                  )}
+                  {field.name === "manningCoefficient" && (
+                    <>
+                      {hydraulicData?.normativeProfile.standards.includes(
+                        "NBR 9649:1986",
+                      ) && (
+                        <FieldDescription>
+                          Referência normativa: 0,013 (NBR 9649:1986)
+                        </FieldDescription>
+                      )}
+                      {hydraulicData?.normativeProfile.standards.includes(
+                        "NBR 7367:1988",
+                      ) && (
+                        <FieldDescription>
+                          Referência normativa: 0,010 para PVC com h/D de 0,20 a
+                          0,75 (NBR 7367:1988); fora da faixa: 0,013.
+                        </FieldDescription>
+                      )}
+                      <FieldDescription>
+                        Apenas registro; coeficiente calculado por trecho.
+                      </FieldDescription>
+                    </>
+                  )}
+                  {baseline?.value != null && (
+                    <FieldDescription>
+                      Referência normativa:{" "}
+                      {baseline.value.toLocaleString("pt-BR")}
+                      {baseline.source ? ` (${baseline.source})` : ""}
+                    </FieldDescription>
+                  )}
+                </div>
                 {error && (
                   <FieldError id={errorId} errors={[error]} role="alert" />
                 )}

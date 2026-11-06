@@ -146,9 +146,9 @@ export function ProjectCreateDialog({
     >
       <DialogContent
         showCloseButton={!pending}
-        className="max-h-[calc(100dvh-2rem)] overflow-y-auto"
+        className="flex max-h-[calc(100dvh-2rem)] flex-col overflow-hidden"
       >
-        <DialogHeader>
+        <DialogHeader className="shrink-0 pr-6">
           <DialogTitle>
             {importing ? "Importar .DXF" : "Novo projeto"}
           </DialogTitle>
@@ -162,7 +162,7 @@ export function ProjectCreateDialog({
           onSubmit={submit}
           noValidate
           aria-busy={pending}
-          className="space-y-5"
+          className="themed-scrollbar -mr-3 -ml-1 min-h-0 space-y-5 overflow-y-auto overscroll-contain py-1 pr-3 pl-1"
         >
           <fieldset disabled={pending} className="space-y-4">
             <Field>

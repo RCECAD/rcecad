@@ -6,7 +6,7 @@ export default async function ResultsPage({
 }) {
   const { projectId } = await params;
   return (
-    <div className="flex min-w-0 flex-col gap-6 mx-auto max-w-[1088px]">
+    <div className="flex w-full min-w-0 flex-col gap-6">
       <h1 className="text-2xl font-semibold tracking-tight">Resultados</h1>
       <DesignPanel projectId={projectId} tabbed />
     </div>

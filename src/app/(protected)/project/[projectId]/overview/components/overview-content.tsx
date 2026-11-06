@@ -70,7 +70,7 @@ export function OverviewContent({
         : 0),
   );
   return (
-    <div className="mx-auto grid w-full min-w-0 gap-5 xl:-mx-4 xl:w-[calc(100%+2rem)] xl:gap-8 xl:grid-cols-[minmax(0,1fr)_350px]">
+    <div className="grid w-full min-w-0 gap-5 xl:gap-8 xl:grid-cols-[minmax(0,1fr)_350px]">
       <div className="flex min-w-0 flex-col gap-5">
         <section aria-labelledby="overview-title" className={panelClassName}>
           <h1 id="overview-title" className="text-base font-semibold">

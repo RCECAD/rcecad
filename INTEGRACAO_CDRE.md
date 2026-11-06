@@ -16,10 +16,13 @@ com Zod em `src/api/contracts/design.ts` e `spring.ts`.
 3. Em **Hidráulica**, informe os parâmetros e o material da rede. Projetos novos
    continuam sem valores de engenharia preenchidos automaticamente.
 4. Em **Dimensionamento**, preencha as cotas de terreno dos nós, o tipo dos
-   elementos e a resposta de contribuição de tempo seco. Salve cada linha.
-5. Em **Pavimentação**, informe a categoria de recobrimento. O material superficial
-   importado (por exemplo, asfalto) é um campo diferente dessa categoria.
-6. Em **Vazões**, cadastre as contribuições singulares nomeadas (indústria, comércio,
+   elementos e a resposta de contribuição de tempo seco. Use **Salvar todos**
+   em cada tabela para gravar as linhas alteradas.
+5. Em **Pavimentação**, informe a categoria de recobrimento e use **Salvar todos**
+   para gravar as alterações de todas as páginas. O material superficial importado
+   (por exemplo, asfalto) é um campo diferente dessa categoria.
+6. Em **Vazões**, preencha as contribuições singulares na lista paginada de trechos
+   e use **Salvar todos**. Também é possível adicionar contribuições nomeadas (indústria, comércio,
    instituição) por nó ou trecho, em L/s (`/singular-contributions`). Desde a V29 do
    backend o PUT de dados de campo rejeita os antigos campos de contribuição por trecho.
    Em **Dimensionamento** também é possível impor DN e material por trecho e editar a
@@ -37,9 +40,13 @@ com Zod em `src/api/contracts/design.ts` e `spring.ts`.
 
 O salvamento de dados de campo substitui o bloco completo de um trecho. Os
 formulários preservam os campos das outras abas e invalidam cálculo/validação
-anteriores após uma gravação. A rede permanece editável por linha; não há promessa
-de transação única entre várias linhas. Falhas mantêm a linha alterada para tentativa
-novamente. Sair com alterações não salvas exige descartá-las explicitamente.
+anteriores após uma gravação. Em Dimensionamento, **Salvar todos** valida as linhas
+alteradas da tabela antes de enviá-las e mostra o progresso. As gravações são
+individuais, sem transação única entre linhas: em uma falha parcial, as linhas
+salvas ficam confirmadas e as demais mantêm os valores para nova tentativa.
+Pavimentação e Vazões também permitem salvar as alterações de todas as páginas,
+preservando o preenchimento ao paginar e após falhas. Sair com alterações não salvas exige
+descartá-las explicitamente.
 
 Resultados ficam no cache da sessão do navegador; `/design` não persiste cálculos
 no banco. Após recarregar, execute o cálculo novamente. Visão Geral usa pendências

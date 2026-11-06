@@ -19,6 +19,7 @@ import { ValidationFindings } from "@/components/project/project-validation";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Feedback, RequestError } from "@/components/ui/feedback";
+import { rulesetLabel } from "@/lib/memorial-presentation";
 import { designStatusLabels } from "@/lib/project-feedback";
 
 const documents = [
@@ -243,7 +244,7 @@ function ExportHistory({ projectId }: { projectId: string }) {
                   {dateTime(snapshot.createdAt)}
                 </span>
                 <span className="block text-xs text-muted-foreground">
-                  Regras {snapshot.rulesetVersionId} · revisão{" "}
+                  {rulesetLabel(snapshot.rulesetVersionId)} · revisão{" "}
                   {snapshot.revision ?? "—"} · {snapshot.exportIds.length}{" "}
                   documento(s)
                 </span>
@@ -343,7 +344,7 @@ export function ExportContent({ projectId }: { projectId: string }) {
   };
 
   return (
-    <div className="mx-auto flex w-full min-w-0 max-w-[1088px] flex-col gap-6">
+    <div className="flex w-full min-w-0 flex-col gap-6">
       <h1 className="mb-2 text-2xl font-semibold tracking-tight text-foreground">
         Exportação
       </h1>

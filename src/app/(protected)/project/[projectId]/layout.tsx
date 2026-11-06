@@ -34,8 +34,10 @@ export default async function ProjectLayout({
     >
       <div className="flex min-h-0 flex-1 flex-row w-full overflow-hidden">
         <ProjectSidebar currentProject={project} allProjects={allProjects} />
-        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-muted/10">
-          <main className="flex-1 min-h-0 p-6 md:p-8">{children}</main>
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto bg-muted/10 [scrollbar-gutter:stable]">
+          <main className="mx-auto w-full min-w-0 max-w-[1600px] grow shrink-0 p-6 pb-12 md:p-8 md:pb-16">
+            {children}
+          </main>
         </div>
       </div>
     </SidebarProvider>
