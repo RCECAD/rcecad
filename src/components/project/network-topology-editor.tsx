@@ -37,6 +37,7 @@ import {
 import { ConfirmButton } from "@/components/ui/confirm-button";
 import { RequestError } from "@/components/ui/feedback";
 import { Input } from "@/components/ui/input";
+import { ResultPanelSkeleton } from "@/components/ui/loading-skeletons";
 import {
   Select,
   SelectContent,
@@ -531,7 +532,7 @@ export function NetworkTopologyEditor({ projectId }: { projectId: string }) {
       </CardHeader>
       {open && network.isPending && (
         <CardContent>
-          <p role="status">Carregando topologia...</p>
+          <ResultPanelSkeleton label="Carregando topologia" rows={4} />
         </CardContent>
       )}
       {open && network.data && (

@@ -1,5 +1,5 @@
-import { PageLoading } from "@/components/ui/page-state";
+import { HomeSkeleton } from "@/components/ui/loading-skeletons";
 
 export default function ProtectedLoading() {
-  return <PageLoading />;
+  return <HomeSkeleton />;
 }

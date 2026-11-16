@@ -30,7 +30,7 @@ import { ErrorState } from "@/components/ui/error-state";
 import { Feedback, RequestError } from "@/components/ui/feedback";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { PageLoading } from "@/components/ui/page-state";
+import { FormPageSkeleton } from "@/components/ui/loading-skeletons";
 import { Textarea } from "@/components/ui/textarea";
 import { portugueseValidation } from "@/lib/form-validation";
 import {
@@ -207,7 +207,7 @@ export function GeneralDataForm({ projectId }: Readonly<GeneralDataFormProps>) {
   );
 
   if (isLoading) {
-    return <PageLoading label="Carregando dados gerais" />;
+    return <FormPageSkeleton />;
   }
 
   if (isError) {
