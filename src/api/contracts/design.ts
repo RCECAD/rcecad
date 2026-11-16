@@ -27,6 +27,34 @@ export const segmentFieldDataSchema = segmentResponseSchema
     material: z.string().trim().min(1).max(100).nullable(),
   });
 
+export const segmentFieldDataBatchSchema = z.object({
+  segments: z
+    .array(
+      z.object({
+        segmentId: uuid,
+        fieldData: segmentFieldDataSchema,
+      }),
+    )
+    .min(1)
+    .superRefine((items, context) => {
+      const ids = new Set<string>();
+      items.forEach((item, index) => {
+        if (ids.has(item.segmentId)) {
+          context.addIssue({
+            code: "custom",
+            path: [index, "segmentId"],
+            message: "O trecho está repetido no lote.",
+          });
+        }
+        ids.add(item.segmentId);
+      });
+    }),
+});
+export const segmentFieldDataBatchResponseSchema = z.object({
+  segments: z.array(segmentResponseSchema),
+});
+export type SegmentFieldDataBatch = z.infer<typeof segmentFieldDataBatchSchema>;
+
 export const dxfPreviewSchema = z.object({
   fileName: z.string(),
   sizeBytes: z.number().int().nonnegative(),

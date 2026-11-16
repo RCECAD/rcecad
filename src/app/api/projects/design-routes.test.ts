@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   getProjectOverview: vi.fn(),
   updateNodeFieldData: vi.fn(),
   updateSegmentFieldData: vi.fn(),
+  updateSegmentFieldDataBatch: vi.fn(),
   previewDxf: vi.fn(),
 }));
 vi.mock("@/api/server/design", () => mocks);
@@ -22,6 +23,7 @@ vi.mock("@/api/server/dxf-upload", () => ({
 import { SpringApiError } from "@/api/server/spring-client";
 import { GET as design } from "./[projectId]/design/route";
 import { PUT as updateSegment } from "./[projectId]/segments/[segmentId]/field-data/route";
+import { PUT as updateSegmentBatch } from "./[projectId]/segments/field-data/route";
 import { POST as preview } from "./dxf-preview/route";
 
 const context = {
@@ -79,5 +81,64 @@ describe("design route boundaries", () => {
     );
     expect(response.status).toBe(400);
     expect(mocks.updateSegmentFieldData).not.toHaveBeenCalled();
+  });
+
+  it("validates and forwards a complete segment field-data batch", async () => {
+    const fieldData = {
+      elementType: "COLLECTOR",
+      receivesDryWeatherFlow: false,
+      fixedDiameterMm: 150,
+      material: "PVC",
+      pavementType: "SIDEWALK",
+      surfaceMaterial: "ASPHALT",
+      surfaceCondition: "GOOD",
+      pavementNotes: null,
+    };
+    const body = {
+      segments: [
+        {
+          segmentId: "33333333-3333-4333-8333-333333333333",
+          fieldData,
+        },
+      ],
+    };
+    mocks.updateSegmentFieldDataBatch.mockResolvedValueOnce({ segments: [] });
+    const response = await updateSegmentBatch(
+      new Request("http://localhost", {
+        method: "PUT",
+        body: JSON.stringify(body),
+      }),
+      { params: Promise.resolve({ projectId: "project-1" }) },
+    );
+    expect(response.status).toBe(200);
+    expect(mocks.updateSegmentFieldDataBatch).toHaveBeenCalledWith(
+      "project-1",
+      body,
+    );
+  });
+
+  it("rejects duplicate segment IDs before calling the backend", async () => {
+    const item = {
+      segmentId: "33333333-3333-4333-8333-333333333333",
+      fieldData: {
+        elementType: null,
+        receivesDryWeatherFlow: null,
+        fixedDiameterMm: null,
+        material: null,
+        pavementType: null,
+        surfaceMaterial: null,
+        surfaceCondition: null,
+        pavementNotes: null,
+      },
+    };
+    const response = await updateSegmentBatch(
+      new Request("http://localhost", {
+        method: "PUT",
+        body: JSON.stringify({ segments: [item, item] }),
+      }),
+      { params: Promise.resolve({ projectId: "project-1" }) },
+    );
+    expect(response.status).toBe(400);
+    expect(mocks.updateSegmentFieldDataBatch).not.toHaveBeenCalled();
   });
 });
