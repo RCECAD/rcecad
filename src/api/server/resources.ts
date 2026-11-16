@@ -1,7 +1,10 @@
 import "server-only";
 
 import { z } from "zod";
-import { projectActionSchema } from "@/api/contracts/design";
+import {
+  projectActionSchema,
+  projectAuditPageSchema,
+} from "@/api/contracts/design";
 import {
   calculationMemorialSchema,
   designSnapshotDetailSchema,
@@ -54,6 +57,13 @@ export const listProjectActions = (id: string, limit: number) =>
     `${child(id, "actions")}?limit=${limit}`,
     {},
     { schema: z.array(projectActionSchema) },
+  );
+
+export const listProjectAudit = (id: string, query: string) =>
+  springRequestWithRefresh(
+    `${child(id, "audit")}${query ? `?${query}` : ""}`,
+    {},
+    { schema: projectAuditPageSchema },
   );
 
 export const createNode = (id: string, input: NodeRequest) =>

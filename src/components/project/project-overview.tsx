@@ -1,18 +1,12 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
-import { z } from "zod";
 import { projectQueryKeys } from "@/api/client/query-keys";
 import { getErrorMessage, parseClientJson } from "@/api/client/response";
-import {
-  projectActionSchema,
-  projectOverviewSchema,
-} from "@/api/contracts/design";
+import { projectOverviewSchema } from "@/api/contracts/design";
 import { projectDetailResponseSchema } from "@/api/contracts/spring";
 import { OverviewContent } from "@/app/(protected)/project/[projectId]/overview/components/overview-content";
 import { ErrorState } from "@/components/ui/error-state";
-import { RequestError } from "@/components/ui/feedback";
 import { PageLoading } from "@/components/ui/page-state";
 import {
   actionDetail,
@@ -41,23 +35,7 @@ const stepTitles: Record<string, string> = {
   HYDRAULICS: "Dados hidráulicos",
   EXPORT: "Exportação",
 };
-const HISTORY_LIMIT = 100;
 export function ProjectOverview({ projectId }: { projectId: string }) {
-  const [showAllActions, setShowAllActions] = useState(false);
-  const history = useQuery({
-    queryKey: projectQueryKeys.actions(projectId, HISTORY_LIMIT),
-    queryFn: async ({ signal }) =>
-      parseClientJson(
-        await fetch(
-          `/api/projects/${projectId}/actions?limit=${HISTORY_LIMIT}`,
-          { signal },
-        ),
-        z.array(projectActionSchema),
-        "Não foi possível carregar o histórico.",
-      ),
-    enabled: showAllActions,
-    retry: false,
-  });
   const overview = useQuery({
     queryKey: projectQueryKeys.overview(projectId),
     queryFn: async ({ signal }) =>
@@ -97,8 +75,6 @@ export function ProjectOverview({ projectId }: { projectId: string }) {
     );
   const data = overview.data;
   const project = network.data.project;
-  const actionsShown =
-    showAllActions && history.data ? history.data : data.recentActions;
   const date = (value: string) => new Date(value).toLocaleString("pt-BR");
   return (
     <OverviewContent
@@ -125,27 +101,12 @@ export function ProjectOverview({ projectId }: { projectId: string }) {
           ? `Os dados mudaram depois do último registro de dimensionamento${data.lastSnapshotAt ? ` (${date(data.lastSnapshotAt)})` : ""}. Valide novamente antes de exportar.`
           : undefined
       }
-      historyFeedback={
-        history.isFetching ? (
-          <p role="status" className="text-sm">
-            Carregando histórico...
-          </p>
-        ) : history.isError ? (
-          <RequestError
-            title="Não foi possível carregar o histórico completo"
-            error={history.error}
-            onRetry={() => void history.refetch()}
-          />
-        ) : undefined
-      }
-      onShowAllActions={
-        showAllActions ? undefined : () => setShowAllActions(true)
-      }
+      historyHref={`/project/${projectId}/audit`}
       alerts={data.pendingItems.items.map((item) => ({
         title: `${validationGuidance(item).title}${item.target.code ? ` · ${item.target.code}` : ""}`,
         href: correctionPath(projectId, item),
       }))}
-      recentActions={actionsShown.map((action) => ({
+      recentActions={data.recentActions.map((action) => ({
         id: action.id,
         title: actions[action.type] ?? "Atividade do projeto",
         detail: actionDetail(action),
