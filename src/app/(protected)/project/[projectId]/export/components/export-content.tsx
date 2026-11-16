@@ -53,11 +53,6 @@ const documents = [
   },
 ] as const;
 
-const formats = [
-  { id: "pdf", label: "PDF" },
-  { id: "xlsx", label: "XLSX - Microsoft Excel (apenas planilhas)" },
-] as const;
-
 const panelClassName = "rounded-lg border border-border/80 bg-card/40 p-5";
 const dateTime = (value: string) => new Date(value).toLocaleString("pt-BR");
 
@@ -282,15 +277,9 @@ export function ExportContent({ projectId }: { projectId: string }) {
   const [selected, setSelected] = useState<Set<ExportDocument>>(
     () => new Set(documents.map((document) => document.id)),
   );
-  const [selectedFormats, setSelectedFormats] = useState<Set<string>>(
-    () => new Set(formats.map((format) => format.id)),
-  );
   const [blocked, setBlocked] = useState<ValidationItem[]>();
   const [saved, setSaved] = useState<string[]>([]);
-  const toExport = documents.filter(
-    (document) =>
-      selected.has(document.id) && selectedFormats.has(document.format),
-  );
+  const toExport = documents.filter((document) => selected.has(document.id));
   const run = useMutation({
     mutationFn: async () => {
       const names: string[] = [];
@@ -430,41 +419,6 @@ export function ExportContent({ projectId }: { projectId: string }) {
         </fieldset>
       </section>
 
-      <section aria-labelledby="export-formats" className={panelClassName}>
-        <h2 id="export-formats" className="text-base font-semibold">
-          Formatos
-        </h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Documentos de um formato desmarcado não são gerados
-        </p>
-        <fieldset
-          disabled={run.isPending}
-          aria-label="Formatos de exportação"
-          className="flex min-w-0 flex-col gap-3 mt-4"
-        >
-          {formats.map(({ id, label }) => (
-            <label
-              key={id}
-              htmlFor={`export-format-${id}`}
-              className="flex w-fit cursor-pointer items-center gap-2 text-sm leading-5"
-            >
-              <Checkbox
-                id={`export-format-${id}`}
-                name="formats"
-                value={id}
-                checked={selectedFormats.has(id)}
-                onCheckedChange={(checked) =>
-                  setSelectedFormats(
-                    toggle(selectedFormats, id, checked === true),
-                  )
-                }
-              />
-              {label}
-            </label>
-          ))}
-        </fieldset>
-      </section>
-
       <Button
         type="button"
         size="lg"
@@ -480,8 +434,8 @@ export function ExportContent({ projectId }: { projectId: string }) {
       {toExport.length === 0 && (
         <Feedback
           tone="warning"
-          title="Selecione documentos e formatos compatíveis"
-          description="Marque pelo menos um documento e seu formato para liberar a exportação."
+          title="Selecione pelo menos um documento"
+          description="Marque um documento para liberar a exportação. O formato correspondente aparece ao lado do nome."
           actions={[{ label: "Revisar seleção", href: "#export-selection" }]}
         />
       )}

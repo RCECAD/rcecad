@@ -193,7 +193,7 @@ test("CDRE: importa, salva dados de campo, calcula, invalida resultados e valida
   expect(updatedNetwork.project.status).toBe("validated");
   await page.reload();
   await expect(
-    page.getByText("O projeto ainda não foi validado nesta sessão"),
+    page.getByText("Confira se o projeto está pronto"),
   ).toBeVisible();
   expect(page.url()).toContain(`${appUrl}/project/${project.id}/validation`);
 });

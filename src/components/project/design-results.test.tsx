@@ -162,6 +162,9 @@ describe("CDRE outcomes", () => {
     await user.click(
       screen.getByRole("tab", { name: "Resultados por trecho" }),
     );
+    expect(
+      screen.getByRole("combobox", { name: "Trechos por página" }),
+    ).toHaveTextContent("25");
     const [, qi] = within(
       screen.getByRole("row", { name: /T-01/ }),
     ).getAllByRole("cell");

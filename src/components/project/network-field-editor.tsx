@@ -2,7 +2,12 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ChevronLeft, ChevronRight, Save } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Save,
+  SlidersHorizontal,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
@@ -17,6 +22,7 @@ import {
   type NodeFieldData,
   nodeFieldDataSchema,
   type SegmentFieldData,
+  segmentFieldDataBatchResponseSchema,
   segmentFieldDataSchema,
 } from "@/api/contracts/design";
 import {
@@ -34,6 +40,15 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { ErrorState } from "@/components/ui/error-state";
 import { Feedback, RequestError } from "@/components/ui/feedback";
 import { Input } from "@/components/ui/input";
@@ -62,9 +77,169 @@ type DirtyChange = (key: string, dirty: boolean) => void;
 type RowSave = {
   validate: () => Promise<boolean>;
   save: () => Promise<unknown>;
+  values?: () => SegmentFieldData;
+  apply?: (patch: Partial<SegmentFieldData>) => void;
+  accept?: (saved: Segment) => void;
 };
 type RegisterRow = (key: string, row: RowSave | null) => void;
 type RowKind = "node" | "segment";
+
+type BulkChoice = "keep" | "clear" | string;
+
+function BulkEditDialog({
+  mode,
+  count,
+  open,
+  onOpenChange,
+  onApply,
+}: {
+  mode: Mode;
+  count: number;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onApply: (patch: Partial<SegmentFieldData>) => void;
+}) {
+  const [elementType, setElementType] = useState<BulkChoice>("keep");
+  const [dryWeather, setDryWeather] = useState<BulkChoice>("keep");
+  const [pavementType, setPavementType] = useState<BulkChoice>("keep");
+  const [surfaceMaterial, setSurfaceMaterial] = useState<BulkChoice>("keep");
+  const [surfaceCondition, setSurfaceCondition] = useState<BulkChoice>("keep");
+  const reset = () => {
+    setElementType("keep");
+    setDryWeather("keep");
+    setPavementType("keep");
+    setSurfaceMaterial("keep");
+    setSurfaceCondition("keep");
+  };
+  const field = (
+    label: string,
+    value: BulkChoice,
+    setValue: (value: BulkChoice) => void,
+    options: readonly (readonly [string, string])[],
+  ) => (
+    <div className="grid gap-2 text-sm">
+      <span className="font-medium">{label}</span>
+      <Select value={value} onValueChange={setValue}>
+        <SelectTrigger aria-label={`Editar em lote: ${label}`}>
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="keep">Não alterar</SelectItem>
+          <SelectItem value="clear">Limpar informação</SelectItem>
+          {options.map(([option, text]) => (
+            <SelectItem key={option} value={option}>
+              {text}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+  const apply = () => {
+    const patch: Partial<SegmentFieldData> = {};
+    const assign = <K extends keyof SegmentFieldData>(
+      key: K,
+      value: BulkChoice,
+    ) => {
+      if (value !== "keep")
+        patch[key] = (value === "clear" ? null : value) as SegmentFieldData[K];
+    };
+    if (mode === "survey") {
+      assign("elementType", elementType);
+      if (dryWeather !== "keep") {
+        patch.receivesDryWeatherFlow =
+          dryWeather === "clear" ? null : dryWeather === "true";
+      }
+    } else {
+      assign("pavementType", pavementType);
+      assign("surfaceMaterial", surfaceMaterial);
+      assign("surfaceCondition", surfaceCondition);
+    }
+    if (Object.keys(patch).length === 0) return;
+    onApply(patch);
+    reset();
+    onOpenChange(false);
+  };
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>
+            Editar {count}{" "}
+            {count === 1 ? "trecho selecionado" : "trechos selecionados"}
+          </DialogTitle>
+          <DialogDescription>
+            Escolha somente os campos comuns. As mudanças serão aplicadas à
+            tabela para revisão antes do salvamento.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-4">
+          {mode === "survey" ? (
+            <>
+              {field("Tipo de elemento", elementType, setElementType, [
+                ["COLLECTOR", "Coletor"],
+                ["TRUNK_COLLECTOR", "Coletor tronco"],
+                ["INTERCEPTOR", "Interceptor"],
+                ["OUTFALL", "Emissário"],
+                ["BUILDING_CONNECTION", "Ramal predial"],
+              ])}
+              {field("Contribuição de tempo seco", dryWeather, setDryWeather, [
+                ["false", "Não"],
+                ["true", "Sim"],
+              ])}
+            </>
+          ) : (
+            <>
+              {field(
+                "Categoria de recobrimento",
+                pavementType,
+                setPavementType,
+                [
+                  ["SIDEWALK", "Passeio"],
+                  [
+                    "PAVED_STREET_WITH_CURB_AND_GUTTER",
+                    "Via pavimentada com meio-fio e sarjeta",
+                  ],
+                  [
+                    "UNPAVED_OR_UNDEFINED_GRADE",
+                    "Via de terra ou greide indefinido",
+                  ],
+                ],
+              )}
+              {field(
+                "Material superficial",
+                surfaceMaterial,
+                setSurfaceMaterial,
+                [
+                  ["ASPHALT", "Asfalto"],
+                  ["PAVING_STONE", "Paralelepípedo"],
+                  ["GRAVEL", "Cascalho"],
+                ],
+              )}
+              {field("Condição", surfaceCondition, setSurfaceCondition, [
+                ["GOOD", "Boa"],
+                ["FAIR", "Regular"],
+                ["POOR", "Ruim"],
+              ])}
+            </>
+          )}
+        </div>
+        <DialogFooter>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+          >
+            Cancelar
+          </Button>
+          <Button type="button" onClick={apply}>
+            Aplicar a {count} {count === 1 ? "trecho" : "trechos"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 function useBatchRow(key: string, row: RowSave, registerRow: RegisterRow) {
   useEffect(() => {
@@ -244,6 +419,8 @@ function SegmentRow({
   nodeCodes,
   registerRow,
   batchSaving,
+  selected,
+  onSelectedChange,
   hidden = false,
 }: {
   segment: Segment;
@@ -253,6 +430,8 @@ function SegmentRow({
   nodeCodes: Map<string, string>;
   registerRow: RegisterRow;
   batchSaving: boolean;
+  selected: boolean;
+  onSelectedChange: (checked: boolean) => void;
   hidden?: boolean;
 }) {
   const queryClient = useQueryClient();
@@ -269,6 +448,7 @@ function SegmentRow({
     handleSubmit,
     trigger,
     getValues,
+    setValue,
     formState: { isDirty, errors },
   } = useForm<SegmentFieldData>({
     resolver: zodResolver(segmentFieldDataSchema, portugueseValidation),
@@ -324,6 +504,16 @@ function SegmentRow({
     {
       validate: () => trigger(undefined, { shouldFocus: true }),
       save: () => save.mutateAsync({ values: getValues(), batch: true }),
+      values: getValues,
+      apply: (patch) => {
+        for (const [key, value] of Object.entries(patch)) {
+          setValue(key as keyof SegmentFieldData, value, {
+            shouldDirty: true,
+            shouldValidate: true,
+          });
+        }
+      },
+      accept: (saved) => reset(segmentFieldDataSchema.parse(saved)),
     },
     registerRow,
   );
@@ -334,6 +524,14 @@ function SegmentRow({
       hidden={hidden}
       className="scroll-mt-6 target:bg-primary/5"
     >
+      <TableCell>
+        <Checkbox
+          checked={selected}
+          disabled={disabled}
+          aria-label={`Selecionar trecho ${segment.code}`}
+          onCheckedChange={(checked) => onSelectedChange(checked === true)}
+        />
+      </TableCell>
       <TableCell className="font-medium">
         {segment.code}
         <span className="block text-xs text-muted-foreground">
@@ -633,6 +831,10 @@ export function NetworkFieldEditor({
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(10);
+  const [selectedSegments, setSelectedSegments] = useState<Set<string>>(
+    new Set(),
+  );
+  const [bulkEditOpen, setBulkEditOpen] = useState(false);
   const isDirty = Object.values(dirtyRows).some(Boolean) || batch !== null;
   const dirtyCount = (kind: RowKind) =>
     Object.entries(dirtyRows).filter(
@@ -671,15 +873,57 @@ export function NetworkFieldEditor({
           return;
         }
       }
-      for (const [index, { row }] of pending.entries()) {
+      if (kind === "segment") {
         try {
-          await row.save();
-          saved++;
-        } catch {
-          // Each row keeps its error and unsaved values for the next attempt.
+          const response = await parseClientJson(
+            await fetch(`/api/projects/${projectId}/segments/field-data`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                segments: pending.map(({ key, row }) => ({
+                  segmentId: key.slice("segment-".length),
+                  fieldData: row.values?.(),
+                })),
+              }),
+            }),
+            segmentFieldDataBatchResponseSchema,
+            "Não foi possível salvar os trechos.",
+          );
+          const byId = new Map(
+            response.segments.map((segment) => [segment.id, segment]),
+          );
+          pending.forEach(({ key, row }) => {
+            const segment = byId.get(key.slice("segment-".length));
+            if (segment) row.accept?.(segment);
+          });
+          queryClient.setQueryData<ProjectDetailResponse>(
+            projectQueryKeys.network(projectId),
+            (current) =>
+              current && {
+                ...current,
+                segments: current.segments.map(
+                  (segment) => byId.get(segment.id) ?? segment,
+                ),
+              },
+          );
+          saved = response.segments.length;
+          setBatch({ kind, completed: saved, total: pending.length });
+        } catch (error) {
+          const message = `${getErrorMessage(error, "Não foi possível salvar os trechos.")} Nenhuma alteração foi gravada; os valores foram mantidos.`;
+          setMessages((current) => ({ ...current, segment: message }));
+          toast.error("O lote não foi salvo.", { description: message });
+          return;
         }
-        setBatch({ kind, completed: index + 1, total: pending.length });
-      }
+      } else
+        for (const [index, { row }] of pending.entries()) {
+          try {
+            await row.save();
+            saved++;
+          } catch {
+            // Each row keeps its error and unsaved values for the next attempt.
+          }
+          setBatch({ kind, completed: index + 1, total: pending.length });
+        }
       const failed = pending.length - saved;
       const message = failed
         ? `${saved} de ${pending.length} linhas salvas. ${failed} não foram salvas; tente novamente. Os valores foram mantidos.`
@@ -703,6 +947,14 @@ export function NetworkFieldEditor({
       setBatch(null);
     }
   }
+  const toggleSelected = (id: string, checked: boolean) => {
+    setSelectedSegments((current) => {
+      const next = new Set(current);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  };
   const onDirty = useCallback<DirtyChange>(
     (key, dirty) =>
       setDirtyRows((current) =>
@@ -798,6 +1050,21 @@ export function NetworkFieldEditor({
   const visibleSegmentIds = new Set(
     visibleSegments.map((segment) => segment.id),
   );
+  const allFilteredSelected =
+    filteredSegments.length > 0 &&
+    filteredSegments.every((segment) => selectedSegments.has(segment.id));
+  const applyBulkValues = (patch: Partial<SegmentFieldData>) => {
+    selectedSegments.forEach((id) => {
+      rows.current.get(`segment-${id}`)?.apply?.(patch);
+    });
+    toast.success(
+      `Valores aplicados a ${selectedSegments.size} ${selectedSegments.size === 1 ? "trecho" : "trechos"}.`,
+      {
+        description:
+          "Revise a tabela e salve as alterações quando estiver pronto.",
+      },
+    );
+  };
   return (
     <div className="flex min-w-0 flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -822,10 +1089,11 @@ export function NetworkFieldEditor({
           aria-label="Buscar nó ou trecho"
           placeholder="Buscar pelo código do nó ou trecho..."
           value={search}
-          disabled={isDirty}
+          disabled={batch !== null}
           onChange={(event) => {
             setSearch(event.target.value);
             setPage(0);
+            setSelectedSegments(new Set());
           }}
           className="max-w-md"
         />
@@ -923,10 +1191,40 @@ export function NetworkFieldEditor({
               onChange={(event) => {
                 setSearch(event.target.value);
                 setPage(0);
+                setSelectedSegments(new Set());
               }}
               className="mb-4 max-w-96"
             />
           )}
+          <div className="mb-4 flex flex-wrap items-center gap-3 rounded-lg border border-border/80 bg-background/70 p-3">
+            <p
+              className="mr-auto text-sm text-muted-foreground"
+              aria-live="polite"
+            >
+              {selectedSegments.size}{" "}
+              {selectedSegments.size === 1
+                ? "trecho selecionado"
+                : "trechos selecionados"}
+            </p>
+            {selectedSegments.size > 0 && (
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setSelectedSegments(new Set())}
+              >
+                Limpar seleção
+              </Button>
+            )}
+            <Button
+              type="button"
+              variant="outline"
+              disabled={selectedSegments.size === 0 || batch !== null}
+              onClick={() => setBulkEditOpen(true)}
+            >
+              <SlidersHorizontal aria-hidden="true" className="size-4" />
+              Editar selecionados
+            </Button>
+          </div>
           {mode === "paving" && (
             <div className="mb-4">
               <BatchSaveControls
@@ -947,6 +1245,7 @@ export function NetworkFieldEditor({
           >
             {mode === "paving" && (
               <colgroup>
+                <col className="w-[4%]" />
                 <col className="w-[13%]" />
                 <col className="w-[27%]" />
                 <col className="w-[15%]" />
@@ -957,6 +1256,28 @@ export function NetworkFieldEditor({
             )}
             <TableHeader>
               <TableRow>
+                <TableHead>
+                  <Checkbox
+                    checked={
+                      allFilteredSelected
+                        ? true
+                        : selectedSegments.size > 0
+                          ? "indeterminate"
+                          : false
+                    }
+                    disabled={filteredSegments.length === 0 || batch !== null}
+                    aria-label="Selecionar todos os trechos encontrados"
+                    onCheckedChange={(checked) => {
+                      setSelectedSegments(
+                        checked === true
+                          ? new Set(
+                              filteredSegments.map((segment) => segment.id),
+                            )
+                          : new Set(),
+                      );
+                    }}
+                  />
+                </TableHead>
                 <TableHead>Trecho</TableHead>
                 {mode === "survey" && (
                   <>
@@ -983,7 +1304,7 @@ export function NetworkFieldEditor({
             <TableBody>
               {visibleSegments.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={mode === "survey" ? 7 : 6}>
+                  <TableCell colSpan={mode === "survey" ? 8 : 7}>
                     <Feedback
                       title="Nenhum trecho corresponde à busca"
                       actions={[
@@ -1000,10 +1321,7 @@ export function NetworkFieldEditor({
                 </TableRow>
               )}
               {/* Keep paginated forms mounted so drafts and batch saves span all pages. */}
-              {(mode === "paving"
-                ? network.data.segments
-                : visibleSegments
-              ).map((segment) => (
+              {network.data.segments.map((segment) => (
                 <SegmentRow
                   key={segment.id}
                   segment={segment}
@@ -1013,9 +1331,11 @@ export function NetworkFieldEditor({
                   nodeCodes={nodeCodes}
                   registerRow={registerRow}
                   batchSaving={batch !== null}
-                  hidden={
-                    mode === "paving" && !visibleSegmentIds.has(segment.id)
+                  selected={selectedSegments.has(segment.id)}
+                  onSelectedChange={(checked) =>
+                    toggleSelected(segment.id, checked)
                   }
+                  hidden={!visibleSegmentIds.has(segment.id)}
                 />
               ))}
             </TableBody>
@@ -1050,7 +1370,7 @@ export function NetworkFieldEditor({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {[10, 25, 50].map((size) => (
+                    {[10, 25, 50, 100].map((size) => (
                       <SelectItem key={size} value={String(size)}>
                         {size}
                       </SelectItem>
@@ -1083,6 +1403,13 @@ export function NetworkFieldEditor({
           )}
         </CardContent>
       </Card>
+      <BulkEditDialog
+        mode={mode}
+        count={selectedSegments.size}
+        open={bulkEditOpen}
+        onOpenChange={setBulkEditOpen}
+        onApply={applyBulkValues}
+      />
     </div>
   );
 }

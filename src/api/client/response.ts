@@ -5,6 +5,9 @@ const zClientError = z.object({
   error: z.string().trim().min(1),
   code: z.string().optional(),
   items: z.array(z.unknown()).optional(),
+  fieldErrors: z
+    .object({ fields: z.string().optional(), message: z.string().optional() })
+    .optional(),
 });
 
 export class ClientApiError extends Error {
@@ -14,6 +17,7 @@ export class ClientApiError extends Error {
     readonly code?: string,
     readonly items?: unknown[],
     readonly originalMessage?: string,
+    readonly fieldErrors?: { fields?: string; message?: string },
   ) {
     super(message);
     this.name = "ClientApiError";
@@ -60,6 +64,7 @@ export async function parseClientJson<T>(
       error.success ? error.data.code : undefined,
       error.success ? error.data.items : undefined,
       error.success ? error.data.error : undefined,
+      error.success ? error.data.fieldErrors : undefined,
     );
   }
 

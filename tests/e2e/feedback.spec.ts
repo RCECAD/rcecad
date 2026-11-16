@@ -68,7 +68,7 @@ test("pendências e exportação bloqueada oferecem correções úteis também n
     "Feedback de pendências",
   );
   await page.goto(`/project/${project.id}/validation`);
-  await page.getByRole("button", { name: "Iniciar validação" }).click();
+  await page.getByRole("button", { name: "Validar projeto" }).click();
   const missing = page.getByRole("listitem").filter({
     has: page.getByRole("heading", {
       name: "Parâmetros hidráulicos não informados",

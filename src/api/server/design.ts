@@ -8,6 +8,9 @@ import {
   projectOverviewSchema,
   projectValidationSchema,
   type SegmentFieldData,
+  type SegmentFieldDataBatch,
+  segmentFieldDataBatchResponseSchema,
+  segmentFieldDataBatchSchema,
   segmentFieldDataSchema,
 } from "@/api/contracts/design";
 import {
@@ -70,4 +73,17 @@ export const updateSegmentFieldData = (
       body: JSON.stringify(segmentFieldDataSchema.parse(input)),
     },
     { schema: segmentResponseSchema },
+  );
+
+export const updateSegmentFieldDataBatch = (
+  id: string,
+  input: SegmentFieldDataBatch,
+) =>
+  springRequestWithRefresh(
+    `${path(id)}/segments/field-data`,
+    {
+      method: "PUT",
+      body: JSON.stringify(segmentFieldDataBatchSchema.parse(input)),
+    },
+    { schema: segmentFieldDataBatchResponseSchema },
   );

@@ -35,6 +35,13 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Table,
   TableBody,
   TableCell,
@@ -115,6 +122,7 @@ export function DesignResults({
   const project = summary?.project ?? memorial?.identification;
   const [tab, setTab] = useState("summary");
   const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(25);
   const [selectedSegment, setSelectedSegment] = useState<string>();
   const panelId = useId();
   const visible = (value: string) => !tabbed || tab === value;
@@ -142,7 +150,12 @@ export function DesignResults({
     ["findings", "Não conformidades"],
     ...(network ? [["drawing", "Planta e Perfil"] as [string, string]] : []),
   ];
-  const pageEnd = Math.min(page * 5 + 5, design.segments.length);
+  const pageCount = Math.max(1, Math.ceil(design.segments.length / pageSize));
+  const currentPage = Math.min(page, pageCount - 1);
+  const pageEnd = Math.min(
+    (currentPage + 1) * pageSize,
+    design.segments.length,
+  );
   return (
     <div className="space-y-6">
       {tabbed && (
@@ -344,7 +357,10 @@ export function DesignResults({
                 </TableHeader>
                 <TableBody>
                   {(tabbed
-                    ? design.segments.slice(page * 5, page * 5 + 5)
+                    ? design.segments.slice(
+                        currentPage * pageSize,
+                        (currentPage + 1) * pageSize,
+                      )
                     : design.segments
                   ).map((segment) => {
                     const choice = isCalculated(segment)
@@ -409,25 +425,47 @@ export function DesignResults({
                 </TableBody>
               </Table>
               {tabbed && (
-                <div className="mt-4 flex items-center justify-between gap-3 text-xs text-muted-foreground">
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
                   <span>
-                    {pageEnd === 0 ? 0 : page * 5 + 1}–{pageEnd} de{" "}
-                    {design.segments.length} trechos
+                    {pageEnd === 0 ? 0 : currentPage * pageSize + 1}–{pageEnd}{" "}
+                    de {design.segments.length} trechos
                   </span>
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span>Trechos por página</span>
+                    <Select
+                      value={String(pageSize)}
+                      onValueChange={(value) => {
+                        setPageSize(Number(value));
+                        setPage(0);
+                      }}
+                    >
+                      <SelectTrigger
+                        aria-label="Trechos por página"
+                        className="w-20"
+                      >
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {[10, 25, 50, 100].map((size) => (
+                          <SelectItem key={size} value={String(size)}>
+                            {size}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <Button
                       size="sm"
                       variant="outline"
-                      disabled={page === 0}
-                      onClick={() => setPage(page - 1)}
+                      disabled={currentPage === 0}
+                      onClick={() => setPage(currentPage - 1)}
                     >
                       Anterior
                     </Button>
                     <Button
                       size="sm"
                       variant="outline"
-                      disabled={(page + 1) * 5 >= design.segments.length}
-                      onClick={() => setPage(page + 1)}
+                      disabled={currentPage + 1 >= pageCount}
+                      onClick={() => setPage(currentPage + 1)}
                     >
                       Próxima
                     </Button>

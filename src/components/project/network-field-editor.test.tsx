@@ -81,12 +81,25 @@ describe("network field data", () => {
       code: `T-${String(i + 1).padStart(2, "0")}`,
     }));
     let failLast = true;
-    const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+    const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => {
       if (!init?.method) return Response.json({ ...detail, segments });
-      const current = segments.find((item) => url.includes(item.id));
-      if (current === segments[10] && failLast)
+      if (failLast)
         return Response.json({ detail: "Falha temporária" }, { status: 503 });
-      return Response.json({ ...current, ...JSON.parse(String(init.body)) });
+      const payload = JSON.parse(String(init.body));
+      return Response.json({
+        segments: payload.segments.map(
+          ({
+            segmentId,
+            fieldData,
+          }: {
+            segmentId: string;
+            fieldData: object;
+          }) => ({
+            ...segments.find((item) => item.id === segmentId),
+            ...fieldData,
+          }),
+        ),
+      });
     });
     vi.stubGlobal("fetch", fetchMock);
     setup("paving");
@@ -105,7 +118,7 @@ describe("network field data", () => {
     await user.click(
       screen.getByRole("button", { name: "Salvar todos os trechos" }),
     );
-    await screen.findByText(/1 de 2 linhas salvas/);
+    await screen.findByText(/Nenhuma alteração foi gravada/);
     await waitFor(() =>
       expect(
         screen.getByRole("button", { name: "Salvar todos os trechos" }),
@@ -113,7 +126,7 @@ describe("network field data", () => {
     );
     expect(
       fetchMock.mock.calls.filter(([, init]) => init?.method === "PUT"),
-    ).toHaveLength(2);
+    ).toHaveLength(1);
     await user.clear(screen.getByLabelText("Buscar nó ou trecho"));
     await user.click(screen.getByRole("button", { name: "Próxima página" }));
     expect(screen.getByLabelText("Observações T-11")).toHaveValue(
@@ -124,16 +137,17 @@ describe("network field data", () => {
       screen.getByRole("button", { name: "Salvar todos os trechos" }),
     );
     await screen.findByText(
-      "1 linha salva. Recalcule o dimensionamento para atualizar os resultados.",
+      "2 linhas salvas. Recalcule o dimensionamento para atualizar os resultados.",
     );
     const writes = fetchMock.mock.calls.filter(
       ([, init]) => init?.method === "PUT",
     );
-    expect(writes.map(([url]) => url.split("/").at(-2))).toEqual([
-      segments[0].id,
-      segments[10].id,
-      segments[10].id,
-    ]);
+    expect(writes).toHaveLength(2);
+    expect(
+      JSON.parse(String(writes[1][1]?.body)).segments.map(
+        (item: { segmentId: string }) => item.segmentId,
+      ),
+    ).toEqual([segments[0].id, segments[10].id]);
     await waitFor(() =>
       expect(
         screen.getByRole("button", { name: "Salvar todos os trechos" }),
@@ -166,6 +180,41 @@ describe("network field data", () => {
     expect(screen.getByLabelText("Observações T-12")).toBeVisible();
     expect(screen.getByLabelText("Observações T-1")).toHaveValue(
       "Preservar esta nota Alterado",
+    );
+    expect(
+      screen.getByRole("button", { name: "Salvar todos os trechos" }),
+    ).toBeEnabled();
+  });
+
+  it("applies common values to all selected segments for review before saving", async () => {
+    const user = userEvent.setup();
+    const segments = [
+      segment,
+      { ...segment, id: "44444444-4444-4444-8444-444444444444", code: "T-02" },
+    ];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(Response.json({ ...detail, segments })),
+    );
+    setup();
+    await user.click(
+      await screen.findByLabelText("Selecionar todos os trechos encontrados"),
+    );
+    expect(screen.getByText("2 trechos selecionados")).toBeVisible();
+    await user.click(
+      screen.getByRole("button", { name: "Editar selecionados" }),
+    );
+    await user.click(screen.getByLabelText("Editar em lote: Tipo de elemento"));
+    await user.click(screen.getByRole("option", { name: "Coletor tronco" }));
+    await user.click(
+      screen.getByRole("button", { name: "Aplicar a 2 trechos" }),
+    );
+
+    expect(screen.getByLabelText("Tipo de elemento T-01")).toHaveTextContent(
+      "Coletor tronco",
+    );
+    expect(screen.getByLabelText("Tipo de elemento T-02")).toHaveTextContent(
+      "Coletor tronco",
     );
     expect(
       screen.getByRole("button", { name: "Salvar todos os trechos" }),
@@ -227,24 +276,32 @@ describe("network field data", () => {
     ).toBeEnabled();
   });
 
-  it("retains failed segment drafts, retries only failures and preserves fields from other tabs", async () => {
+  it("rolls back a failed segment batch, retains every draft and preserves fields from other tabs", async () => {
     const user = userEvent.setup();
     const segments = [
       segment,
       { ...segment, id: "44444444-4444-4444-8444-444444444444", code: "T-02" },
     ];
     let failSecond = true;
-    let finishFirst: (() => void) | undefined;
-    const firstWrite = new Promise<void>((resolve) => {
-      finishFirst = resolve;
-    });
-    const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+    const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => {
       if (!init?.method) return Response.json({ ...detail, segments });
-      const current = segments.find((item) => url.includes(item.id));
-      if (current === segments[0]) await firstWrite;
-      if (current === segments[1] && failSecond)
+      if (failSecond)
         return Response.json({ detail: "Falha temporária" }, { status: 503 });
-      return Response.json({ ...current, ...JSON.parse(String(init.body)) });
+      const payload = JSON.parse(String(init.body));
+      return Response.json({
+        segments: payload.segments.map(
+          ({
+            segmentId,
+            fieldData,
+          }: {
+            segmentId: string;
+            fieldData: object;
+          }) => ({
+            ...segments.find((item) => item.id === segmentId),
+            ...fieldData,
+          }),
+        ),
+      });
     });
     vi.stubGlobal("fetch", fetchMock);
     const client = setup();
@@ -267,13 +324,7 @@ describe("network field data", () => {
         fetchMock.mock.calls.filter(([, init]) => init?.method === "PUT"),
       ).toHaveLength(1),
     );
-    expect(screen.getByLabelText("Material T-02")).toBeDisabled();
-    expect(screen.getByLabelText("Cota de terreno PV-01")).toBeDisabled();
-    expect(
-      screen.getByRole("button", { name: "Salvar todos os nós" }),
-    ).toBeDisabled();
-    finishFirst?.();
-    await screen.findByText(/1 de 2 linhas salvas/);
+    await screen.findByText(/Nenhuma alteração foi gravada/);
     await waitFor(() =>
       expect(
         screen.getByRole("button", { name: "Salvar todos os trechos" }),
@@ -283,24 +334,20 @@ describe("network field data", () => {
     expect(screen.getByLabelText("Cota de terreno PV-01")).toHaveValue(105);
     expect(
       client.getQueryData(projectQueryKeys.calculations(projectId)),
-    ).toBeUndefined();
+    ).toEqual({ old: true });
     failSecond = false;
     await user.click(
       screen.getByRole("button", { name: "Salvar todos os trechos" }),
     );
     await screen.findByText(
-      "1 linha salva. Recalcule o dimensionamento para atualizar os resultados.",
+      "2 linhas salvas. Recalcule o dimensionamento para atualizar os resultados.",
     );
     const writes = fetchMock.mock.calls.filter(
       ([, init]) => init?.method === "PUT",
     );
-    expect(writes.map(([url]) => url.split("/").at(-2))).toEqual([
-      segments[0].id,
-      segments[1].id,
-      segments[1].id,
-    ]);
-    for (const [, init] of writes) {
-      expect(JSON.parse(String(init?.body))).toMatchObject({
+    expect(writes).toHaveLength(2);
+    for (const item of JSON.parse(String(writes[1][1]?.body)).segments) {
+      expect(item.fieldData).toMatchObject({
         material: "PVC",
         pavementType: "SIDEWALK",
         surfaceMaterial: "ASPHALT",
@@ -309,6 +356,11 @@ describe("network field data", () => {
         fixedDiameterMm: 150,
       });
     }
+    await waitFor(() =>
+      expect(
+        client.getQueryData(projectQueryKeys.calculations(projectId)),
+      ).toBeUndefined(),
+    );
     expect(
       screen.getByRole("button", { name: "Salvar todos os nós" }),
     ).toBeEnabled();
@@ -365,7 +417,9 @@ describe("network field data", () => {
       .fn()
       .mockResolvedValueOnce(Response.json(detail))
       .mockResolvedValueOnce(
-        Response.json({ ...segment, receivesDryWeatherFlow: false }),
+        Response.json({
+          segments: [{ ...segment, receivesDryWeatherFlow: false }],
+        }),
       );
     vi.stubGlobal("fetch", fetchMock);
     const client = setup();
@@ -382,15 +436,18 @@ describe("network field data", () => {
     );
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
     const sent = JSON.parse(fetchMock.mock.calls[1][1].body);
-    expect(sent).toEqual({
-      elementType: "COLLECTOR",
-      receivesDryWeatherFlow: false,
-      fixedDiameterMm: 150,
-      material: "Concreto",
-      pavementType: "SIDEWALK",
-      surfaceMaterial: "ASPHALT",
-      surfaceCondition: "FAIR",
-      pavementNotes: "Preservar esta nota",
+    expect(sent.segments[0]).toEqual({
+      segmentId: segment.id,
+      fieldData: {
+        elementType: "COLLECTOR",
+        receivesDryWeatherFlow: false,
+        fixedDiameterMm: 150,
+        material: "Concreto",
+        pavementType: "SIDEWALK",
+        surfaceMaterial: "ASPHALT",
+        surfaceCondition: "FAIR",
+        pavementNotes: "Preservar esta nota",
+      },
     });
     await waitFor(() =>
       expect(
@@ -419,7 +476,7 @@ describe("network field data", () => {
           segments: [{ ...segment, receivesDryWeatherFlow: true }],
         }),
       )
-      .mockResolvedValueOnce(Response.json(segment));
+      .mockResolvedValueOnce(Response.json({ segments: [segment] }));
     vi.stubGlobal("fetch", fetchMock);
     setup();
     await user.click(
@@ -431,7 +488,8 @@ describe("network field data", () => {
     );
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
     expect(
-      JSON.parse(fetchMock.mock.calls[1][1].body).receivesDryWeatherFlow,
+      JSON.parse(fetchMock.mock.calls[1][1].body).segments[0].fieldData
+        .receivesDryWeatherFlow,
     ).toBeNull();
     await waitFor(() =>
       expect(

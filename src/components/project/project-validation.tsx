@@ -156,49 +156,63 @@ export function ProjectValidation({ projectId }: { projectId: string }) {
           </CardDescription>
         </CardHeader>
         <CardContent className="flex min-w-0 flex-col gap-4">
-          <div className="grid gap-3 sm:grid-cols-3">
-            {(
-              [
+          {validation.data && !validation.isError ? (
+            <div className="grid gap-3 sm:grid-cols-3">
+              {(
                 [
-                  "critical",
-                  "Erros críticos",
-                  CircleX,
-                  "border-rose-300 bg-rose-50 text-rose-700",
-                  "Impedem a conclusão",
-                ],
-                [
-                  "alert",
-                  "Alertas",
-                  TriangleAlert,
-                  "border-amber-300 bg-amber-50 text-amber-700",
-                  "Requerem atenção",
-                ],
-                [
-                  "info",
-                  "Informações",
-                  Info,
-                  "border-blue-300 bg-blue-50 text-blue-700",
-                  "Para conhecimento",
-                ],
-              ] as const
-            ).map(([key, label, Icon, color, detail]) => (
-              <Card
-                key={key}
-                className={`rounded-lg border py-3 shadow-none ring-0 ${color}`}
-              >
-                <CardContent className="flex items-center justify-between gap-3 px-3">
-                  <div className="flex min-w-0 flex-col gap-1">
-                    <Icon className="mb-2 size-7" aria-hidden="true" />
-                    <p className="text-sm font-medium">{label}</p>
-                    <p className="text-xs">{detail}</p>
-                  </div>
-                  <p className="text-6xl font-semibold tracking-tight">
-                    {validation.data?.summary[key] ?? "—"}
-                  </p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+                  [
+                    "critical",
+                    "Erros críticos",
+                    CircleX,
+                    "border-rose-300 bg-rose-50 text-rose-700",
+                    "Impedem a conclusão",
+                  ],
+                  [
+                    "alert",
+                    "Alertas",
+                    TriangleAlert,
+                    "border-amber-300 bg-amber-50 text-amber-700",
+                    "Requerem atenção",
+                  ],
+                  [
+                    "info",
+                    "Informações",
+                    Info,
+                    "border-blue-300 bg-blue-50 text-blue-700",
+                    "Para conhecimento",
+                  ],
+                ] as const
+              ).map(([key, label, Icon, color, detail]) => (
+                <Card
+                  key={key}
+                  className={`rounded-lg border py-3 shadow-none ring-0 ${color}`}
+                >
+                  <CardContent className="flex items-center justify-between gap-3 px-3">
+                    <div className="flex min-w-0 flex-col gap-1">
+                      <Icon className="mb-2 size-7" aria-hidden="true" />
+                      <p className="text-sm font-medium">{label}</p>
+                      <p className="text-xs">{detail}</p>
+                    </div>
+                    <p className="text-6xl font-semibold tracking-tight">
+                      {validation.data.summary[key]}
+                    </p>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed border-border bg-muted/20 px-5 py-8 text-center">
+              <Info aria-hidden="true" className="size-10 text-primary" />
+              <div className="max-w-xl space-y-1">
+                <p className="font-medium">Confira se o projeto está pronto</p>
+                <p className="text-sm text-muted-foreground">
+                  A validação verifica os dados obrigatórios, o dimensionamento
+                  e as regras do projeto. O resumo será exibido aqui quando a
+                  análise terminar.
+                </p>
+              </div>
+            </div>
+          )}
 
           <Button
             className="self-start"
@@ -316,15 +330,6 @@ export function ProjectValidation({ projectId }: { projectId: string }) {
             />
           )}
         </>
-      )}
-      {!validation.data && !validation.isFetching && !validation.isError && (
-        <Feedback
-          title="O projeto ainda não foi validado nesta sessão"
-          description="Execute a validação para consultar as pendências atuais e saber se o projeto pode ser exportado."
-          actions={[
-            { label: "Iniciar validação", onClick: () => void validate() },
-          ]}
-        />
       )}
       <NonconformityPanel projectId={projectId} />
     </div>
