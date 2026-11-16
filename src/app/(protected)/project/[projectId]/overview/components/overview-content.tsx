@@ -10,7 +10,6 @@ import {
   TriangleAlert,
 } from "lucide-react";
 import Link from "next/link";
-import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Feedback, FeedbackActions } from "@/components/ui/feedback";
 
@@ -36,13 +35,11 @@ export function OverviewContent({
   status,
   progressPercent,
   notice,
-  onShowAllActions,
-  historyFeedback,
+  historyHref,
 }: {
-  historyFeedback?: ReactNode;
+  historyHref: string;
   progressPercent?: number;
   notice?: string;
-  onShowAllActions?: () => void;
   projectId: string;
   projectDetails: { label: string; value: string }[];
   stages: {
@@ -174,7 +171,6 @@ export function OverviewContent({
           <h2 id="overview-history" className="mb-5 text-sm font-semibold">
             Últimas ações
           </h2>
-          {historyFeedback}
           <ol className="ml-2 mt-3">
             {recentActions.length === 0 && (
               <li className="text-xs text-muted-foreground">
@@ -204,18 +200,11 @@ export function OverviewContent({
               </li>
             ))}
           </ol>
-          {onShowAllActions && (
-            <div className="mt-5 flex justify-end">
-              <Button
-                type="button"
-                variant="secondary"
-                size="xs"
-                onClick={onShowAllActions}
-              >
-                Ver histórico completo
-              </Button>
-            </div>
-          )}
+          <div className="mt-5 flex justify-end">
+            <Button asChild variant="secondary" size="xs">
+              <Link href={historyHref}>Ver histórico completo</Link>
+            </Button>
+          </div>
         </section>
       </div>
 

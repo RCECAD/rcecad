@@ -93,6 +93,17 @@
 }
 
 @layer utilities {
+  [data-audit-focus="true"] {
+    @apply outline-2 outline-offset-4 outline-primary bg-primary/10;
+    animation: audit-focus-pulse 900ms ease-out 2;
+  }
+
+  @keyframes audit-focus-pulse {
+    50% {
+      outline-color: transparent;
+    }
+  }
+
   .themed-scrollbar {
     scrollbar-width: thin;
     scrollbar-gutter: stable;
