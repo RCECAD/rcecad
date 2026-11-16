@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { ErrorState } from "@/components/ui/error-state";
-import { PageLoading } from "@/components/ui/page-state";
+import { ResultPanelSkeleton } from "@/components/ui/loading-skeletons";
 
 export function RefreshSession({ returnTo }: { returnTo: string }) {
   const pending = useRef<Promise<Response> | null>(null);
@@ -40,7 +40,7 @@ export function RefreshSession({ returnTo }: { returnTo: string }) {
           actions={[{ label: "Ir para o login", href: "/auth/login" }]}
         />
       ) : (
-        <PageLoading label="Renovando sua sessão" />
+        <ResultPanelSkeleton label="Renovando sua sessão" rows={2} />
       )}
     </main>
   );

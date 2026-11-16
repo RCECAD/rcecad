@@ -15,6 +15,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { TableRowsSkeleton } from "@/components/ui/loading-skeletons";
 import {
   Table,
   TableBody,
@@ -340,9 +341,7 @@ export function NetworkTable({ projectId }: { projectId: string }) {
           />
         </div>
         {network.isPending && (
-          <p role="status" className="text-sm">
-            Carregando rede…
-          </p>
+          <TableRowsSkeleton label="Carregando rede" columns={5} />
         )}
         {network.isError && (
           <p role="alert" className="text-sm text-destructive">

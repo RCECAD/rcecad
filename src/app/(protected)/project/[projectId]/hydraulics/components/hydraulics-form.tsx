@@ -36,7 +36,7 @@ import {
   InputGroupAddon,
   InputGroupInput,
 } from "@/components/ui/input-group";
-import { PageLoading } from "@/components/ui/page-state";
+import { FormPageSkeleton } from "@/components/ui/loading-skeletons";
 import { Textarea } from "@/components/ui/textarea";
 import { portugueseValidation } from "@/lib/form-validation";
 import {
@@ -202,7 +202,7 @@ export function HydraulicsForm({ projectId }: Readonly<HydraulicsFormProps>) {
   );
 
   if (isLoading) {
-    return <PageLoading label="Carregando parâmetros hidráulicos" />;
+    return <FormPageSkeleton sections={2} />;
   }
 
   if (isError) {

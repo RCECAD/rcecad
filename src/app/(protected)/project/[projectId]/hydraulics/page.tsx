@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import { PageLoading } from "@/components/ui/page-state";
+import { FormPageSkeleton } from "@/components/ui/loading-skeletons";
 import { HydraulicsForm } from "./components/hydraulics-form";
 
 export default function HydraulicsPage() {
@@ -10,7 +10,7 @@ export default function HydraulicsPage() {
     typeof params.projectId === "string" ? params.projectId : undefined;
 
   if (!projectId) {
-    return <PageLoading label="Carregando projeto" />;
+    return <FormPageSkeleton sections={2} />;
   }
 
   return <HydraulicsForm projectId={projectId} />;

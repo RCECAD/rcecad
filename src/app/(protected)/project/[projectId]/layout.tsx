@@ -1,7 +1,8 @@
 import { notFound } from "next/navigation";
-import type { ReactNode } from "react";
+import { type ReactNode, Suspense } from "react";
 import { getHomeProjects, getProjectById } from "@/api/server/projects";
 import { ProjectSidebar } from "@/components/project/project-sidebar";
+import { ProjectShellSkeleton } from "@/components/ui/loading-skeletons";
 import { SidebarProvider } from "@/components/ui/sidebar";
 
 interface ProjectLayoutProps {
@@ -9,13 +10,23 @@ interface ProjectLayoutProps {
   params: Promise<{ projectId: string }>;
 }
 
-export default async function ProjectLayout({
+export default function ProjectLayout(props: Readonly<ProjectLayoutProps>) {
+  return (
+    <Suspense fallback={<ProjectShellSkeleton />}>
+      <ProjectLayoutContent {...props} />
+    </Suspense>
+  );
+}
+
+async function ProjectLayoutContent({
   children,
   params,
 }: Readonly<ProjectLayoutProps>) {
   const { projectId } = await params;
-  const project = await getProjectById(projectId);
-  const allProjectsPayload = await getHomeProjects({ stats: false });
+  const [project, allProjectsPayload] = await Promise.all([
+    getProjectById(projectId),
+    getHomeProjects({ stats: false }),
+  ]);
 
   if (!project) {
     notFound();
