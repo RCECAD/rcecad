@@ -269,6 +269,17 @@ export function SingularContributionsEditor({
     currentPage * pageSize,
     (currentPage + 1) * pageSize,
   );
+  useEffect(() => {
+    const locate = () => {
+      const match = window.location.hash.match(/^#contribution-(.+)$/);
+      if (!match) return;
+      const index = rows.findIndex((row) => row.id === match[1]);
+      if (index >= 0) setPage(Math.floor(index / pageSize));
+    };
+    locate();
+    window.addEventListener("hashchange", locate);
+    return () => window.removeEventListener("hashchange", locate);
+  }, [pageSize, rows]);
   function clearRow(key: string) {
     setDrafts((current) => {
       const next = { ...current };
@@ -403,7 +414,12 @@ export function SingularContributionsEditor({
               const error = errors[row.key];
               const errorId = `contribution-${row.key}-error`;
               return (
-                <TableRow key={row.key} data-invalid={Boolean(error)}>
+                <TableRow
+                  key={row.key}
+                  id={row.id ? `contribution-${row.id}` : undefined}
+                  className="scroll-mt-24"
+                  data-invalid={Boolean(error)}
+                >
                   <TableCell className="font-medium">{row.label}</TableCell>
                   <TableCell className="min-w-52">
                     <Input
