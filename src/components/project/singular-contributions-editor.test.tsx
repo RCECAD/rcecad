@@ -10,6 +10,18 @@ import { UnsavedChangesProvider } from "./unsaved-changes-provider";
 const projectId = "11111111-1111-4111-8111-111111111111";
 const id = (n: number) =>
   `33333333-3333-4333-8333-${String(n).padStart(12, "0")}`;
+function onSegments(count: number): SingularContribution[] {
+  return Array.from({ length: count }, (_, i) => ({
+    id: id(101 + i),
+    name: `Contribuição T-${i + 1}`,
+    type: "OTHER",
+    nodeId: null,
+    segmentId: id(i + 1),
+    initialLps: 0,
+    finalLps: 0,
+    targetCode: `T-${i + 1}`,
+  }));
+}
 function setup(count = 12, contributions: SingularContribution[] = []) {
   const client = new QueryClient({
     defaultOptions: {
@@ -35,62 +47,95 @@ function setup(count = 12, contributions: SingularContribution[] = []) {
   return client;
 }
 function successfulFetch() {
-  let n = 100;
-  return vi.fn(async (_url: string, init?: RequestInit) =>
-    Response.json({
+  let n = 200;
+  return vi.fn(async (url: string, init?: RequestInit) => {
+    const last = url.split("/").at(-1) ?? "";
+    return Response.json({
       ...JSON.parse(String(init?.body)),
-      id: id(n++),
+      id: last.length === 36 ? last : id(n++),
       targetCode: "T-1",
-    }),
-  );
+    });
+  });
 }
 afterEach(() => vi.unstubAllGlobals());
 
 describe("contribution grid", () => {
-  it("lists all segments across pages and saves only edits from every page", async () => {
+  it("starts without rows and explains that only concentrated flows belong here", () => {
+    setup();
+    expect(
+      screen.getByText(/A vazão doméstica já é distribuída linearmente/),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/Nenhuma contribuição singular cadastrada/),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByLabelText(/Nome da contribuição/),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Salvar todos" })).toBeDisabled();
+  });
+
+  it("pages saved contributions and saves only edits from every page", async () => {
     const user = userEvent.setup();
     const fetchMock = successfulFetch();
     vi.stubGlobal("fetch", fetchMock);
-    setup();
-    expect(screen.getByLabelText("Nome da contribuição T-1")).toHaveValue(
-      "Contribuição T-1",
-    );
+    setup(12, onSegments(12));
     expect(
-      screen.queryByLabelText("Nome da contribuição T-11"),
+      screen.getByLabelText("Nome da contribuição Trecho T-1"),
+    ).toHaveValue("Contribuição T-1");
+    expect(
+      screen.queryByLabelText("Nome da contribuição Trecho T-11"),
     ).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Salvar todos" })).toBeDisabled();
-    await user.clear(screen.getByLabelText("Vazão inicial (L/s) T-1"));
-    await user.type(screen.getByLabelText("Vazão inicial (L/s) T-1"), "2.5");
+    await user.clear(screen.getByLabelText("Vazão inicial (L/s) Trecho T-1"));
+    await user.type(
+      screen.getByLabelText("Vazão inicial (L/s) Trecho T-1"),
+      "2.5",
+    );
     await user.click(screen.getByRole("button", { name: "Próxima página" }));
-    await user.clear(screen.getByLabelText("Vazão final (L/s) T-11"));
-    await user.type(screen.getByLabelText("Vazão final (L/s) T-11"), "4");
+    await user.clear(screen.getByLabelText("Vazão final (L/s) Trecho T-11"));
+    await user.type(
+      screen.getByLabelText("Vazão final (L/s) Trecho T-11"),
+      "4",
+    );
     await user.click(screen.getByRole("button", { name: "Página anterior" }));
-    expect(screen.getByLabelText("Vazão inicial (L/s) T-1")).toHaveValue(2.5);
+    expect(screen.getByLabelText("Vazão inicial (L/s) Trecho T-1")).toHaveValue(
+      2.5,
+    );
     await user.click(screen.getByRole("button", { name: "Salvar todos" }));
     await screen.findByText(
       "2 contribuições salvas. Recalcule o dimensionamento para atualizar as vazões.",
     );
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-    const payloads = fetchMock.mock.calls.map(([, init]) =>
-      JSON.parse(String(init?.body)),
-    );
-    expect(payloads).toEqual([
-      {
-        name: "Contribuição T-1",
-        type: "OTHER",
-        segmentId: id(1),
-        nodeId: null,
-        initialLps: 2.5,
-        finalLps: 0,
-      },
-      {
-        name: "Contribuição T-11",
-        type: "OTHER",
-        segmentId: id(11),
-        nodeId: null,
-        initialLps: 0,
-        finalLps: 4,
-      },
+    expect(
+      fetchMock.mock.calls.map(([url, init]) => [
+        url,
+        init?.method,
+        JSON.parse(String(init?.body)),
+      ]),
+    ).toEqual([
+      [
+        `/api/projects/${projectId}/singular-contributions/${id(101)}`,
+        "PUT",
+        {
+          name: "Contribuição T-1",
+          type: "OTHER",
+          segmentId: id(1),
+          nodeId: null,
+          initialLps: 2.5,
+          finalLps: 0,
+        },
+      ],
+      [
+        `/api/projects/${projectId}/singular-contributions/${id(111)}`,
+        "PUT",
+        {
+          name: "Contribuição T-11",
+          type: "OTHER",
+          segmentId: id(11),
+          nodeId: null,
+          initialLps: 0,
+          finalLps: 4,
+        },
+      ],
     ]);
     expect(screen.getByRole("button", { name: "Salvar todos" })).toBeDisabled();
   });
@@ -99,10 +144,13 @@ describe("contribution grid", () => {
     const user = userEvent.setup();
     const fetchMock = successfulFetch();
     vi.stubGlobal("fetch", fetchMock);
-    setup();
-    await user.type(screen.getByLabelText("Vazão inicial (L/s) T-1"), "2");
+    setup(12, onSegments(12));
+    await user.type(
+      screen.getByLabelText("Vazão inicial (L/s) Trecho T-1"),
+      "2",
+    );
     await user.click(screen.getByRole("button", { name: "Próxima página" }));
-    await user.clear(screen.getByLabelText("Vazão final (L/s) T-11"));
+    await user.clear(screen.getByLabelText("Vazão final (L/s) Trecho T-11"));
     await user.click(screen.getByRole("button", { name: "Página anterior" }));
     await user.click(screen.getByRole("button", { name: "Salvar todos" }));
     expect(
@@ -117,10 +165,10 @@ describe("contribution grid", () => {
   it("keeps failed drafts and retries only unsaved rows after partial success", async () => {
     const user = userEvent.setup();
     const fetchMock = successfulFetch();
-    fetchMock.mockImplementationOnce(async (_url, init) =>
+    fetchMock.mockImplementationOnce(async (url, init) =>
       Response.json({
         ...JSON.parse(String(init?.body)),
-        id: id(100),
+        id: url.split("/").at(-1),
         targetCode: "T-1",
       }),
     );
@@ -128,9 +176,15 @@ describe("contribution grid", () => {
       Response.json({ message: "Falha temporária" }, { status: 500 }),
     );
     vi.stubGlobal("fetch", fetchMock);
-    setup(2);
-    await user.type(screen.getByLabelText("Vazão inicial (L/s) T-1"), "2");
-    await user.type(screen.getByLabelText("Vazão inicial (L/s) T-2"), "3");
+    setup(2, onSegments(2));
+    await user.type(
+      screen.getByLabelText("Vazão inicial (L/s) Trecho T-1"),
+      "2",
+    );
+    await user.type(
+      screen.getByLabelText("Vazão inicial (L/s) Trecho T-2"),
+      "3",
+    );
     await user.click(screen.getByRole("button", { name: "Salvar todos" }));
     await screen.findByText(/1 contribuição salva\. 1 não foram salvas/);
     await waitFor(() =>
@@ -138,7 +192,9 @@ describe("contribution grid", () => {
         screen.getByRole("button", { name: "Salvar todos" }),
       ).toBeEnabled(),
     );
-    expect(screen.getByLabelText("Vazão inicial (L/s) T-2")).toHaveValue(3);
+    expect(screen.getByLabelText("Vazão inicial (L/s) Trecho T-2")).toHaveValue(
+      3,
+    );
     await user.click(screen.getByRole("button", { name: "Salvar todos" }));
     await screen.findByText(
       "1 contribuição salva. Recalcule o dimensionamento para atualizar as vazões.",
@@ -173,16 +229,10 @@ describe("contribution grid", () => {
         targetCode: "PV-01",
       },
     ];
-    const fetchMock = vi.fn(async (url: string, init?: RequestInit) =>
-      Response.json({
-        ...JSON.parse(String(init?.body)),
-        id: url.split("/").at(-1),
-        targetCode: "T-1",
-      }),
-    );
+    const fetchMock = successfulFetch();
     vi.stubGlobal("fetch", fetchMock);
     setup(1, existing);
-    await user.type(screen.getByLabelText("Vazão final (L/s) T-1"), "5");
+    await user.type(screen.getByLabelText("Vazão final (L/s) Trecho T-1"), "5");
     await user.type(screen.getByLabelText("Vazão final (L/s) Nó PV-01"), "6");
     await user.click(screen.getByRole("button", { name: "Salvar todos" }));
     await screen.findByText(
@@ -198,7 +248,7 @@ describe("contribution grid", () => {
     );
   });
 
-  it("adds an extra contribution targeted at a node and saves it with the grid", async () => {
+  it("adds a contribution targeted at a node by its code and saves it", async () => {
     const user = userEvent.setup();
     const fetchMock = successfulFetch();
     vi.stubGlobal("fetch", fetchMock);
@@ -225,6 +275,7 @@ describe("contribution grid", () => {
       "1 contribuição salva. Recalcule o dimensionamento para atualizar as vazões.",
     );
     expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0][1]?.method).toBe("POST");
     expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body))).toMatchObject({
       name: "Escola",
       nodeId: id(50),
@@ -233,21 +284,38 @@ describe("contribution grid", () => {
     });
   });
 
-  it("changes page size without losing drafts and lets unused rows be cleared", async () => {
+  it("removes an unsaved new row", async () => {
     const user = userEvent.setup();
-    setup();
-    await user.type(screen.getByLabelText("Vazão inicial (L/s) T-1"), "5");
+    setup(1);
+    await user.click(
+      screen.getByRole("button", { name: "Adicionar contribuição" }),
+    );
+    await user.click(screen.getByRole("button", { name: "Remover" }));
+    expect(
+      screen.queryByLabelText("Nome da contribuição Nova contribuição"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByText(/Nenhuma contribuição singular cadastrada/),
+    ).toBeInTheDocument();
+  });
+
+  it("changes page size without losing drafts", async () => {
+    const user = userEvent.setup();
+    setup(12, onSegments(12));
+    await user.type(
+      screen.getByLabelText("Vazão inicial (L/s) Trecho T-1"),
+      "5",
+    );
     await user.click(
       screen.getByRole("combobox", { name: "Linhas por página" }),
     );
     await user.click(screen.getByRole("option", { name: "25" }));
     expect(screen.getByText("Página 1 de 1")).toBeInTheDocument();
     expect(
-      screen.getByLabelText("Vazão inicial (L/s) T-12"),
+      screen.getByLabelText("Vazão inicial (L/s) Trecho T-12"),
     ).toBeInTheDocument();
-    expect(screen.getByLabelText("Vazão inicial (L/s) T-1")).toHaveValue(5);
-    await user.click(screen.getAllByRole("button", { name: "Limpar" })[0]);
-    expect(screen.getByLabelText("Vazão inicial (L/s) T-1")).toHaveValue(0);
-    expect(screen.getByRole("button", { name: "Salvar todos" })).toBeDisabled();
+    expect(screen.getByLabelText("Vazão inicial (L/s) Trecho T-1")).toHaveValue(
+      5,
+    );
   });
 });
