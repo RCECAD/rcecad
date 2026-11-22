@@ -18,7 +18,10 @@ export async function GET(
       );
     }
 
-    return Response.json(toGeneralDataFormValues(project));
+    return Response.json({
+      ...toGeneralDataFormValues(project),
+      computedNetworkLengthM: project.computedNetworkLengthM ?? null,
+    });
   } catch (error) {
     return routeErrorResponse(error);
   }

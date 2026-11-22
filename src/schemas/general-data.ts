@@ -21,6 +21,11 @@ export const generalDataSchema = z.object({
   basin: optionalText.optional(),
 });
 
+/** GET /general-data: editable fields plus the read-only length computed by the API. */
+export const generalDataResponseSchema = generalDataSchema.extend({
+  computedNetworkLengthM: z.number().finite().nonnegative().nullable(),
+});
+
 export const projectStatuses = [
   { value: "pending", label: "Com pendências" },
   { value: "inProgress", label: "Em andamento" },

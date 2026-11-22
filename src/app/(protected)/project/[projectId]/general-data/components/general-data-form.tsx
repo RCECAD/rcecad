@@ -28,7 +28,12 @@ import {
 } from "@/components/ui/card";
 import { ErrorState } from "@/components/ui/error-state";
 import { Feedback, RequestError } from "@/components/ui/feedback";
-import { Field, FieldError, FieldLabel } from "@/components/ui/field";
+import {
+  Field,
+  FieldDescription,
+  FieldError,
+  FieldLabel,
+} from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { PageLoading } from "@/components/ui/page-state";
 import { Textarea } from "@/components/ui/textarea";
@@ -36,9 +41,14 @@ import { portugueseValidation } from "@/lib/form-validation";
 import {
   GENERAL_DATA_DEFAULTS,
   type GeneralDataFormValues,
+  generalDataResponseSchema,
   generalDataSchema,
   projectStatuses,
 } from "@/schemas/general-data";
+
+const lengthFormat = new Intl.NumberFormat("pt-BR", {
+  maximumFractionDigits: 2,
+});
 
 type GeneralDataFormProps = {
   projectId: string;
@@ -150,7 +160,7 @@ export function GeneralDataForm({ projectId }: Readonly<GeneralDataFormProps>) {
     queryFn: async () =>
       parseClientJson(
         await fetch(`/api/projects/${projectId}/general-data`),
-        generalDataSchema,
+        generalDataResponseSchema,
         "Erro ao carregar dados gerais.",
       ),
     enabled: Boolean(projectId),
@@ -169,9 +179,12 @@ export function GeneralDataForm({ projectId }: Readonly<GeneralDataFormProps>) {
 
   useEffect(() => {
     if (generalData) {
-      reset(generalData);
+      const { computedNetworkLengthM: _computed, ...formValues } = generalData;
+      reset(formValues);
     }
   }, [generalData, reset]);
+
+  const computedNetworkLengthM = generalData?.computedNetworkLengthM ?? null;
 
   const saveMutation = useMutation({
     mutationFn: async (values: GeneralDataFormValues) =>
@@ -185,7 +198,8 @@ export function GeneralDataForm({ projectId }: Readonly<GeneralDataFormProps>) {
         "Erro ao salvar dados gerais.",
       ),
     onSuccess: async (data) => {
-      queryClient.setQueryData(queryKey, data);
+      // PUT returns the project without segments; general data never changes them.
+      queryClient.setQueryData(queryKey, { ...data, computedNetworkLengthM });
       reset(data);
       await invalidateProjectDependents(queryClient, projectId);
       toast.success("Dados gerais salvos com sucesso!");
@@ -354,22 +368,56 @@ export function GeneralDataForm({ projectId }: Readonly<GeneralDataFormProps>) {
             )}
           </Field>
           <Field>
+            <FieldLabel htmlFor="computedNetworkLengthM">
+              Extensão total calculada da rede (m)
+            </FieldLabel>
+            <Input
+              id="computedNetworkLengthM"
+              readOnly
+              value={
+                computedNetworkLengthM === null
+                  ? ""
+                  : lengthFormat.format(computedNetworkLengthM)
+              }
+              placeholder="Sem trechos cadastrados"
+              aria-describedby="computedNetworkLengthM-description"
+              className="bg-muted/50 font-medium tabular-nums"
+            />
+            <FieldDescription id="computedNetworkLengthM-description">
+              Soma dos comprimentos dos trechos, calculada pelo sistema. É o
+              valor usado nos cálculos.
+            </FieldDescription>
+          </Field>
+          <Field data-invalid={Boolean(errors.totalNetworkLengthM)}>
             <FieldLabel htmlFor="totalNetworkLengthM">
-              Extensão total informada da rede (m)
+              Extensão total informada da rede (m) (opcional)
             </FieldLabel>
             <Input
               id="totalNetworkLengthM"
               type="number"
               min="0"
               step="any"
-              placeholder="Conferida com a soma dos trechos"
+              placeholder="Ex.: 1250"
+              aria-invalid={Boolean(errors.totalNetworkLengthM)}
+              aria-describedby={
+                errors.totalNetworkLengthM
+                  ? "totalNetworkLengthM-description totalNetworkLengthM-error"
+                  : "totalNetworkLengthM-description"
+              }
               {...register("totalNetworkLengthM", {
                 setValueAs: (value) =>
                   value === "" || value == null ? null : Number(value),
               })}
             />
+            <FieldDescription id="totalNetworkLengthM-description">
+              Apenas para comparação: não entra nos cálculos. Se divergir mais
+              de 1% da extensão calculada, a validação emite um alerta.
+            </FieldDescription>
             {errors.totalNetworkLengthM && (
-              <FieldError errors={[errors.totalNetworkLengthM]} />
+              <FieldError
+                id="totalNetworkLengthM-error"
+                errors={[errors.totalNetworkLengthM]}
+              />
             )}
           </Field>
         </CardContent>

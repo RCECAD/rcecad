@@ -54,6 +54,7 @@ export function toProjectFromDetail(source: ProjectDetailResponse): Project {
   return {
     ...toProject(source.project),
     totalSegments: source.segments.length,
+    computedNetworkLengthM: source.computedNetworkLengthM ?? undefined,
   };
 }
 
