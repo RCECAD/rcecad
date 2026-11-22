@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FileText, Lock, Save, Undo2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { type FieldPath, useForm } from "react-hook-form";
+import { Controller, type FieldPath, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import {
   invalidateProjectDependents,
@@ -37,6 +37,13 @@ import {
   InputGroupInput,
 } from "@/components/ui/input-group";
 import { PageLoading } from "@/components/ui/page-state";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { portugueseValidation } from "@/lib/form-validation";
 import {
@@ -122,6 +129,22 @@ function getErrorId(name: string) {
   return `${name}-error`;
 }
 
+const NETWORK_MATERIALS = [
+  "PVC JEI",
+  "PVC",
+  "Concreto",
+  "Ferro fundido",
+  "PEAD",
+  "Cerâmico",
+];
+
+// Keeps a material saved before the select existed (free text) selectable.
+function networkMaterialOptions(current: string | null | undefined) {
+  return current && !NETWORK_MATERIALS.includes(current)
+    ? [current, ...NETWORK_MATERIALS]
+    : NETWORK_MATERIALS;
+}
+
 export function HydraulicsForm({ projectId }: Readonly<HydraulicsFormProps>) {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -148,6 +171,7 @@ export function HydraulicsForm({ projectId }: Readonly<HydraulicsFormProps>) {
   });
 
   const {
+    control,
     formState: { errors, isDirty },
     handleSubmit,
     register,
@@ -263,21 +287,40 @@ export function HydraulicsForm({ projectId }: Readonly<HydraulicsFormProps>) {
             className="md:col-span-3"
           >
             <FieldLabel htmlFor="defaultNetworkMaterial">
-              Material da rede
+              Material padrão da rede
             </FieldLabel>
-            <Input
-              id="defaultNetworkMaterial"
-              maxLength={100}
-              placeholder="Ex.: PVC JEI"
-              aria-invalid={Boolean(errors.defaultNetworkMaterial)}
-              aria-describedby="defaultNetworkMaterial-description defaultNetworkMaterial-error"
-              {...register("defaultNetworkMaterial", {
-                setValueAs: (value: string | null) => value?.trim() || null,
-              })}
+            <Controller
+              control={control}
+              name="defaultNetworkMaterial"
+              render={({ field }) => (
+                <Select
+                  value={field.value ?? ""}
+                  onValueChange={field.onChange}
+                >
+                  <SelectTrigger
+                    id="defaultNetworkMaterial"
+                    ref={field.ref}
+                    onBlur={field.onBlur}
+                    aria-invalid={Boolean(errors.defaultNetworkMaterial)}
+                    aria-describedby="defaultNetworkMaterial-description defaultNetworkMaterial-error"
+                    className="w-full bg-background"
+                  >
+                    <SelectValue placeholder="Selecione o material" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {networkMaterialOptions(field.value).map((material) => (
+                      <SelectItem key={material} value={material}>
+                        {material}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             />
             <FieldDescription id="defaultNetworkMaterial-description">
-              Pode ficar em branco durante o cadastro, mas é necessário para
-              dimensionar a rede.
+              Padrão do projeto: vale para todos os trechos sem material próprio
+              e pode ser alterado em cada trecho. Pode ficar em branco durante o
+              cadastro, mas é necessário para dimensionar a rede.
             </FieldDescription>
             {errors.defaultNetworkMaterial && (
               <FieldError
