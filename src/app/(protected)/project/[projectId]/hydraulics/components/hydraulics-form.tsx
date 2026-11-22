@@ -50,6 +50,7 @@ import {
   type HydraulicsFormValues,
   hydraulicsFormSchema,
   hydraulicsSchema,
+  returnCoefficientToPercent,
   toHydraulicsFormValues,
   toParametersRequest,
 } from "@/schemas/hydraulics";
@@ -84,9 +85,9 @@ const parameterFields = [
   {
     name: "returnCoefficient",
     label: "Coeficiente de retorno",
-    unit: "adimensional",
+    unit: "%",
     min: Number.MIN_VALUE,
-    step: 0.01,
+    step: 0.1,
   },
   {
     name: "perCapitaFlow",
@@ -485,7 +486,9 @@ export function HydraulicsForm({ projectId }: Readonly<HydraulicsFormProps>) {
                   {baseline?.value != null && (
                     <FieldDescription>
                       Referência normativa:{" "}
-                      {baseline.value.toLocaleString("pt-BR")}
+                      {field.name === "returnCoefficient"
+                        ? `${returnCoefficientToPercent(baseline.value).toLocaleString("pt-BR")}%`
+                        : baseline.value.toLocaleString("pt-BR")}
                       {baseline.source ? ` (${baseline.source})` : ""}
                     </FieldDescription>
                   )}

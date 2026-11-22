@@ -38,6 +38,11 @@ export type HydraulicsFormDefaults = {
   [Key in keyof HydraulicsFormValues]-?: HydraulicsFormValues[Key] | null;
 };
 
+// The API and the engine take the return coefficient as a fraction (0.8); the form shows it in percent (80).
+export function returnCoefficientToPercent(fraction: number) {
+  return Math.round(fraction * 100 * 1e6) / 1e6;
+}
+
 export function toParametersRequest({
   switchFromMaterial,
   switchToMaterial,
@@ -46,6 +51,7 @@ export function toParametersRequest({
 }: HydraulicsFormValues): ProjectParameters {
   return {
     ...values,
+    returnCoefficient: values.returnCoefficient / 100,
     materialSwitch:
       switchFromMaterial && switchToMaterial && switchAboveDiameterMm
         ? {
@@ -65,7 +71,10 @@ export function toHydraulicsFormValues(
   return {
     initialPopulation: stored?.initialPopulation ?? null,
     finalPopulation: stored?.finalPopulation ?? null,
-    returnCoefficient: stored?.returnCoefficient ?? null,
+    returnCoefficient:
+      stored?.returnCoefficient == null
+        ? null
+        : returnCoefficientToPercent(stored.returnCoefficient),
     perCapitaFlow: stored?.perCapitaFlow ?? null,
     infiltrationRate: stored?.infiltrationRate ?? null,
     peakDailyFactor: stored?.peakDailyFactor ?? null,
