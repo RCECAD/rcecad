@@ -74,7 +74,13 @@ type Draft = {
   initialLps: string;
   finalLps: string;
 };
-type Row = { key: string; label: string; id?: string; draft: Draft };
+type Row = {
+  key: string;
+  label: string;
+  ends?: string | null;
+  id?: string;
+  draft: Draft;
+};
 const emptyDraft: Draft = {
   name: "",
   type: "OTHER",
@@ -143,11 +149,23 @@ export function SingularContributionsEditor({
     retry: false,
   });
   const items = contributions.data ?? [];
+  const nodeCodes = new Map(
+    (network.data?.nodes ?? []).map((node) => [node.id, node.code]),
+  );
+  const segmentEnds = (segmentId: string | null) => {
+    const segment = network.data?.segments.find(
+      (item) => item.id === segmentId,
+    );
+    const upstream = segment && nodeCodes.get(segment.upstreamNodeId);
+    const downstream = segment && nodeCodes.get(segment.downstreamNodeId);
+    return upstream && downstream ? `${upstream} → ${downstream}` : null;
+  };
   const rows: Row[] = [
     ...items.map((item) => ({
       key: item.id,
       id: item.id,
       label: `${item.nodeId ? "Nó" : "Trecho"} ${item.targetCode}`,
+      ends: segmentEnds(item.segmentId),
       draft: toDraft(item),
     })),
     ...extraRows,
@@ -402,7 +420,14 @@ export function SingularContributionsEditor({
               const errorId = `contribution-${row.key}-error`;
               return (
                 <TableRow key={row.key} data-invalid={Boolean(error)}>
-                  <TableCell className="font-medium">{row.label}</TableCell>
+                  <TableCell className="font-medium">
+                    {row.label}
+                    {row.ends && (
+                      <span className="block text-xs font-normal text-muted-foreground">
+                        {row.ends}
+                      </span>
+                    )}
+                  </TableCell>
                   <TableCell className="min-w-52">
                     <Input
                       aria-label={`Nome da contribuição ${row.label}`}
@@ -474,6 +499,8 @@ export function SingularContributionsEditor({
                               value={`segment:${segment.id}`}
                             >
                               {segment.code}
+                              {segmentEnds(segment.id) &&
+                                ` (${segmentEnds(segment.id)})`}
                             </SelectItem>
                           ))}
                         </SelectGroup>

@@ -33,8 +33,13 @@ function setup(count = 12, contributions: SingularContribution[] = []) {
     segments: Array.from({ length: count }, (_, i) => ({
       id: id(i + 1),
       code: `T-${i + 1}`,
+      upstreamNodeId: i === 0 ? id(50) : id(90),
+      downstreamNodeId: i === 0 ? id(51) : id(91),
     })),
-    nodes: [{ id: id(50), code: "PV-01" }],
+    nodes: [
+      { id: id(50), code: "PV-01" },
+      { id: id(51), code: "PV-02" },
+    ],
   });
   client.setQueryData(projectQueryKeys.contributions(projectId), contributions);
   render(
@@ -282,6 +287,21 @@ describe("contribution grid", () => {
       segmentId: null,
       finalLps: 3,
     });
+  });
+
+  it("tells segments apart from nodes by showing each segment's end nodes", async () => {
+    const user = userEvent.setup();
+    setup(1, onSegments(1));
+    expect(screen.getByText("PV-01 → PV-02")).toBeInTheDocument();
+    await user.click(
+      screen.getByRole("combobox", {
+        name: "Destino da contribuição Trecho T-1",
+      }),
+    );
+    expect(
+      screen.getByRole("option", { name: "T-1 (PV-01 → PV-02)" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "PV-01" })).toBeInTheDocument();
   });
 
   it("removes an unsaved new row", async () => {
