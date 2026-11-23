@@ -43,14 +43,37 @@ export function returnCoefficientToPercent(fraction: number) {
   return Math.round(fraction * 100 * 1e6) / 1e6;
 }
 
-export function toParametersRequest({
-  switchFromMaterial,
-  switchToMaterial,
-  switchAboveDiameterMm,
-  ...values
-}: HydraulicsFormValues): ProjectParameters {
+export type InfiltrationUnit = "km" | "m";
+// 1 L/s·m = 1000 L/s·km; the API always stores L/s·km.
+const METRES_PER_KILOMETRE = 1000;
+
+export function convertInfiltrationRate(
+  value: number | null,
+  from: InfiltrationUnit,
+  to: InfiltrationUnit,
+): number | null {
+  if (value === null || from === to) return value;
+  const converted =
+    from === "km" ? value / METRES_PER_KILOMETRE : value * METRES_PER_KILOMETRE;
+  return Number(converted.toPrecision(12));
+}
+
+export function toParametersRequest(
+  {
+    switchFromMaterial,
+    switchToMaterial,
+    switchAboveDiameterMm,
+    ...values
+  }: HydraulicsFormValues,
+  infiltrationUnit: InfiltrationUnit = "km",
+): ProjectParameters {
   return {
     ...values,
+    infiltrationRate: convertInfiltrationRate(
+      values.infiltrationRate ?? null,
+      infiltrationUnit,
+      "km",
+    ),
     returnCoefficient: values.returnCoefficient / 100,
     materialSwitch:
       switchFromMaterial && switchToMaterial && switchAboveDiameterMm

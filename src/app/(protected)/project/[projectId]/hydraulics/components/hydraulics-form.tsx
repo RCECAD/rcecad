@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FileText, Lock, Save, Undo2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Controller, type FieldPath, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import {
@@ -49,13 +49,35 @@ import { useCorrectionFocus } from "@/lib/correction-focus";
 import { portugueseValidation } from "@/lib/form-validation";
 import { networkMaterialOptions } from "@/lib/network-materials";
 import {
+  convertInfiltrationRate,
   type HydraulicsFormValues,
   hydraulicsFormSchema,
   hydraulicsSchema,
+  type InfiltrationUnit,
   returnCoefficientToPercent,
   toHydraulicsFormValues,
   toParametersRequest,
 } from "@/schemas/hydraulics";
+
+const INFILTRATION_UNIT_KEY = "rcecad:infiltration-unit";
+
+function readInfiltrationUnit(): InfiltrationUnit {
+  try {
+    return window.localStorage.getItem(INFILTRATION_UNIT_KEY) === "m"
+      ? "m"
+      : "km";
+  } catch {
+    return "km";
+  }
+}
+
+function writeInfiltrationUnit(unit: InfiltrationUnit) {
+  try {
+    window.localStorage.setItem(INFILTRATION_UNIT_KEY, unit);
+  } catch {
+    // Unit preference is a convenience; blocked storage keeps the km default.
+  }
+}
 
 type HydraulicsFormProps = {
   projectId: string;
@@ -159,19 +181,62 @@ export function HydraulicsForm({ projectId }: Readonly<HydraulicsFormProps>) {
 
   const {
     control,
-    formState: { errors, isDirty },
+    formState: { errors, isDirty, defaultValues },
+    getFieldState,
+    getValues,
     handleSubmit,
     register,
     reset,
+    resetField,
+    setValue,
   } = useForm<HydraulicsFormValues>({
     resolver: zodResolver(hydraulicsFormSchema, portugueseValidation),
   });
+  const [infiltrationUnit, setInfiltrationUnit] =
+    useState<InfiltrationUnit>("km");
+  // Read by the reset effect so a refetch after saving keeps the chosen unit without re-running it.
+  const infiltrationUnitRef = useRef<InfiltrationUnit | null>(null);
 
   useEffect(() => {
     if (hydraulicData) {
-      reset(toHydraulicsFormValues(hydraulicData) as HydraulicsFormValues);
+      infiltrationUnitRef.current ??= readInfiltrationUnit();
+      const unit = infiltrationUnitRef.current;
+      const values = toHydraulicsFormValues(hydraulicData);
+      reset({
+        ...values,
+        infiltrationRate: convertInfiltrationRate(
+          values.infiltrationRate,
+          "km",
+          unit,
+        ),
+      } as HydraulicsFormValues);
+      setInfiltrationUnit(unit);
     }
   }, [hydraulicData, reset]);
+
+  function changeInfiltrationUnit(next: InfiltrationUnit) {
+    const previous = infiltrationUnit;
+    if (next === previous) return;
+    const wasDirty = getFieldState("infiltrationRate").isDirty;
+    const current = getValues("infiltrationRate") ?? null;
+    resetField("infiltrationRate", {
+      defaultValue: convertInfiltrationRate(
+        defaultValues?.infiltrationRate ?? null,
+        previous,
+        next,
+      ),
+    });
+    if (wasDirty) {
+      setValue(
+        "infiltrationRate",
+        convertInfiltrationRate(current, previous, next),
+        { shouldDirty: true },
+      );
+    }
+    infiltrationUnitRef.current = next;
+    setInfiltrationUnit(next);
+    writeInfiltrationUnit(next);
+  }
   useCorrectionFocus(Boolean(hydraulicData));
 
   const saveMutation = useMutation({
@@ -180,7 +245,7 @@ export function HydraulicsForm({ projectId }: Readonly<HydraulicsFormProps>) {
         await fetch(`/api/projects/${projectId}/hydraulics`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(toParametersRequest(values)),
+          body: JSON.stringify(toParametersRequest(values, infiltrationUnit)),
         }),
         hydraulicsSchema,
         "Erro ao salvar parâmetros hidráulicos.",
@@ -385,7 +450,12 @@ export function HydraulicsForm({ projectId }: Readonly<HydraulicsFormProps>) {
                     id={field.name}
                     type="number"
                     min={field.min}
-                    step={field.step}
+                    step={
+                      field.name === "infiltrationRate" &&
+                      infiltrationUnit === "m"
+                        ? "any"
+                        : field.step
+                    }
                     inputMode="decimal"
                     aria-invalid={Boolean(error)}
                     aria-describedby={[
@@ -401,7 +471,25 @@ export function HydraulicsForm({ projectId }: Readonly<HydraulicsFormProps>) {
                     })}
                   />
                   <InputGroupAddon align="inline-end">
-                    {field.unit}
+                    {field.name === "infiltrationRate" ? (
+                      <select
+                        aria-label="Unidade da taxa de infiltração"
+                        value={infiltrationUnit}
+                        // The addon focuses the input on click, which would close the native list.
+                        onClick={(event) => event.stopPropagation()}
+                        onChange={(event) =>
+                          changeInfiltrationUnit(
+                            event.target.value as InfiltrationUnit,
+                          )
+                        }
+                        className="cursor-pointer rounded-sm bg-transparent text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      >
+                        <option value="km">L/s por km</option>
+                        <option value="m">L/s por m</option>
+                      </select>
+                    ) : (
+                      field.unit
+                    )}
                   </InputGroupAddon>
                 </InputGroup>
                 <div id={descriptionId} className="space-y-1">
@@ -430,16 +518,19 @@ export function HydraulicsForm({ projectId }: Readonly<HydraulicsFormProps>) {
                         "NBR 9649:1986",
                       ) && (
                         <FieldDescription>
-                          Referência normativa: 0,05 a 1,0 L/s por km (NBR
-                          9649:1986)
+                          Referência normativa:{" "}
+                          {infiltrationUnit === "km"
+                            ? "0,05 a 1,0 L/s por km"
+                            : "0,00005 a 0,001 L/s por m"}{" "}
+                          (NBR 9649:1986)
                         </FieldDescription>
                       )}
                       {hydraulicData?.normativeProfile.standards.includes(
                         "NBR 7367:1988",
                       ) && (
                         <FieldDescription>
-                          Referência normativa: 0 L/s por km em rede 100% PVC
-                          com junta elástica (NBR 7367:1988)
+                          Referência normativa: 0 L/s por {infiltrationUnit} em
+                          rede 100% PVC com junta elástica (NBR 7367:1988)
                         </FieldDescription>
                       )}
                       <FieldDescription>

@@ -225,6 +225,54 @@ describe("HydraulicsForm", () => {
     expect(JSON.parse(put()?.[1].body)).toEqual(saved);
   });
 
+  it("converts the infiltration rate when the unit changes and always saves it per kilometre", async () => {
+    const user = userEvent.setup();
+    fetchMock
+      .mockResolvedValueOnce(createJsonResponse(details(parameters)))
+      .mockResolvedValue(createJsonResponse(parameters));
+    renderForm();
+    const infiltration = await screen.findByLabelText(
+      "Taxa de infiltração (opcional)",
+    );
+    expect(infiltration).toHaveValue(0.1);
+
+    await user.selectOptions(
+      screen.getByLabelText("Unidade da taxa de infiltração"),
+      "L/s por m",
+    );
+
+    expect(infiltration).toHaveValue(0.0001);
+    expect(infiltration).toHaveAccessibleDescription(
+      /Referência normativa: 0,00005 a 0,001 L\/s por m \(NBR 9649:1986\)/,
+    );
+
+    await user.clear(infiltration);
+    await user.type(infiltration, "0.0002");
+    await user.click(screen.getByRole("button", { name: "Salvar alterações" }));
+    const put = () =>
+      fetchMock.mock.calls.find(([, init]) => init?.method === "PUT");
+    await waitFor(() => expect(put()).toBeDefined());
+    expect(JSON.parse(put()?.[1].body).infiltrationRate).toBe(0.2);
+  });
+
+  it("does not treat a unit switch alone as an unsaved change", async () => {
+    const user = userEvent.setup();
+    fetchMock.mockResolvedValue(createJsonResponse(details(parameters)));
+    renderForm();
+    await screen.findByLabelText("Taxa de infiltração (opcional)");
+
+    await user.selectOptions(
+      screen.getByLabelText("Unidade da taxa de infiltração"),
+      "L/s por m",
+    );
+    await user.click(screen.getByRole("button", { name: "Voltar" }));
+
+    expect(
+      screen.queryByRole("dialog", { name: "Descartar alterações?" }),
+    ).not.toBeInTheDocument();
+    expect(mocks.push).toHaveBeenCalledWith("/project/project-1");
+  });
+
   it("lets a new project configure its first parameters without fabricated values", async () => {
     fetchMock.mockResolvedValueOnce(
       createJsonResponse(details({ returnCoefficient: 0.8 }, false)),
