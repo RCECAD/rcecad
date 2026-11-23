@@ -74,6 +74,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useCorrectionFocus } from "@/lib/correction-focus";
 import { portugueseValidation } from "@/lib/form-validation";
 import { networkMaterialOptions } from "@/lib/network-materials";
 import { cn } from "@/lib/utils";
@@ -589,6 +590,7 @@ function SegmentRow({
                 >
                   <SelectTrigger
                     ref={field.ref}
+                    data-field={field.name}
                     onBlur={field.onBlur}
                     aria-label={`Tipo de elemento ${segment.code}`}
                     aria-invalid={fieldState.invalid}
@@ -627,6 +629,7 @@ function SegmentRow({
                 >
                   <SelectTrigger
                     ref={field.ref}
+                    data-field={field.name}
                     onBlur={field.onBlur}
                     aria-label={`Contribuição de tempo seco ${segment.code}`}
                     aria-invalid={fieldState.invalid}
@@ -668,6 +671,7 @@ function SegmentRow({
               name="material"
               render={({ field }) => (
                 <Select
+                  name={field.name}
                   value={field.value ?? PROJECT_MATERIAL}
                   onValueChange={(value) =>
                     field.onChange(value === PROJECT_MATERIAL ? null : value)
@@ -676,6 +680,7 @@ function SegmentRow({
                 >
                   <SelectTrigger
                     ref={field.ref}
+                    data-field={field.name}
                     onBlur={field.onBlur}
                     aria-label={`Material ${segment.code}`}
                     className={cn(
@@ -718,6 +723,7 @@ function SegmentRow({
                 >
                   <SelectTrigger
                     ref={field.ref}
+                    data-field={field.name}
                     onBlur={field.onBlur}
                     aria-label={`Categoria de recobrimento ${segment.code}`}
                     aria-invalid={fieldState.invalid}
@@ -754,6 +760,7 @@ function SegmentRow({
                 >
                   <SelectTrigger
                     ref={field.ref}
+                    data-field={field.name}
                     onBlur={field.onBlur}
                     aria-label={`Material superficial ${segment.code}`}
                     aria-invalid={fieldState.invalid}
@@ -786,6 +793,7 @@ function SegmentRow({
                 >
                   <SelectTrigger
                     ref={field.ref}
+                    data-field={field.name}
                     onBlur={field.onBlur}
                     aria-label={`Condição superficial ${segment.code}`}
                     aria-invalid={fieldState.invalid}
@@ -1051,7 +1059,6 @@ export function NetworkFieldEditor({
   };
   useEffect(() => {
     if (!network.data || isDirty) return;
-    let timer: ReturnType<typeof setTimeout>;
     const revealTarget = () => {
       const target = window.location.hash.slice(1);
       if (!/^(node|segment)-/.test(target)) return;
@@ -1062,19 +1069,12 @@ export function NetworkFieldEditor({
         );
         if (index >= 0) setPage(Math.floor(index / pageSize));
       }
-      timer = setTimeout(
-        () =>
-          document.getElementById(target)?.scrollIntoView({ block: "center" }),
-        0,
-      );
     };
     revealTarget();
     window.addEventListener("hashchange", revealTarget);
-    return () => {
-      clearTimeout(timer);
-      window.removeEventListener("hashchange", revealTarget);
-    };
+    return () => window.removeEventListener("hashchange", revealTarget);
   }, [network.data, mode, isDirty, pageSize]);
+  useCorrectionFocus(Boolean(network.data));
   if (network.isPending)
     return <PageLoading label="Carregando nós e trechos" />;
   if (network.isError)

@@ -45,6 +45,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { useCorrectionFocus } from "@/lib/correction-focus";
 import { portugueseValidation } from "@/lib/form-validation";
 import { networkMaterialOptions } from "@/lib/network-materials";
 import {
@@ -171,6 +172,7 @@ export function HydraulicsForm({ projectId }: Readonly<HydraulicsFormProps>) {
       reset(toHydraulicsFormValues(hydraulicData) as HydraulicsFormValues);
     }
   }, [hydraulicData, reset]);
+  useCorrectionFocus(Boolean(hydraulicData));
 
   const saveMutation = useMutation({
     mutationFn: async (values: HydraulicsFormValues) => {

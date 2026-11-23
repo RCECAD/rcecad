@@ -37,6 +37,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { PageLoading } from "@/components/ui/page-state";
 import { Textarea } from "@/components/ui/textarea";
+import { useCorrectionFocus } from "@/lib/correction-focus";
 import { portugueseValidation } from "@/lib/form-validation";
 import {
   GENERAL_DATA_DEFAULTS,
@@ -183,6 +184,7 @@ export function GeneralDataForm({ projectId }: Readonly<GeneralDataFormProps>) {
       reset(formValues);
     }
   }, [generalData, reset]);
+  useCorrectionFocus(Boolean(generalData));
 
   const computedNetworkLengthM = generalData?.computedNetworkLengthM ?? null;
 
