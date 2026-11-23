@@ -54,6 +54,9 @@ export async function invalidateProjectDependents(
     queryClient.invalidateQueries({
       queryKey: projectQueryKeys.overview(projectId),
     }),
+    queryClient.invalidateQueries({
+      queryKey: projectQueryKeys.generalData(projectId),
+    }),
     queryClient.cancelQueries({
       queryKey: projectQueryKeys.calculations(projectId),
     }),

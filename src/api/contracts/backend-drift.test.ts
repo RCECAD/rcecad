@@ -78,6 +78,7 @@ const backendDetail = {
   },
   nodes: [backendNode(nodeA, "PV-1"), backendNode(nodeB, "PV-2")],
   segments: [backendSegment],
+  computedNetworkLengthM: 80,
   designOutdated: null,
   lastSnapshotAt: null,
 };
@@ -112,6 +113,7 @@ describe("current backend contract", () => {
     expect(parsed.segments[0].fixedDiameterMm).toBeNull();
     expect(parsed.nodes[0].hasDropTube).toBe(false);
     expect(parsed.project.totalNetworkLengthM).toBe(1000);
+    expect(parsed.computedNetworkLengthM).toBe(80);
   });
 
   it("sends segment field data without the contribution fields Spring now rejects", () => {

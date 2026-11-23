@@ -138,7 +138,7 @@ describe("HydraulicsForm", () => {
     await user.click(screen.getByRole("button", { name: "Tentar novamente" }));
 
     expect(await screen.findByLabelText("Coeficiente de retorno")).toHaveValue(
-      parameters.returnCoefficient,
+      80,
     );
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
@@ -237,10 +237,12 @@ describe("HydraulicsForm", () => {
     expect(screen.getByLabelText("Taxa de infiltração (opcional)")).toHaveValue(
       null,
     );
-    expect(screen.getByLabelText("Material da rede")).toHaveValue("");
+    expect(screen.getByLabelText("Material padrão da rede")).toHaveTextContent(
+      "Selecione o material",
+    );
     expect(screen.getByLabelText("Coeficiente de retorno")).toHaveValue(null);
     expect(
-      screen.getByText("Referência normativa: 0,8 (NBR 9649:1986)"),
+      screen.getByText("Referência normativa: 80% (NBR 9649:1986)"),
     ).toBeInTheDocument();
   });
 });

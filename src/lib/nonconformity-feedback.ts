@@ -10,6 +10,20 @@ export const parameterLabels: Record<string, string> = {
   initialPopulation: "População inicial",
   finalPopulation: "População final",
   manningCoefficient: "Coeficiente de Manning (n)",
+  manningN: "Coeficiente de Manning (n)",
+  initialVelocity: "Velocidade inicial",
+  finalVelocity: "Velocidade final",
+  tractiveTension: "Tensão trativa",
+  referenceTractiveTension: "Tensão trativa de referência",
+  initialDepthRatio: "Lâmina relativa inicial (y/D)",
+  finalDepthRatio: "Lâmina relativa final (y/D)",
+  initialDischarge: "Vazão inicial",
+  finalDischarge: "Vazão final",
+  peakConveyance: "Capacidade máxima de transporte",
+  cover: "Recobrimento",
+  minimumCover: "Recobrimento mínimo",
+  segmentDiameter: "Diâmetro do trecho",
+  segmentSlope: "Declividade do trecho",
 };
 
 const technicalGuidance: Record<
@@ -28,6 +42,15 @@ const parameterUnits: Record<string, string> = {
   infiltrationRate: "L/s·km",
   initialPopulation: "hab",
   finalPopulation: "hab",
+  // Units declared by the engine keys (cdre NbrKeys / EngineKeys).
+  initialVelocity: "m/s",
+  finalVelocity: "m/s",
+  tractiveTension: "Pa",
+  referenceTractiveTension: "Pa",
+  finalDischarge: "L/s",
+  peakConveyance: "m³/s",
+  cover: "m",
+  minimumCover: "m",
 };
 const numericPattern = "[+-]?(?:\\d+(?:\\.\\d+)?|\\.\\d+)(?:[eE][+-]?\\d+)?";
 const numericValue = new RegExp(`^${numericPattern}$`);

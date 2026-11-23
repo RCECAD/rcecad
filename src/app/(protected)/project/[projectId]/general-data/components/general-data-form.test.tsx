@@ -28,14 +28,16 @@ vi.mock("sonner", () => ({
 
 const fetchMock = vi.fn();
 
-const completeGeneralData: GeneralDataFormValues = {
+const completeGeneralData = {
   ...GENERAL_DATA_DEFAULTS,
   name: "Projeto Centro",
   contractor: "Prefeitura Municipal de Cascavel",
   technicalManager: "Eng. João Silva",
   location: "Cascavel, PR",
   status: "inProgress",
-};
+  totalNetworkLengthM: 1300,
+  computedNetworkLengthM: 1234.5,
+} satisfies GeneralDataFormValues & { computedNetworkLengthM: number | null };
 
 function createJsonResponse(body: unknown, ok = true) {
   return {
@@ -118,7 +120,10 @@ describe("GeneralDataForm", () => {
 
     fetchMock
       .mockResolvedValueOnce(createJsonResponse(completeGeneralData))
-      .mockResolvedValueOnce(createJsonResponse(savedData));
+      .mockResolvedValueOnce(createJsonResponse(savedData))
+      .mockResolvedValue(
+        createJsonResponse({ ...savedData, computedNetworkLengthM: 1234.5 }),
+      );
 
     renderForm();
 
@@ -140,6 +145,48 @@ describe("GeneralDataForm", () => {
         }),
       );
     });
+    const putBody = JSON.parse(
+      fetchMock.mock.calls.find(([, init]) => init?.method === "PUT")?.[1].body,
+    );
+    expect(putBody).not.toHaveProperty("computedNetworkLengthM");
+    expect(putBody.totalNetworkLengthM).toBe(1300);
+  });
+
+  it("shows the computed network length read-only and the informed one as comparison only", async () => {
+    fetchMock.mockResolvedValue(createJsonResponse(completeGeneralData));
+
+    renderForm();
+
+    const computed = await screen.findByLabelText(
+      "Extensão total calculada da rede (m)",
+    );
+    expect(computed).toHaveValue("1.234,5");
+    expect(computed).toHaveAttribute("readonly");
+    expect(computed).toHaveAccessibleDescription(
+      /calculada pelo sistema\. É o valor usado nos cálculos/,
+    );
+    expect(
+      screen.getByLabelText("Extensão total informada da rede (m) (opcional)"),
+    ).toHaveAccessibleDescription(
+      /Apenas para comparação: não entra nos cálculos/,
+    );
+  });
+
+  it("explains a missing computed length when the project has no segments", async () => {
+    fetchMock.mockResolvedValue(
+      createJsonResponse({
+        ...completeGeneralData,
+        computedNetworkLengthM: null,
+      }),
+    );
+
+    renderForm();
+
+    const computed = await screen.findByLabelText(
+      "Extensão total calculada da rede (m)",
+    );
+    expect(computed).toHaveValue("");
+    expect(computed).toHaveAttribute("placeholder", "Sem trechos cadastrados");
   });
 
   it("confirms before leaving a dirty form", async () => {

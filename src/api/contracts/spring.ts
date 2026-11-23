@@ -133,6 +133,12 @@ export const projectDetailResponseSchema = z.object({
   project: projectResponseSchema,
   nodes: z.array(hydraulicNodeResponseSchema),
   segments: z.array(segmentResponseSchema),
+  computedNetworkLengthM: z
+    .number()
+    .finite()
+    .nonnegative()
+    .nullable()
+    .optional(),
   designOutdated: z.boolean().nullable().optional(),
   lastSnapshotAt: instantSchema.nullable().optional(),
 });

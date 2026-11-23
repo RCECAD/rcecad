@@ -39,6 +39,7 @@ import {
   RequestError,
 } from "@/components/ui/feedback";
 import { Input } from "@/components/ui/input";
+import { InlineListSkeleton } from "@/components/ui/loading-skeletons";
 import {
   Select,
   SelectContent,
@@ -97,9 +98,7 @@ function DecisionHistory({
   );
   if (history.isPending)
     return (
-      <p role="status" className="text-xs">
-        Carregando histórico de decisões...
-      </p>
+      <InlineListSkeleton label="Carregando histórico de decisões" rows={2} />
     );
   if (history.isError)
     return (
@@ -668,9 +667,7 @@ export function NonconformityPanel({ projectId }: { projectId: string }) {
             </SelectContent>
           </Select>
           {tracked.isPending && (
-            <p role="status" className="text-sm">
-              Carregando não conformidades...
-            </p>
+            <InlineListSkeleton label="Carregando não conformidades" rows={3} />
           )}
           {tracked.isError && (
             <RequestError

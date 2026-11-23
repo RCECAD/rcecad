@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FileText, Lock, Save, Undo2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { type FieldPath, useForm } from "react-hook-form";
+import { Controller, type FieldPath, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import {
   invalidateProjectDependents,
@@ -36,13 +36,23 @@ import {
   InputGroupAddon,
   InputGroupInput,
 } from "@/components/ui/input-group";
-import { PageLoading } from "@/components/ui/page-state";
+import { FormPageSkeleton } from "@/components/ui/loading-skeletons";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { useCorrectionFocus } from "@/lib/correction-focus";
 import { portugueseValidation } from "@/lib/form-validation";
+import { networkMaterialOptions } from "@/lib/network-materials";
 import {
   type HydraulicsFormValues,
   hydraulicsFormSchema,
   hydraulicsSchema,
+  returnCoefficientToPercent,
   toHydraulicsFormValues,
   toParametersRequest,
 } from "@/schemas/hydraulics";
@@ -77,9 +87,9 @@ const parameterFields = [
   {
     name: "returnCoefficient",
     label: "Coeficiente de retorno",
-    unit: "adimensional",
+    unit: "%",
     min: Number.MIN_VALUE,
-    step: 0.01,
+    step: 0.1,
   },
   {
     name: "perCapitaFlow",
@@ -148,6 +158,7 @@ export function HydraulicsForm({ projectId }: Readonly<HydraulicsFormProps>) {
   });
 
   const {
+    control,
     formState: { errors, isDirty },
     handleSubmit,
     register,
@@ -161,6 +172,7 @@ export function HydraulicsForm({ projectId }: Readonly<HydraulicsFormProps>) {
       reset(toHydraulicsFormValues(hydraulicData) as HydraulicsFormValues);
     }
   }, [hydraulicData, reset]);
+  useCorrectionFocus(Boolean(hydraulicData));
 
   const saveMutation = useMutation({
     mutationFn: async (values: HydraulicsFormValues) => {
@@ -202,7 +214,7 @@ export function HydraulicsForm({ projectId }: Readonly<HydraulicsFormProps>) {
   );
 
   if (isLoading) {
-    return <PageLoading label="Carregando parâmetros hidráulicos" />;
+    return <FormPageSkeleton sections={2} />;
   }
 
   if (isError) {
@@ -263,21 +275,40 @@ export function HydraulicsForm({ projectId }: Readonly<HydraulicsFormProps>) {
             className="md:col-span-3"
           >
             <FieldLabel htmlFor="defaultNetworkMaterial">
-              Material da rede
+              Material padrão da rede
             </FieldLabel>
-            <Input
-              id="defaultNetworkMaterial"
-              maxLength={100}
-              placeholder="Ex.: PVC JEI"
-              aria-invalid={Boolean(errors.defaultNetworkMaterial)}
-              aria-describedby="defaultNetworkMaterial-description defaultNetworkMaterial-error"
-              {...register("defaultNetworkMaterial", {
-                setValueAs: (value: string | null) => value?.trim() || null,
-              })}
+            <Controller
+              control={control}
+              name="defaultNetworkMaterial"
+              render={({ field }) => (
+                <Select
+                  value={field.value ?? ""}
+                  onValueChange={field.onChange}
+                >
+                  <SelectTrigger
+                    id="defaultNetworkMaterial"
+                    ref={field.ref}
+                    onBlur={field.onBlur}
+                    aria-invalid={Boolean(errors.defaultNetworkMaterial)}
+                    aria-describedby="defaultNetworkMaterial-description defaultNetworkMaterial-error"
+                    className="w-full bg-background"
+                  >
+                    <SelectValue placeholder="Selecione o material" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {networkMaterialOptions(field.value).map((material) => (
+                      <SelectItem key={material} value={material}>
+                        {material}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             />
             <FieldDescription id="defaultNetworkMaterial-description">
-              Pode ficar em branco durante o cadastro, mas é necessário para
-              dimensionar a rede.
+              Padrão do projeto: vale para todos os trechos sem material próprio
+              e pode ser alterado em cada trecho. Pode ficar em branco durante o
+              cadastro, mas é necessário para dimensionar a rede.
             </FieldDescription>
             {errors.defaultNetworkMaterial && (
               <FieldError
@@ -442,7 +473,9 @@ export function HydraulicsForm({ projectId }: Readonly<HydraulicsFormProps>) {
                   {baseline?.value != null && (
                     <FieldDescription>
                       Referência normativa:{" "}
-                      {baseline.value.toLocaleString("pt-BR")}
+                      {field.name === "returnCoefficient"
+                        ? `${returnCoefficientToPercent(baseline.value).toLocaleString("pt-BR")}%`
+                        : baseline.value.toLocaleString("pt-BR")}
                       {baseline.source ? ` (${baseline.source})` : ""}
                     </FieldDescription>
                   )}
