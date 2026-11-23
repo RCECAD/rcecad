@@ -1,4 +1,5 @@
 import type { ProjectAction, ValidationItem } from "@/api/contracts/design";
+import { nonconformityFeedback } from "@/lib/nonconformity-feedback";
 
 export const designStatusLabels: Record<string, string> = {
   designed: "Dimensionado",
@@ -34,11 +35,19 @@ export const ruleDescriptions: Record<string, string> = {
     "O parâmetro adotado está fora dos limites permitidos pelas normas aplicadas.",
 };
 
+export type GuidanceFacts = {
+  parameter: string | null;
+  observed: string | null;
+  limit: string | null;
+  references: string[];
+};
 type Guidance = {
   title: string;
   description: string;
   action: string;
   route: string;
+  focus?: string;
+  facts?: GuidanceFacts;
 };
 const requiredGuidance: Record<string, Guidance> = {
   "Missing design parameters": {
@@ -53,6 +62,7 @@ const requiredGuidance: Record<string, Guidance> = {
     title: "Material da rede não informado",
     description: "O material da tubulação ainda não foi definido.",
     action: "Selecione o material padrão da rede nos dados hidráulicos.",
+    focus: "defaultNetworkMaterial",
     route: "hydraulics",
   },
   "Missing infiltration rate": {
@@ -60,6 +70,7 @@ const requiredGuidance: Record<string, Guidance> = {
     description:
       "A rede não foi identificada como inteiramente em PVC; a NBR 7367 não fornece automaticamente a taxa de infiltração neste caso.",
     action: "Informe a taxa de infiltração em L/s por quilômetro.",
+    focus: "infiltrationRate",
     route: "hydraulics",
   },
   "Missing ground elevation": {
@@ -75,6 +86,7 @@ const requiredGuidance: Record<string, Guidance> = {
       "O trecho ainda não informa se recebe contribuição de tempo seco.",
     action:
       "Responda se o trecho recebe contribuição de tempo seco e salve a linha.",
+    focus: "receivesDryWeatherFlow",
     route: "sizing",
   },
   "Missing network segments": {
@@ -96,6 +108,7 @@ const requiredGuidance: Record<string, Guidance> = {
       "O comprimento informado nos dados gerais difere da soma dos comprimentos dos trechos.",
     action:
       "Confira o comprimento total nos dados gerais e os comprimentos dos trechos no desenho.",
+    focus: "totalNetworkLengthM",
     route: "general-data",
   },
 };
@@ -113,32 +126,9 @@ export function validationGuidance(item: ValidationItem): Guidance {
         }
       : known;
   }
-  const rule = item.title.match(/^Design finding: (.+)$/)?.[1];
-  if (rule) {
-    const route = [
-      "MANNING_N_NOT_JUSTIFIED",
-      "MANNING_N_INCONSISTENT_WITH_MATERIAL",
-      "DOMAIN_VALUE_MISMATCH",
-    ].includes(rule)
-      ? "hydraulics"
-      : rule === "COVER_BELOW_MINIMUM"
-        ? "paving"
-        : "sizing";
-    return {
-      title:
-        ruleDescriptions[rule]?.replace(/\.$/, "") ??
-        "Ocorrência no dimensionamento",
-      description:
-        "O cálculo identificou uma condição que precisa ser revista.",
-      action:
-        route === "hydraulics"
-          ? "Confira os parâmetros hidráulicos e suas justificativas. Depois, execute a validação novamente."
-          : route === "paving"
-            ? "Confira a categoria de recobrimento do trecho e as cotas da rede."
-            : "Revise os dados do trecho. Depois, execute a validação novamente.",
-      route,
-    };
-  }
+  const rule =
+    item.finding?.ruleCode ?? item.title.match(/^Design finding: (.+)$/)?.[1];
+  if (rule) return designGuidance(rule, item);
   if (item.title.startsWith("Parameter conflict:")) {
     return {
       title: "Conflito entre parâmetros normativos",
@@ -187,19 +177,139 @@ export function validationGuidance(item: ValidationItem): Guidance {
   };
 }
 
+type DesignFix = { route: string; focus?: string; action: string };
+const smallerDiameterFix =
+  "Aumente o DN imposto ou deixe o campo vazio para o cálculo escolher um diâmetro maior. Também é possível aumentar a declividade revisando as cotas de fundo.";
+const designFixes: Record<string, DesignFix> = {
+  TRACTIVE_TENSION_BELOW_MINIMUM: {
+    route: "sizing",
+    focus: "fixedDiameterMm",
+    action:
+      "Aumente a declividade do trecho revisando as cotas de fundo, ou remova o DN imposto para o cálculo escolher outro diâmetro.",
+  },
+  DRY_WEATHER_TRACTIVE_TENSION_BELOW_MINIMUM: {
+    route: "sizing",
+    focus: "receivesDryWeatherFlow",
+    action:
+      "Confirme se o trecho realmente recebe contribuição de tempo seco. Se receber, aumente a declividade ou revise o DN imposto.",
+  },
+  VELOCITY_ABOVE_MAXIMUM: {
+    route: "sizing",
+    focus: "fixedDiameterMm",
+    action:
+      "Reduza a declividade do trecho, se preciso com tubo de queda no poço de montante, ou revise o DN imposto.",
+  },
+  DEPTH_RATIO_ABOVE_MAXIMUM: {
+    route: "sizing",
+    focus: "fixedDiameterMm",
+    action: smallerDiameterFix,
+  },
+  DISCHARGE_EXCEEDS_CONVEYANCE: {
+    route: "sizing",
+    focus: "fixedDiameterMm",
+    action: smallerDiameterFix,
+  },
+  MANNING_N_OUT_OF_VALID_RANGE: {
+    route: "sizing",
+    focus: "fixedDiameterMm",
+    action:
+      "Revise o DN imposto: com ele, a lâmina calculada sai da faixa em que o coeficiente de Manning é válido.",
+  },
+  MATERIAL_CHANGE_REQUIRES_PV: {
+    route: "sizing",
+    focus: "material",
+    action:
+      "Use o mesmo material dos trechos vizinhos ou transforme o nó compartilhado em poço de visita (PV) na topologia.",
+  },
+  COVER_BELOW_MINIMUM: {
+    route: "paving",
+    focus: "pavementType",
+    action:
+      "Confira a categoria de pavimentação do trecho. Se estiver correta, aprofunde a rede revisando as cotas.",
+  },
+  MANNING_N_NOT_JUSTIFIED: {
+    route: "hydraulics",
+    focus: "justification",
+    action:
+      "Registre nos dados hidráulicos a justificativa do coeficiente de Manning adotado.",
+  },
+  MANNING_N_INCONSISTENT_WITH_MATERIAL: {
+    route: "hydraulics",
+    focus: "manningCoefficient",
+    action:
+      "Confira o material da rede e o coeficiente de Manning registrado nos dados hidráulicos.",
+  },
+  DOMAIN_VALUE_MISMATCH: {
+    route: "hydraulics",
+    action:
+      "Ajuste o valor nos dados hidráulicos para que fique dentro da faixa permitida e valide novamente.",
+  },
+  MISSING_INPUT: {
+    route: "sizing",
+    action: "Preencha o dado que falta no trecho indicado e calcule novamente.",
+  },
+};
+// Engine subjects that are edited under a different form field name.
+const subjectFields: Record<string, string> = {
+  manningN: "manningCoefficient",
+};
+
+function designGuidance(rule: string, item: ValidationItem): Guidance {
+  const fix = designFixes[rule] ?? {
+    route: "sizing",
+    action: "Revise os dados do trecho e calcule novamente.",
+  };
+  const subject = item.finding?.subject ?? null;
+  const feedback = item.finding
+    ? nonconformityFeedback({
+        ...item.finding,
+        description: "",
+        severity: "CRITICAL",
+        waiverJustification: null,
+      })
+    : null;
+  const hasValues = Boolean(feedback?.observedValue || feedback?.expectedLimit);
+  return {
+    title:
+      feedback?.title ??
+      ruleDescriptions[rule]?.replace(/\.$/, "") ??
+      "Ocorrência no dimensionamento",
+    description: hasValues
+      ? "O valor obtido no cálculo está fora do limite aceito pelas normas aplicadas."
+      : "O cálculo identificou uma condição que precisa ser revista.",
+    action: fix.action,
+    route: fix.route,
+    focus:
+      rule === "DOMAIN_VALUE_MISMATCH" && subject
+        ? (subjectFields[subject] ?? subject)
+        : fix.focus,
+    facts: feedback
+      ? {
+          parameter: feedback.parameterLabel,
+          observed: feedback.observedValue,
+          limit: feedback.expectedLimit,
+          references: feedback.references,
+        }
+      : undefined,
+  };
+}
+
 export function correctionPath(
   projectId: string,
   item: ValidationItem,
 ): string {
-  const { route } = validationGuidance(item);
-  const anchor =
-    !route.includes("#") &&
-    ["sizing", "paving"].includes(route) &&
-    item.target.id &&
-    item.target.type !== "PROJECT"
+  const { route, focus } = validationGuidance(item);
+  const [page, hash] = route.split("#");
+  const field =
+    focus ?? (item.target.type === "NODE" ? "terrainElevation" : undefined);
+  const anchor = hash
+    ? `#${hash}`
+    : ["sizing", "paving"].includes(page) &&
+        item.target.id &&
+        item.target.type !== "PROJECT"
       ? `#${item.target.type.toLowerCase()}-${item.target.id}`
       : "";
-  return `/project/${projectId}/${route}${anchor}`;
+  return `/project/${projectId}/${page}${field ? `?focus=${field}` : ""}${anchor}`;
 }
 
 const fields: Record<string, string> = {

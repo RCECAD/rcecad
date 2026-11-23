@@ -105,3 +105,30 @@
       transparent;
   }
 }
+
+@layer components {
+  [data-correction-row] {
+    background-color: color-mix(in oklch, var(--primary) 6%, transparent);
+  }
+  [data-correction-target] {
+    border-radius: var(--radius-md);
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+    animation: correction-pulse 1.2s ease-out 2;
+  }
+}
+
+@keyframes correction-pulse {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in oklch, var(--primary) 45%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 10px transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-correction-target] {
+    animation: none;
+  }
+}
