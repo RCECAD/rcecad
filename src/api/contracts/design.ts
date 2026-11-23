@@ -189,6 +189,99 @@ export const projectActionSchema = z.object({
   detail: z.string().nullable(),
   entityType: z.string().nullable().optional(),
   entityId: uuid.nullable().optional(),
+  operation: z
+    .enum([
+      "CREATE",
+      "UPDATE",
+      "DELETE",
+      "IMPORT",
+      "CALCULATE",
+      "VALIDATE",
+      "DECIDE",
+      "EXPORT",
+    ])
+    .nullable()
+    .optional(),
+  area: z
+    .enum([
+      "GENERAL_DATA",
+      "HYDRAULICS",
+      "TOPOLOGY",
+      "SURVEY",
+      "PAVING",
+      "FLOWS",
+      "VALIDATION",
+      "RESULTS",
+      "EXPORT",
+    ])
+    .nullable()
+    .optional(),
+  summary: z.string().nullable().optional(),
+  entityLabel: z.string().nullable().optional(),
+  actorLabel: z.string().nullable().optional(),
+  changes: z
+    .array(
+      z.object({
+        field: z.string(),
+        before: z.unknown().nullable(),
+        after: z.unknown().nullable(),
+      }),
+    )
+    .nullable()
+    .optional(),
+});
+export const projectAuditItemSchema = projectActionSchema.extend({
+  entityType: z
+    .enum([
+      "PROJECT",
+      "NODE",
+      "SEGMENT",
+      "SINGULAR_CONTRIBUTION",
+      "WAIVER",
+      "NONCONFORMITY",
+      "PARAMETERS",
+      "DESIGN_SNAPSHOT",
+      "EXPORT",
+    ])
+    .nullable(),
+  operation: z.enum([
+    "CREATE",
+    "UPDATE",
+    "DELETE",
+    "IMPORT",
+    "CALCULATE",
+    "VALIDATE",
+    "DECIDE",
+    "EXPORT",
+  ]),
+  area: z.enum([
+    "GENERAL_DATA",
+    "HYDRAULICS",
+    "TOPOLOGY",
+    "SURVEY",
+    "PAVING",
+    "FLOWS",
+    "VALIDATION",
+    "RESULTS",
+    "EXPORT",
+  ]),
+  summary: z.string(),
+  entityLabel: z.string().nullable(),
+  actorLabel: z.string(),
+  changes: z
+    .array(
+      z.object({
+        field: z.string(),
+        before: z.unknown().nullable(),
+        after: z.unknown().nullable(),
+      }),
+    )
+    .nullable(),
+});
+export const projectAuditPageSchema = z.object({
+  items: z.array(projectAuditItemSchema),
+  nextCursor: z.string().nullable(),
+  hasMore: z.boolean(),
 });
 export const projectOverviewSchema = z.object({
   projectId: uuid,
@@ -220,6 +313,8 @@ export type ValidationItem = z.infer<typeof validationItemSchema>;
 export type Nonconformity = z.infer<typeof nonconformitySchema>;
 export type AdoptedParameter = z.infer<typeof adoptedParameterSchema>;
 export type ProjectAction = z.infer<typeof projectActionSchema>;
+export type ProjectAuditItem = z.infer<typeof projectAuditItemSchema>;
+export type ProjectAuditPage = z.infer<typeof projectAuditPageSchema>;
 export type CalculatedSegment = Extract<
   SegmentDesign,
   { status: "designed" | "verified" }

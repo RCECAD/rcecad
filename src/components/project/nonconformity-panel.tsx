@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { History, ShieldCheck, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
 import {
@@ -158,7 +158,10 @@ function NonconformityItem({
   });
   const canAccept = item.status === "OPEN" && item.severity !== "CRITICAL";
   return (
-    <li className="flex min-w-0 flex-col gap-2 rounded-lg border p-4 text-sm">
+    <li
+      id={`nonconformity-${item.id}`}
+      className="scroll-mt-24 flex min-w-0 flex-col gap-2 rounded-lg border p-4 text-sm"
+    >
       <div className="flex flex-wrap items-start justify-between gap-2">
         <p className="text-xs text-muted-foreground">
           {item.segmentCode
@@ -402,7 +405,8 @@ function WaiversCard({
           {waivers.data?.map((waiver) => (
             <li
               key={waiver.id}
-              className="flex items-start justify-between gap-3 rounded-md border p-3 text-sm"
+              id={`waiver-${waiver.id}`}
+              className="scroll-mt-24 flex items-start justify-between gap-3 rounded-md border p-3 text-sm"
             >
               <div>
                 <p className="font-medium">
@@ -621,6 +625,9 @@ export function NonconformityPanel({ projectId }: { projectId: string }) {
     "OPEN",
   );
   const [waiverDraft, setWaiverDraft] = useState<WaiverDraft>(emptyWaiver);
+  useEffect(() => {
+    if (window.location.hash.startsWith("#nonconformity-")) setStatus("");
+  }, []);
   const tracked = useProjectList(
     projectId,
     [...projectQueryKeys.nonconformities(projectId), "list", status],

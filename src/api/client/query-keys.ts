@@ -22,6 +22,8 @@ export const projectQueryKeys = {
     [...projectQueryKeys.all, "overview", projectId] as const,
   actions: (projectId: string, limit: number) =>
     [...projectQueryKeys.all, "actions", projectId, limit] as const,
+  audit: (projectId: string, filters: string) =>
+    [...projectQueryKeys.all, "audit", projectId, filters] as const,
   contributions: (projectId: string) =>
     [...projectQueryKeys.all, "contributions", projectId] as const,
   nonconformities: (projectId: string) =>

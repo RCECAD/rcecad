@@ -537,10 +537,12 @@ export function DesignPanel({
   projectId,
   disabled = false,
   tabbed = false,
+  snapshotId,
 }: {
   projectId: string;
   disabled?: boolean;
   tabbed?: boolean;
+  snapshotId?: string;
 }) {
   const router = useRouter();
   const { requestNavigation } = useUnsavedChanges();
@@ -582,7 +584,9 @@ export function DesignPanel({
     "Não foi possível carregar os registros.",
     tabbed,
   );
-  const latest = snapshots.data?.[0];
+  const latest =
+    snapshots.data?.find((item) => item.id === snapshotId) ??
+    snapshots.data?.[0];
   const snapshot = useJson(
     [...projectQueryKeys.snapshots(projectId), latest?.id],
     `${base}/design-snapshots/${latest?.id}`,
@@ -696,14 +700,19 @@ export function DesignPanel({
         <ResultPanelSkeleton label="Carregando resultados salvos" rows={8} />
       )}
       {shown && !design.isError && !design.isFetching && !resultDataPending && (
-        <DesignResults
-          key={design.dataUpdatedAt || latest?.id}
-          design={shown}
-          tabbed={tabbed}
-          summary={design.data ? summary.data : undefined}
-          memorial={design.data ? memorial.data : snapshot.data}
-          network={network.data}
-        />
+        <div
+          id={latest ? `snapshot-${latest.id}` : undefined}
+          className="scroll-mt-24"
+        >
+          <DesignResults
+            key={design.dataUpdatedAt || latest?.id}
+            design={shown}
+            tabbed={tabbed}
+            summary={design.data ? summary.data : undefined}
+            memorial={design.data ? memorial.data : snapshot.data}
+            network={network.data}
+          />
+        </div>
       )}
       {!tabbed &&
         !shown &&

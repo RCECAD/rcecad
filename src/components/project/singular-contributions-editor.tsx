@@ -270,6 +270,19 @@ export function SingularContributionsEditor({
     currentPage * pageSize,
     (currentPage + 1) * pageSize,
   );
+  // rows is rebuilt every render; keying on the ids keeps the hash jump from pinning the page.
+  const rowIds = rows.map((row) => row.id ?? "").join("\n");
+  useEffect(() => {
+    const locate = () => {
+      const match = window.location.hash.match(/^#contribution-(.+)$/);
+      if (!match) return;
+      const index = rowIds.split("\n").indexOf(match[1]);
+      if (index >= 0) setPage(Math.floor(index / pageSize));
+    };
+    locate();
+    window.addEventListener("hashchange", locate);
+    return () => window.removeEventListener("hashchange", locate);
+  }, [pageSize, rowIds]);
   function clearRow(key: string) {
     setDrafts((current) => {
       const next = { ...current };
@@ -419,7 +432,12 @@ export function SingularContributionsEditor({
               const error = errors[row.key];
               const errorId = `contribution-${row.key}-error`;
               return (
-                <TableRow key={row.key} data-invalid={Boolean(error)}>
+                <TableRow
+                  key={row.key}
+                  id={row.id ? `contribution-${row.id}` : undefined}
+                  className="scroll-mt-24"
+                  data-invalid={Boolean(error)}
+                >
                   <TableCell className="font-medium">
                     {row.label}
                     {row.ends && (

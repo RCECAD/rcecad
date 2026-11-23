@@ -3,6 +3,7 @@
 import { describe, expect, it } from "vitest";
 import {
   networkDesignSchema,
+  projectAuditPageSchema,
   projectOverviewSchema,
   segmentFieldDataSchema,
 } from "./design";
@@ -231,5 +232,43 @@ describe("current backend contract", () => {
     });
     expect(parsed.progressPercent).toBe(50);
     expect(parsed.designOutdated).toBe(true);
+  });
+
+  it("reads a cursor-paginated structured project audit", () => {
+    const parsed = projectAuditPageSchema.parse({
+      items: [
+        {
+          id: segmentId,
+          type: "NETWORK_EDITED",
+          occurredAt: "2026-10-21T16:02:17.404859Z",
+          userId: nodeA,
+          detail: "Trecho T-01 atualizado",
+          entityType: "SEGMENT",
+          entityId: segmentId,
+          operation: "UPDATE",
+          area: "PAVING",
+          summary: "Pavimentação do trecho T-01 atualizada",
+          entityLabel: "T-01",
+          actorLabel: "Ana Engenheira",
+          changes: [
+            { field: "surfaceMaterial", before: "SOIL", after: "ASPHALT" },
+          ],
+        },
+      ],
+      nextCursor: "MjAyNi0xMC0yMVQxNjowMjoxNy40MDQ4NTlafGlk",
+      hasMore: true,
+    });
+
+    expect(parsed.items[0]).toMatchObject({
+      operation: "UPDATE",
+      area: "PAVING",
+      actorLabel: "Ana Engenheira",
+    });
+    expect(parsed.items[0].changes?.[0]).toEqual({
+      field: "surfaceMaterial",
+      before: "SOIL",
+      after: "ASPHALT",
+    });
+    expect(parsed.hasMore).toBe(true);
   });
 });

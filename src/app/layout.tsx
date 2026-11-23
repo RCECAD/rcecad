@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { AuditFocus } from "@/components/project/audit-focus";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
@@ -37,6 +38,7 @@ export default function RootLayout({
       )}
     >
       <body className={cn("min-h-full flex flex-col", geistSans.className)}>
+        <AuditFocus />
         <TooltipProvider delayDuration={0}>
           <QueryClientProvider>{children}</QueryClientProvider>
         </TooltipProvider>
