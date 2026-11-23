@@ -46,6 +46,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { portugueseValidation } from "@/lib/form-validation";
+import { networkMaterialOptions } from "@/lib/network-materials";
 import {
   type HydraulicsFormValues,
   hydraulicsFormSchema,
@@ -128,22 +129,6 @@ const parameterFields = [
 
 function getErrorId(name: string) {
   return `${name}-error`;
-}
-
-const NETWORK_MATERIALS = [
-  "PVC JEI",
-  "PVC",
-  "Concreto",
-  "Ferro fundido",
-  "PEAD",
-  "Cerâmico",
-];
-
-// Keeps a material saved before the select existed (free text) selectable.
-function networkMaterialOptions(current: string | null | undefined) {
-  return current && !NETWORK_MATERIALS.includes(current)
-    ? [current, ...NETWORK_MATERIALS]
-    : NETWORK_MATERIALS;
 }
 
 export function HydraulicsForm({ projectId }: Readonly<HydraulicsFormProps>) {
