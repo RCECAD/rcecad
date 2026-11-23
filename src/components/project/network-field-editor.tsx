@@ -1,7 +1,12 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  skipToken,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import {
   ChevronLeft,
   ChevronRight,
@@ -19,6 +24,7 @@ import {
 } from "@/api/client/query-keys";
 import { getErrorMessage, parseClientJson } from "@/api/client/response";
 import {
+  type NetworkDesign,
   type NodeFieldData,
   nodeFieldDataSchema,
   type SegmentFieldData,
@@ -69,6 +75,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { portugueseValidation } from "@/lib/form-validation";
+import { networkMaterialOptions } from "@/lib/network-materials";
+import { cn } from "@/lib/utils";
+
+const PROJECT_MATERIAL = "__project__";
+
+type DesignedChoice = { diameterMm: number; material: string };
 
 type Mode = "survey" | "paving";
 type Segment = z.infer<typeof segmentResponseSchema>;
@@ -411,6 +423,18 @@ function NodeRow({
   );
 }
 
+function projectMaterialLabel(
+  projectMaterial: string | null,
+  designed: DesignedChoice | undefined,
+) {
+  if (designed && projectMaterial && designed.material !== projectMaterial) {
+    return `${designed.material} (troca de material do projeto)`;
+  }
+  return projectMaterial
+    ? `${projectMaterial} (padrão do projeto)`
+    : "Padrão do projeto (não definido)";
+}
+
 function SegmentRow({
   segment,
   projectId,
@@ -422,7 +446,11 @@ function SegmentRow({
   selected,
   onSelectedChange,
   hidden = false,
+  projectMaterial = null,
+  designed,
 }: {
+  projectMaterial?: string | null;
+  designed?: DesignedChoice;
   segment: Segment;
   projectId: string;
   mode: Mode;
@@ -624,21 +652,51 @@ function SegmentRow({
               type="number"
               step="1"
               min="1"
-              placeholder="Automático"
+              placeholder={
+                designed
+                  ? `${designed.diameterMm} (calculado)`
+                  : "Automático (calculado)"
+              }
               aria-label={`DN imposto ${segment.code}`}
               disabled={disabled}
               {...register("fixedDiameterMm", { setValueAs: nullableNumber })}
             />
           </TableCell>
           <TableCell>
-            <Input
-              maxLength={100}
-              placeholder="Material do projeto"
-              aria-label={`Material ${segment.code}`}
-              disabled={disabled}
-              {...register("material", {
-                setValueAs: (value: string | null) => value?.trim() || null,
-              })}
+            <Controller
+              control={control}
+              name="material"
+              render={({ field }) => (
+                <Select
+                  value={field.value ?? PROJECT_MATERIAL}
+                  onValueChange={(value) =>
+                    field.onChange(value === PROJECT_MATERIAL ? null : value)
+                  }
+                  disabled={disabled}
+                >
+                  <SelectTrigger
+                    ref={field.ref}
+                    onBlur={field.onBlur}
+                    aria-label={`Material ${segment.code}`}
+                    className={cn(
+                      "w-full bg-background",
+                      field.value == null && "text-muted-foreground",
+                    )}
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={PROJECT_MATERIAL}>
+                      {projectMaterialLabel(projectMaterial, designed)}
+                    </SelectItem>
+                    {networkMaterialOptions(field.value).map((material) => (
+                      <SelectItem key={material} value={material}>
+                        {material}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             />
           </TableCell>
         </>
@@ -805,10 +863,12 @@ export function NetworkFieldEditor({
   projectId,
   mode = "survey",
   onDirtyChange,
+  projectMaterial = null,
 }: {
   projectId: string;
   mode?: Mode;
   onDirtyChange?: (dirty: boolean) => void;
+  projectMaterial?: string | null;
 }) {
   const { setHasUnsavedChanges } = useUnsavedChanges();
   const queryClient = useQueryClient();
@@ -978,6 +1038,17 @@ export function NetworkFieldEditor({
     retry: false,
     refetchOnWindowFocus: false,
   });
+  // Reads the latest design only if another screen already ran it; never triggers a calculation.
+  const design = useQuery<NetworkDesign>({
+    queryKey: projectQueryKeys.calculations(projectId),
+    queryFn: skipToken,
+  });
+  const designedChoice = (segmentId: string): DesignedChoice | undefined => {
+    const item = design.data?.segments?.find(
+      (entry) => entry.segmentId === segmentId,
+    );
+    return item && "choice" in item ? item.choice : undefined;
+  };
   useEffect(() => {
     if (!network.data || isDirty) return;
     let timer: ReturnType<typeof setTimeout>;
@@ -1336,6 +1407,8 @@ export function NetworkFieldEditor({
                     toggleSelected(segment.id, checked)
                   }
                   hidden={!visibleSegmentIds.has(segment.id)}
+                  projectMaterial={projectMaterial}
+                  designed={designedChoice(segment.id)}
                 />
               ))}
             </TableBody>
