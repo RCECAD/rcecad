@@ -160,6 +160,16 @@ export const validationItemSchema = z.object({
     id: uuid.nullable(),
     code: z.string().nullable(),
   }),
+  finding: z
+    .object({
+      ruleCode: z.string(),
+      sourceId: z.string(),
+      subject: z.string().nullable(),
+      observedValue: z.string().nullable(),
+      expectedLimit: z.string().nullable(),
+    })
+    .nullable()
+    .optional(),
 });
 export const projectValidationSchema = z.object({
   readyToConclude: z.boolean(),

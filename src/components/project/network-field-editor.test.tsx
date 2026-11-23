@@ -58,18 +58,35 @@ const detail = {
   ],
   segments: [segment],
 };
-function setup(mode: "survey" | "paving" = "survey") {
+function setup(
+  mode: "survey" | "paving" = "survey",
+  projectMaterial: string | null = null,
+  prepare?: (client: QueryClient) => void,
+) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
+  prepare?.(client);
   render(
     <QueryClientProvider client={client}>
       <UnsavedChangesProvider>
-        <NetworkFieldEditor projectId={projectId} mode={mode} />
+        <NetworkFieldEditor
+          projectId={projectId}
+          mode={mode}
+          projectMaterial={projectMaterial}
+        />
       </UnsavedChangesProvider>
     </QueryClientProvider>,
   );
   return client;
+}
+async function chooseMaterial(
+  user: ReturnType<typeof userEvent.setup>,
+  code: string,
+  material: string,
+) {
+  await user.click(screen.getByRole("combobox", { name: `Material ${code}` }));
+  await user.click(screen.getByRole("option", { name: material }));
 }
 afterEach(() => vi.unstubAllGlobals());
 describe("network field data", () => {
@@ -248,8 +265,7 @@ describe("network field data", () => {
       "101.5",
     );
     await user.type(screen.getByLabelText("Cota de terreno PV-02"), "102");
-    await user.clear(screen.getByLabelText("Material T-01"));
-    await user.type(screen.getByLabelText("Material T-01"), "PVC");
+    await chooseMaterial(user, "T-01", "PVC");
     await user.click(
       screen.getByRole("button", { name: "Salvar todos os nós" }),
     );
@@ -270,7 +286,7 @@ describe("network field data", () => {
       { terrainElevation: 102 },
     ]);
     expect(screen.getByLabelText("Cota de terreno PV-03")).toHaveValue(null);
-    expect(screen.getByLabelText("Material T-01")).toHaveValue("PVC");
+    expect(screen.getByLabelText("Material T-01")).toHaveTextContent("PVC");
     expect(
       screen.getByRole("button", { name: "Salvar todos os trechos" }),
     ).toBeEnabled();
@@ -313,8 +329,7 @@ describe("network field data", () => {
       "105",
     );
     for (const code of ["T-01", "T-02"]) {
-      await user.clear(screen.getByLabelText(`Material ${code}`));
-      await user.type(screen.getByLabelText(`Material ${code}`), "PVC");
+      await chooseMaterial(user, code, "PVC");
     }
     await user.click(
       screen.getByRole("button", { name: "Salvar todos os trechos" }),
@@ -330,7 +345,7 @@ describe("network field data", () => {
         screen.getByRole("button", { name: "Salvar todos os trechos" }),
       ).toBeEnabled(),
     );
-    expect(screen.getByLabelText("Material T-02")).toHaveValue("PVC");
+    expect(screen.getByLabelText("Material T-02")).toHaveTextContent("PVC");
     expect(screen.getByLabelText("Cota de terreno PV-01")).toHaveValue(105);
     expect(
       client.getQueryData(projectQueryKeys.calculations(projectId)),
@@ -366,6 +381,36 @@ describe("network field data", () => {
     ).toBeEnabled();
   });
 
+  it("shows the material and diameter the design considers when the segment leaves them blank", async () => {
+    const blank = { ...segment, material: null, fixedDiameterMm: null };
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValue(Response.json({ ...detail, segments: [blank] })),
+    );
+    setup("survey", "PVC JEI", (client) =>
+      client.setQueryData(projectQueryKeys.calculations(projectId), {
+        segments: [
+          {
+            segmentId: segment.id,
+            status: "designed",
+            choice: { diameterMm: 200, material: "PVC JEI" },
+          },
+        ],
+      }),
+    );
+    const material = await screen.findByRole("combobox", {
+      name: "Material T-01",
+    });
+    expect(material).toHaveTextContent("PVC JEI (padrão do projeto)");
+    expect(material).toHaveClass("text-muted-foreground");
+    expect(screen.getByLabelText("DN imposto T-01")).toHaveAttribute(
+      "placeholder",
+      "200 (calculado)",
+    );
+  });
+
   it("validates all changed segments before sending any writes", async () => {
     const user = userEvent.setup();
     const fetchMock = vi.fn().mockResolvedValue(
@@ -383,7 +428,8 @@ describe("network field data", () => {
     );
     vi.stubGlobal("fetch", fetchMock);
     setup();
-    await user.type(await screen.findByLabelText("Material T-01"), " editado");
+    await screen.findByLabelText("Material T-01");
+    await chooseMaterial(user, "T-01", "PEAD");
     await user.clear(screen.getByLabelText("DN imposto T-02"));
     await user.type(screen.getByLabelText("DN imposto T-02"), "-1");
     await user.click(
@@ -392,9 +438,7 @@ describe("network field data", () => {
     await screen.findByText(/Nenhuma linha foi enviada/);
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(screen.getByLabelText("DN imposto T-02")).toHaveValue(-1);
-    expect(screen.getByLabelText("Material T-01")).toHaveValue(
-      "Concreto editado",
-    );
+    expect(screen.getByLabelText("Material T-01")).toHaveTextContent("PEAD");
   });
 
   it("keeps missing ground elevation and dry-weather answers undecided", async () => {

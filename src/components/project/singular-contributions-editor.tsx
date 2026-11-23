@@ -1,7 +1,14 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ChevronLeft, ChevronRight, Plus, Save, Trash2 } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Info,
+  Plus,
+  Save,
+  Trash2,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -67,7 +74,13 @@ type Draft = {
   initialLps: string;
   finalLps: string;
 };
-type Row = { key: string; label: string; id?: string; draft: Draft };
+type Row = {
+  key: string;
+  label: string;
+  ends?: string | null;
+  id?: string;
+  draft: Draft;
+};
 const emptyDraft: Draft = {
   name: "",
   type: "OTHER",
@@ -136,39 +149,27 @@ export function SingularContributionsEditor({
     retry: false,
   });
   const items = contributions.data ?? [];
-  const rows: Row[] = (network.data?.segments ?? []).flatMap((segment) => {
-    const existing = items.filter((item) => item.segmentId === segment.id);
-    return existing.length
-      ? existing.map((item) => ({
-          key: item.id,
-          id: item.id,
-          label: segment.code,
-          draft: toDraft(item),
-        }))
-      : [
-          {
-            key: `segment:${segment.id}`,
-            label: segment.code,
-            draft: {
-              ...emptyDraft,
-              name: `Contribuição ${segment.code}`,
-              target: `segment:${segment.id}`,
-            },
-          },
-        ];
-  });
-  const included = new Set(rows.map((row) => row.id));
-  rows.push(
-    ...items
-      .filter((item) => !included.has(item.id))
-      .map((item) => ({
-        key: item.id,
-        id: item.id,
-        label: `${item.nodeId ? "Nó" : "Trecho"} ${item.targetCode}`,
-        draft: toDraft(item),
-      })),
-    ...extraRows,
+  const nodeCodes = new Map(
+    (network.data?.nodes ?? []).map((node) => [node.id, node.code]),
   );
+  const segmentEnds = (segmentId: string | null) => {
+    const segment = network.data?.segments.find(
+      (item) => item.id === segmentId,
+    );
+    const upstream = segment && nodeCodes.get(segment.upstreamNodeId);
+    const downstream = segment && nodeCodes.get(segment.downstreamNodeId);
+    return upstream && downstream ? `${upstream} → ${downstream}` : null;
+  };
+  const rows: Row[] = [
+    ...items.map((item) => ({
+      key: item.id,
+      id: item.id,
+      label: `${item.nodeId ? "Nó" : "Trecho"} ${item.targetCode}`,
+      ends: segmentEnds(item.segmentId),
+      draft: toDraft(item),
+    })),
+    ...extraRows,
+  ];
   const dirtyRows = rows.filter(
     (row) =>
       drafts[row.key] &&
@@ -331,10 +332,14 @@ export function SingularContributionsEditor({
     <Card className="rounded-lg border border-border/80 bg-card/40 shadow-none ring-0">
       <CardHeader>
         <CardTitle>Contribuições singulares</CardTitle>
-        <CardDescription>
-          Preencha as vazões concentradas em L/s diretamente nos trechos.
-          Trechos sem contribuição podem ficar como estão. As vazões acumulam
-          para jusante sem coeficientes de pico.
+        <CardDescription className="flex items-start gap-2">
+          <Info aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+          <span>
+            A vazão doméstica já é distribuída linearmente pela rede no cálculo.
+            Adicione aqui só vazões concentradas extras, como indústrias,
+            hospitais ou escolas, no trecho ou nó onde entram. Elas acumulam
+            para jusante sem coeficientes de pico.
+          </span>
         </CardDescription>
       </CardHeader>
       <CardContent className="flex min-w-0 flex-col gap-4">
@@ -397,6 +402,17 @@ export function SingularContributionsEditor({
             </TableRow>
           </TableHeader>
           <TableBody>
+            {rows.length === 0 && (
+              <TableRow>
+                <TableCell
+                  colSpan={8}
+                  className="py-8 text-center text-sm text-muted-foreground"
+                >
+                  Nenhuma contribuição singular cadastrada. Use “Adicionar
+                  contribuição” se houver alguma vazão concentrada.
+                </TableCell>
+              </TableRow>
+            )}
             {visibleRows.map((row) => {
               const draft = drafts[row.key] ?? row.draft;
               const dirty = dirtyRows.some((item) => item.key === row.key);
@@ -404,7 +420,14 @@ export function SingularContributionsEditor({
               const errorId = `contribution-${row.key}-error`;
               return (
                 <TableRow key={row.key} data-invalid={Boolean(error)}>
-                  <TableCell className="font-medium">{row.label}</TableCell>
+                  <TableCell className="font-medium">
+                    {row.label}
+                    {row.ends && (
+                      <span className="block text-xs font-normal text-muted-foreground">
+                        {row.ends}
+                      </span>
+                    )}
+                  </TableCell>
                   <TableCell className="min-w-52">
                     <Input
                       aria-label={`Nome da contribuição ${row.label}`}
@@ -476,6 +499,8 @@ export function SingularContributionsEditor({
                               value={`segment:${segment.id}`}
                             >
                               {segment.code}
+                              {segmentEnds(segment.id) &&
+                                ` (${segmentEnds(segment.id)})`}
                             </SelectItem>
                           ))}
                         </SelectGroup>
@@ -543,27 +568,16 @@ export function SingularContributionsEditor({
                       <Button
                         size="sm"
                         variant="ghost"
-                        disabled={
-                          busy ||
-                          (!dirty &&
-                            !extraRows.some((item) => item.key === row.key))
-                        }
+                        disabled={busy}
                         onClick={() => clearRow(row.key)}
                       >
-                        {row.key.startsWith("new:") ? "Remover" : "Limpar"}
+                        Remover
                       </Button>
                     )}
                   </TableCell>
                 </TableRow>
               );
             })}
-            {!rows.length && (
-              <TableRow>
-                <TableCell colSpan={8} className="text-muted-foreground">
-                  Nenhum trecho cadastrado.
-                </TableCell>
-              </TableRow>
-            )}
           </TableBody>
         </Table>
         <div className="flex flex-wrap items-center justify-between gap-3 text-sm">

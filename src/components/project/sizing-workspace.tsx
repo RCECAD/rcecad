@@ -1,6 +1,10 @@
 "use client";
+import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { projectQueryKeys } from "@/api/client/query-keys";
+import { parseClientJson } from "@/api/client/response";
+import { projectParametersDetailsSchema } from "@/api/contracts/spring";
 import { Button } from "@/components/ui/button";
 import { DesignPanel } from "./design-results";
 import { NetworkFieldEditor } from "./network-field-editor";
@@ -12,6 +16,16 @@ export function SizingWorkspace({ projectId }: { projectId: string }) {
   const [dirty, setDirty] = useState(false);
   const router = useRouter();
   const { requestNavigation } = useUnsavedChanges();
+  const parameters = useQuery({
+    queryKey: projectQueryKeys.parameters(projectId),
+    queryFn: async ({ signal }) =>
+      parseClientJson(
+        await fetch(`/api/projects/${projectId}/hydraulics`, { signal }),
+        projectParametersDetailsSchema,
+        "Não foi possível carregar os parâmetros.",
+      ),
+    retry: false,
+  });
   return (
     <div className="flex min-w-0 flex-col gap-8">
       <div className="flex min-w-0 flex-col gap-3">
@@ -42,7 +56,11 @@ export function SizingWorkspace({ projectId }: { projectId: string }) {
       </div>
       <NetworkTable projectId={projectId} />
       <NetworkTopologyEditor projectId={projectId} />
-      <NetworkFieldEditor projectId={projectId} onDirtyChange={setDirty} />
+      <NetworkFieldEditor
+        projectId={projectId}
+        onDirtyChange={setDirty}
+        projectMaterial={parameters.data?.defaultNetworkMaterial ?? null}
+      />
       <DesignPanel projectId={projectId} disabled={dirty} />
     </div>
   );
