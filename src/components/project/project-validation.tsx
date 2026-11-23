@@ -24,6 +24,10 @@ import {
   RequestError,
 } from "@/components/ui/feedback";
 import {
+  ResultPanelSkeleton,
+  StatCardsSkeleton,
+} from "@/components/ui/loading-skeletons";
+import {
   correctionPath,
   type GuidanceFacts,
   validationGuidance,
@@ -215,7 +219,9 @@ export function ProjectValidation({ projectId }: { projectId: string }) {
           </CardDescription>
         </CardHeader>
         <CardContent className="flex min-w-0 flex-col gap-4">
-          {validation.data && !validation.isError ? (
+          {validation.isFetching ? (
+            <StatCardsSkeleton />
+          ) : validation.data && !validation.isError ? (
             <div className="grid gap-3 sm:grid-cols-3">
               {(
                 [
@@ -283,7 +289,10 @@ export function ProjectValidation({ projectId }: { projectId: string }) {
         </CardContent>
       </Card>
       {validation.isFetching && (
-        <p role="status">Verificando dados e regras do dimensionamento...</p>
+        <ResultPanelSkeleton
+          label="Verificando dados e regras do dimensionamento"
+          rows={6}
+        />
       )}
       {validation.isError && (
         <RequestError

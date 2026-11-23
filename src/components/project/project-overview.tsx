@@ -13,7 +13,7 @@ import { projectDetailResponseSchema } from "@/api/contracts/spring";
 import { OverviewContent } from "@/app/(protected)/project/[projectId]/overview/components/overview-content";
 import { ErrorState } from "@/components/ui/error-state";
 import { RequestError } from "@/components/ui/feedback";
-import { PageLoading } from "@/components/ui/page-state";
+import { OverviewSkeleton } from "@/components/ui/loading-skeletons";
 import {
   actionDetail,
   correctionPath,
@@ -78,8 +78,7 @@ export function ProjectOverview({ projectId }: { projectId: string }) {
       ),
     retry: false,
   });
-  if (overview.isPending || network.isPending)
-    return <PageLoading label="Carregando visão geral" />;
+  if (overview.isPending || network.isPending) return <OverviewSkeleton />;
   if (overview.isError || network.isError)
     return (
       <ErrorState

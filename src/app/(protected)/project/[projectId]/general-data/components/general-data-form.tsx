@@ -35,7 +35,7 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { PageLoading } from "@/components/ui/page-state";
+import { FormPageSkeleton } from "@/components/ui/loading-skeletons";
 import { Textarea } from "@/components/ui/textarea";
 import { useCorrectionFocus } from "@/lib/correction-focus";
 import { portugueseValidation } from "@/lib/form-validation";
@@ -223,7 +223,7 @@ export function GeneralDataForm({ projectId }: Readonly<GeneralDataFormProps>) {
   );
 
   if (isLoading) {
-    return <PageLoading label="Carregando dados gerais" />;
+    return <FormPageSkeleton />;
   }
 
   if (isError) {

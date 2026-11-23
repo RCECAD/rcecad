@@ -42,7 +42,7 @@ import { ConfirmButton } from "@/components/ui/confirm-button";
 import { ErrorState } from "@/components/ui/error-state";
 import { Feedback, RequestError } from "@/components/ui/feedback";
 import { Input } from "@/components/ui/input";
-import { PageLoading } from "@/components/ui/page-state";
+import { TablePageSkeleton } from "@/components/ui/loading-skeletons";
 import {
   Select,
   SelectContent,
@@ -314,7 +314,7 @@ export function SingularContributionsEditor({
     if (pending.length) save.mutate(pending);
   }
   if (network.isPending || contributions.isPending)
-    return <PageLoading label="Carregando contribuições" />;
+    return <TablePageSkeleton label="Carregando contribuições" />;
   if (network.isError || contributions.isError)
     return (
       <ErrorState

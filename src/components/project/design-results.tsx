@@ -34,6 +34,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { ResultPanelSkeleton } from "@/components/ui/loading-skeletons";
 import {
   Select,
   SelectContent,
@@ -594,6 +595,14 @@ export function DesignPanel({
       ? memorialToDesign(snapshot.data, projectId)
       : undefined;
   const shown = design.data ?? saved;
+  const initialResultPending =
+    tabbed &&
+    (network.isPending ||
+      snapshots.isPending ||
+      (Boolean(latest) && snapshot.isPending));
+  const reportsPending =
+    tabbed && Boolean(design.data) && (summary.isPending || memorial.isPending);
+  const resultDataPending = initialResultPending || reportsPending;
   return (
     <section aria-label="Cálculo CDRE" className="space-y-5">
       <Card
@@ -613,12 +622,16 @@ export function DesignPanel({
         <CardContent
           className={`flex flex-wrap items-center gap-3 ${tabbed ? "px-0" : ""}`}
         >
-          {tabbed && !shown && !design.isFetching && !design.isError && (
-            <p className="w-full text-sm text-muted-foreground md:min-w-64 md:flex-1">
-              Nenhum cálculo executado nesta sessão. Os resultados anteriores
-              são descartados quando os dados do projeto mudam.
-            </p>
-          )}
+          {tabbed &&
+            !shown &&
+            !design.isFetching &&
+            !design.isError &&
+            !resultDataPending && (
+              <p className="w-full text-sm text-muted-foreground md:min-w-64 md:flex-1">
+                Nenhum cálculo executado nesta sessão. Os resultados anteriores
+                são descartados quando os dados do projeto mudam.
+              </p>
+            )}
           <div
             className={`flex flex-wrap items-center gap-3 ${tabbed ? "md:ml-auto" : ""}`}
           >
@@ -679,7 +692,10 @@ export function DesignPanel({
             : "Calcule novamente para conferir com os dados atuais."}
         </p>
       )}
-      {shown && !design.isError && !design.isFetching && (
+      {!design.isFetching && resultDataPending && (
+        <ResultPanelSkeleton label="Carregando resultados salvos" rows={8} />
+      )}
+      {shown && !design.isError && !design.isFetching && !resultDataPending && (
         <DesignResults
           key={design.dataUpdatedAt || latest?.id}
           design={shown}
@@ -689,16 +705,21 @@ export function DesignPanel({
           network={network.data}
         />
       )}
-      {!tabbed && !shown && !design.isFetching && !design.isError && (
-        <p className="text-sm text-muted-foreground">
-          Nenhum cálculo executado nesta sessão. Os resultados anteriores são
-          descartados quando os dados do projeto mudam.
-        </p>
-      )}
+      {!tabbed &&
+        !shown &&
+        !design.isFetching &&
+        !design.isError &&
+        !resultDataPending && (
+          <p className="text-sm text-muted-foreground">
+            Nenhum cálculo executado nesta sessão. Os resultados anteriores são
+            descartados quando os dados do projeto mudam.
+          </p>
+        )}
       {design.isFetching && (
-        <p role="status" className="text-sm">
-          Calculando os trechos de montante para jusante…
-        </p>
+        <ResultPanelSkeleton
+          label="Calculando os trechos de montante para jusante"
+          rows={8}
+        />
       )}
     </section>
   );

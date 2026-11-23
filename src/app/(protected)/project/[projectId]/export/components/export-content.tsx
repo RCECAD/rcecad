@@ -19,6 +19,7 @@ import { ValidationFindings } from "@/components/project/project-validation";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Feedback, RequestError } from "@/components/ui/feedback";
+import { InlineListSkeleton } from "@/components/ui/loading-skeletons";
 import { rulesetLabel } from "@/lib/memorial-presentation";
 import { designStatusLabels } from "@/lib/project-feedback";
 
@@ -78,9 +79,11 @@ function SnapshotDetail({
   });
   if (detail.isPending)
     return (
-      <p role="status" className="text-xs">
-        Carregando registro de dimensionamento...
-      </p>
+      <InlineListSkeleton
+        className="mt-3"
+        label="Carregando registro de dimensionamento"
+        rows={2}
+      />
     );
   if (detail.isError)
     return (
@@ -162,9 +165,7 @@ function ExportHistory({ projectId }: { projectId: string }) {
           Histórico de exportações
         </h2>
         {exports.isPending && (
-          <p role="status" className="mt-3 text-sm">
-            Carregando exportações...
-          </p>
+          <InlineListSkeleton className="mt-4" label="Carregando exportações" />
         )}
         {exports.isError && (
           <RequestError
@@ -209,9 +210,10 @@ function ExportHistory({ projectId }: { projectId: string }) {
           usados, com hash de conferência.
         </p>
         {snapshots.isPending && (
-          <p role="status" className="mt-3 text-sm">
-            Carregando registros de dimensionamento...
-          </p>
+          <InlineListSkeleton
+            className="mt-4"
+            label="Carregando registros de dimensionamento"
+          />
         )}
         {snapshots.isError && (
           <RequestError
