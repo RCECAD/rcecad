@@ -139,11 +139,6 @@ export function DesignResults({
       s.nonconformities.some((n) => n.severity === "CRITICAL"),
   ).length;
   const compliant = design.segments.length - attention - noncompliant;
-  const counts = Object.keys(designStatusLabels).map((status) => ({
-    status: status as SegmentDesign["status"],
-    count: design.segments.filter((segment) => segment.status === status)
-      .length,
-  }));
   const tabs: [string, string][] = [
     ["summary", "Resumo Executivo"],
     ["table", "Resultados por trecho"],
@@ -269,20 +264,6 @@ export function DesignResults({
                   : "Todos os trechos foram dimensionados. Execute a validação para confirmar as pendências do projeto."}
             </div>
           </>
-        )}
-        {!tabbed && (
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            {counts.map(({ status, count }) => (
-              <Card key={status}>
-                <CardContent className="pt-5">
-                  <p className="text-sm text-muted-foreground">
-                    {designStatusLabels[status]}
-                  </p>
-                  <p className="text-3xl font-semibold">{count}</p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
         )}
         {tabbed && visible("memory") && memorial && (
           <MemorialTrace memorial={memorial} />
@@ -533,27 +514,30 @@ function useJson<T>(
   });
 }
 
+// Disabled query: every caller shares the cache and only refetch() runs the calculation.
+export function useDesignCalculation(projectId: string) {
+  return useJson(
+    projectQueryKeys.calculations(projectId),
+    `/api/projects/${projectId}/design`,
+    networkDesignSchema,
+    "Não foi possível dimensionar a rede.",
+    false,
+  );
+}
+
 export function DesignPanel({
   projectId,
-  disabled = false,
   tabbed = false,
   snapshotId,
 }: {
   projectId: string;
-  disabled?: boolean;
   tabbed?: boolean;
   snapshotId?: string;
 }) {
   const router = useRouter();
   const { requestNavigation } = useUnsavedChanges();
   const base = `/api/projects/${projectId}`;
-  const design = useJson(
-    projectQueryKeys.calculations(projectId),
-    `${base}/design`,
-    networkDesignSchema,
-    "Não foi possível dimensionar a rede.",
-    false,
-  );
+  const design = useDesignCalculation(projectId);
   const reportsEnabled = tabbed && Boolean(design.data) && !design.isFetching;
   const summary = useJson(
     projectQueryKeys.executiveSummary(projectId),
@@ -609,25 +593,9 @@ export function DesignPanel({
   const resultDataPending = initialResultPending || reportsPending;
   return (
     <section aria-label="Cálculo CDRE" className="space-y-5">
-      <Card
-        className={
-          tabbed
-            ? "gap-0 overflow-visible rounded-none border-0 bg-transparent p-0 shadow-none ring-0"
-            : ""
-        }
-      >
-        <CardHeader className={tabbed ? "hidden" : ""}>
-          <CardTitle>Dimensionamento hidráulico</CardTitle>
-          <CardDescription>
-            O CDRE calcula com os parâmetros e dados de campo salvos. Após
-            editar a rede ou a hidráulica, execute novamente o cálculo.
-          </CardDescription>
-        </CardHeader>
-        <CardContent
-          className={`flex flex-wrap items-center gap-3 ${tabbed ? "px-0" : ""}`}
-        >
-          {tabbed &&
-            !shown &&
+      {tabbed && (
+        <div className="flex flex-wrap items-center gap-3">
+          {!shown &&
             !design.isFetching &&
             !design.isError &&
             !resultDataPending && (
@@ -636,14 +604,12 @@ export function DesignPanel({
                 são descartados quando os dados do projeto mudam.
               </p>
             )}
-          <div
-            className={`flex flex-wrap items-center gap-3 ${tabbed ? "md:ml-auto" : ""}`}
-          >
+          <div className="flex flex-wrap items-center gap-3 md:ml-auto">
             <Button
-              disabled={disabled || design.isFetching}
+              disabled={design.isFetching}
               onClick={() => {
                 void design.refetch().then((result) => {
-                  if (tabbed && result.isSuccess) {
+                  if (result.isSuccess) {
                     void summary.refetch();
                     void memorial.refetch();
                   }
@@ -663,13 +629,8 @@ export function DesignPanel({
               Validar projeto
             </Button>
           </div>
-          {disabled && (
-            <p role="status" className="text-sm text-muted-foreground">
-              Salve ou descarte as alterações da rede antes de calcular.
-            </p>
-          )}
-        </CardContent>
-      </Card>
+        </div>
+      )}
       {design.isError && (
         <div
           role="alert"
@@ -720,8 +681,9 @@ export function DesignPanel({
         !design.isError &&
         !resultDataPending && (
           <p className="text-sm text-muted-foreground">
-            Nenhum cálculo executado nesta sessão. Os resultados anteriores são
-            descartados quando os dados do projeto mudam.
+            Nenhum cálculo executado nesta sessão. Use Calcular dimensionamento
+            no topo da página; os resultados anteriores são descartados quando
+            os dados do projeto mudam.
           </p>
         )}
       {design.isFetching && (

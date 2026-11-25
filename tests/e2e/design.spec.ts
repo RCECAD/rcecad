@@ -56,6 +56,7 @@ test("CDRE: importa, salva dados de campo, calcula, invalida resultados e valida
         { exact: true },
       ),
   ).toBeVisible();
+  await page.getByRole("tab", { name: "Trechos", exact: true }).click();
   for (const segment of network.segments) {
     const input = page.getByLabel(
       `Contribuição de tempo seco ${segment.code}`,
