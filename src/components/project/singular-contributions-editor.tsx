@@ -31,13 +31,6 @@ import {
 import { projectDetailResponseSchema } from "@/api/contracts/spring";
 import { useOptionalUnsavedChanges } from "@/components/project/unsaved-changes-provider";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { ConfirmButton } from "@/components/ui/confirm-button";
 import { ErrorState } from "@/components/ui/error-state";
 import { Feedback, RequestError } from "@/components/ui/feedback";
@@ -111,6 +104,19 @@ export function toContributionRequest(draft: Draft) {
   });
 }
 
+export const contributionsQueryOptions = (projectId: string) => ({
+  queryKey: projectQueryKeys.contributions(projectId),
+  queryFn: async ({ signal }: { signal: AbortSignal }) =>
+    parseClientJson(
+      await fetch(`/api/projects/${projectId}/singular-contributions`, {
+        signal,
+      }),
+      z.array(singularContributionSchema),
+      "Não foi possível carregar as contribuições.",
+    ),
+  retry: false,
+});
+
 export function SingularContributionsEditor({
   projectId,
 }: {
@@ -138,16 +144,7 @@ export function SingularContributionsEditor({
       ),
     retry: false,
   });
-  const contributions = useQuery({
-    queryKey: projectQueryKeys.contributions(projectId),
-    queryFn: async ({ signal }) =>
-      parseClientJson(
-        await fetch(base, { signal }),
-        z.array(singularContributionSchema),
-        "Não foi possível carregar as contribuições.",
-      ),
-    retry: false,
-  });
+  const contributions = useQuery(contributionsQueryOptions(projectId));
   const items = contributions.data ?? [];
   const nodeCodes = new Map(
     (network.data?.nodes ?? []).map((node) => [node.id, node.code]),
@@ -342,330 +339,325 @@ export function SingularContributionsEditor({
     );
 
   return (
-    <Card className="rounded-lg border border-border/80 bg-card/40 shadow-none ring-0">
-      <CardHeader>
-        <CardTitle>Contribuições singulares</CardTitle>
-        <CardDescription className="flex items-start gap-2">
-          <Info aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
-          <span>
-            A vazão doméstica já é distribuída linearmente pela rede no cálculo.
-            Adicione aqui só vazões concentradas extras, como indústrias,
-            hospitais ou escolas, no trecho ou nó onde entram. Elas acumulam
-            para jusante sem coeficientes de pico.
-          </span>
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="flex min-w-0 flex-col gap-4">
-        {network.data.segments.length === 0 && (
-          <Feedback
-            tone="warning"
-            title="Cadastre a rede antes de adicionar contribuições"
-            description="A contribuição precisa estar associada a um nó ou trecho da rede."
-            actions={[
-              {
-                label: "Cadastrar rede",
-                href: `/project/${projectId}/sizing#network-topology`,
-              },
-            ]}
-          />
-        )}
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="text-sm text-muted-foreground" aria-live="polite">
-            {progress
-              ? `Salvando ${progress.completed} de ${progress.total}...`
-              : `${dirtyRows.length} ${dirtyRows.length === 1 ? "linha alterada" : "linhas alteradas"} em todas as páginas`}
-          </p>
-          <div className="flex flex-wrap gap-2">
-            <Button
-              variant="outline"
-              disabled={busy || !network.data.segments.length}
-              onClick={() => {
-                const key = `new:${crypto.randomUUID()}`;
-                setExtraRows((current) => [
-                  ...current,
-                  { key, label: "Nova contribuição", draft: emptyDraft },
-                ]);
-                setPage(Math.floor(rows.length / pageSize));
-              }}
-            >
-              <Plus className="size-4" />
-              Adicionar contribuição
-            </Button>
-            <Button onClick={submit} disabled={busy || !hasChanges}>
-              <Save className="size-4" />
-              {save.isPending ? "Salvando..." : "Salvar todos"}
-            </Button>
-          </div>
+    <div className="flex min-w-0 flex-col gap-4">
+      <p className="flex items-start gap-2 text-sm text-muted-foreground">
+        <Info aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+        <span>
+          A vazão doméstica já é distribuída linearmente pela rede no cálculo.
+          Adicione aqui só vazões concentradas extras, como indústrias,
+          hospitais ou escolas, no trecho ou nó onde entram. Elas acumulam para
+          jusante sem coeficientes de pico.
+        </span>
+      </p>
+      {network.data.segments.length === 0 && (
+        <Feedback
+          tone="warning"
+          title="Cadastre a rede antes de adicionar contribuições"
+          description="A contribuição precisa estar associada a um nó ou trecho da rede."
+          actions={[
+            {
+              label: "Cadastrar rede",
+              href: `/project/${projectId}/sizing#network-topology`,
+            },
+          ]}
+        />
+      )}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm text-muted-foreground" aria-live="polite">
+          {progress
+            ? `Salvando ${progress.completed} de ${progress.total}...`
+            : `${dirtyRows.length} ${dirtyRows.length === 1 ? "linha alterada" : "linhas alteradas"} em todas as páginas`}
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant="outline"
+            disabled={busy || !network.data.segments.length}
+            onClick={() => {
+              const key = `new:${crypto.randomUUID()}`;
+              setExtraRows((current) => [
+                ...current,
+                { key, label: "Nova contribuição", draft: emptyDraft },
+              ]);
+              setPage(Math.floor(rows.length / pageSize));
+            }}
+          >
+            <Plus className="size-4" />
+            Adicionar contribuição
+          </Button>
+          <Button onClick={submit} disabled={busy || !hasChanges}>
+            <Save className="size-4" />
+            {save.isPending ? "Salvando..." : "Salvar todos"}
+          </Button>
         </div>
-        <Table className="min-w-[1060px]">
-          <TableHeader>
+      </div>
+      <Table className="min-w-[1060px]">
+        <TableHeader>
+          <TableRow>
+            {[
+              "Trecho / nó",
+              "Nome",
+              "Tipo",
+              "Destino",
+              "Inicial (L/s)",
+              "Final (L/s)",
+              "Situação",
+              "Ações",
+            ].map((label) => (
+              <TableHead key={label}>{label}</TableHead>
+            ))}
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {rows.length === 0 && (
             <TableRow>
-              {[
-                "Trecho / nó",
-                "Nome",
-                "Tipo",
-                "Destino",
-                "Inicial (L/s)",
-                "Final (L/s)",
-                "Situação",
-                "Ações",
-              ].map((label) => (
-                <TableHead key={label}>{label}</TableHead>
-              ))}
+              <TableCell
+                colSpan={8}
+                className="py-8 text-center text-sm text-muted-foreground"
+              >
+                Nenhuma contribuição singular cadastrada. Use “Adicionar
+                contribuição” se houver alguma vazão concentrada.
+              </TableCell>
             </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.length === 0 && (
-              <TableRow>
-                <TableCell
-                  colSpan={8}
-                  className="py-8 text-center text-sm text-muted-foreground"
-                >
-                  Nenhuma contribuição singular cadastrada. Use “Adicionar
-                  contribuição” se houver alguma vazão concentrada.
+          )}
+          {visibleRows.map((row) => {
+            const draft = drafts[row.key] ?? row.draft;
+            const dirty = dirtyRows.some((item) => item.key === row.key);
+            const error = errors[row.key];
+            const errorId = `contribution-${row.key}-error`;
+            return (
+              <TableRow
+                key={row.key}
+                id={row.id ? `contribution-${row.id}` : undefined}
+                className="scroll-mt-24"
+                data-invalid={Boolean(error)}
+              >
+                <TableCell className="font-medium">
+                  {row.label}
+                  {row.ends && (
+                    <span className="block text-xs font-normal text-muted-foreground">
+                      {row.ends}
+                    </span>
+                  )}
                 </TableCell>
-              </TableRow>
-            )}
-            {visibleRows.map((row) => {
-              const draft = drafts[row.key] ?? row.draft;
-              const dirty = dirtyRows.some((item) => item.key === row.key);
-              const error = errors[row.key];
-              const errorId = `contribution-${row.key}-error`;
-              return (
-                <TableRow
-                  key={row.key}
-                  id={row.id ? `contribution-${row.id}` : undefined}
-                  className="scroll-mt-24"
-                  data-invalid={Boolean(error)}
-                >
-                  <TableCell className="font-medium">
-                    {row.label}
-                    {row.ends && (
-                      <span className="block text-xs font-normal text-muted-foreground">
-                        {row.ends}
-                      </span>
-                    )}
-                  </TableCell>
-                  <TableCell className="min-w-52">
+                <TableCell className="min-w-52">
+                  <Input
+                    aria-label={`Nome da contribuição ${row.label}`}
+                    value={draft.name}
+                    maxLength={120}
+                    disabled={busy}
+                    aria-invalid={Boolean(error)}
+                    aria-describedby={error ? errorId : undefined}
+                    onChange={(event) =>
+                      update(row, { name: event.target.value })
+                    }
+                  />
+                  {error && (
+                    <p
+                      id={errorId}
+                      role="alert"
+                      className="mt-1 max-w-60 whitespace-normal text-sm text-destructive"
+                    >
+                      {error}
+                    </p>
+                  )}
+                </TableCell>
+                <TableCell>
+                  <Select
+                    value={draft.type}
+                    disabled={busy}
+                    onValueChange={(type) =>
+                      update(row, { type: type as Draft["type"] })
+                    }
+                  >
+                    <SelectTrigger
+                      aria-label={`Tipo da contribuição ${row.label}`}
+                      className="w-full min-w-32"
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {contributionTypeSchema.options.map((type) => (
+                        <SelectItem key={type} value={type}>
+                          {typeLabels[type]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </TableCell>
+                <TableCell>
+                  <Select
+                    value={draft.target || "unset"}
+                    disabled={busy}
+                    onValueChange={(target) =>
+                      update(row, {
+                        target: target === "unset" ? "" : target,
+                      })
+                    }
+                  >
+                    <SelectTrigger
+                      aria-label={`Destino da contribuição ${row.label}`}
+                      className="w-full min-w-36"
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="unset">Destino...</SelectItem>
+                      <SelectGroup>
+                        <SelectLabel>Trechos</SelectLabel>
+                        {network.data.segments.map((segment) => (
+                          <SelectItem
+                            key={segment.id}
+                            value={`segment:${segment.id}`}
+                          >
+                            {segment.code}
+                            {segmentEnds(segment.id) &&
+                              ` (${segmentEnds(segment.id)})`}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                      <SelectGroup>
+                        <SelectLabel>Nós</SelectLabel>
+                        {network.data.nodes.map((node) => (
+                          <SelectItem key={node.id} value={`node:${node.id}`}>
+                            {node.code}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                </TableCell>
+                {(["initialLps", "finalLps"] as const).map((key) => (
+                  <TableCell key={key}>
                     <Input
-                      aria-label={`Nome da contribuição ${row.label}`}
-                      value={draft.name}
-                      maxLength={120}
+                      className="min-w-28"
+                      type="number"
+                      min="0"
+                      step="any"
+                      aria-label={`Vazão ${key === "initialLps" ? "inicial" : "final"} (L/s) ${row.label}`}
+                      value={draft[key]}
                       disabled={busy}
                       aria-invalid={Boolean(error)}
                       aria-describedby={error ? errorId : undefined}
                       onChange={(event) =>
-                        update(row, { name: event.target.value })
+                        update(row, { [key]: event.target.value })
                       }
                     />
-                    {error && (
-                      <p
-                        id={errorId}
-                        role="alert"
-                        className="mt-1 max-w-60 whitespace-normal text-sm text-destructive"
-                      >
-                        {error}
-                      </p>
-                    )}
                   </TableCell>
-                  <TableCell>
-                    <Select
-                      value={draft.type}
-                      disabled={busy}
-                      onValueChange={(type) =>
-                        update(row, { type: type as Draft["type"] })
-                      }
-                    >
-                      <SelectTrigger
-                        aria-label={`Tipo da contribuição ${row.label}`}
-                        className="w-full min-w-32"
-                      >
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {contributionTypeSchema.options.map((type) => (
-                          <SelectItem key={type} value={type}>
-                            {typeLabels[type]}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </TableCell>
-                  <TableCell>
-                    <Select
-                      value={draft.target || "unset"}
-                      disabled={busy}
-                      onValueChange={(target) =>
-                        update(row, {
-                          target: target === "unset" ? "" : target,
-                        })
-                      }
-                    >
-                      <SelectTrigger
-                        aria-label={`Destino da contribuição ${row.label}`}
-                        className="w-full min-w-36"
-                      >
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="unset">Destino...</SelectItem>
-                        <SelectGroup>
-                          <SelectLabel>Trechos</SelectLabel>
-                          {network.data.segments.map((segment) => (
-                            <SelectItem
-                              key={segment.id}
-                              value={`segment:${segment.id}`}
-                            >
-                              {segment.code}
-                              {segmentEnds(segment.id) &&
-                                ` (${segmentEnds(segment.id)})`}
-                            </SelectItem>
-                          ))}
-                        </SelectGroup>
-                        <SelectGroup>
-                          <SelectLabel>Nós</SelectLabel>
-                          {network.data.nodes.map((node) => (
-                            <SelectItem key={node.id} value={`node:${node.id}`}>
-                              {node.code}
-                            </SelectItem>
-                          ))}
-                        </SelectGroup>
-                      </SelectContent>
-                    </Select>
-                  </TableCell>
-                  {(["initialLps", "finalLps"] as const).map((key) => (
-                    <TableCell key={key}>
-                      <Input
-                        className="min-w-28"
-                        type="number"
-                        min="0"
-                        step="any"
-                        aria-label={`Vazão ${key === "initialLps" ? "inicial" : "final"} (L/s) ${row.label}`}
-                        value={draft[key]}
-                        disabled={busy}
-                        aria-invalid={Boolean(error)}
-                        aria-describedby={error ? errorId : undefined}
-                        onChange={(event) =>
-                          update(row, { [key]: event.target.value })
-                        }
-                      />
-                    </TableCell>
-                  ))}
-                  <TableCell>
-                    <span
-                      className={
-                        dirty
-                          ? "text-amber-700 dark:text-amber-300"
-                          : "text-muted-foreground"
-                      }
-                    >
-                      {error
-                        ? "Revisar"
-                        : dirty
-                          ? "Não salvo"
-                          : row.id
-                            ? "Salvo"
-                            : "Sem contribuição"}
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    {row.id ? (
-                      <ConfirmButton
-                        size="icon-sm"
-                        variant="ghost"
-                        aria-label={`Excluir ${row.draft.name}`}
-                        disabled={busy}
-                        title={`Excluir a contribuição ${row.draft.name}?`}
-                        description="Esta contribuição deixará de compor as vazões do projeto. Recalcule o dimensionamento após a exclusão."
-                        confirmLabel="Excluir contribuição"
-                        onConfirm={() => remove.mutate(row)}
-                      >
-                        <Trash2 className="size-4" />
-                      </ConfirmButton>
-                    ) : (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        disabled={busy}
-                        onClick={() => clearRow(row.key)}
-                      >
-                        Remover
-                      </Button>
-                    )}
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
-        <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
-          <p className="text-muted-foreground">
-            {rows.length
-              ? `${currentPage * pageSize + 1}–${Math.min((currentPage + 1) * pageSize, rows.length)} de ${rows.length} linhas`
-              : "0 linhas"}
-          </p>
-          <div className="flex flex-wrap items-center gap-2">
-            <span>Linhas por página</span>
-            <Select
-              value={String(pageSize)}
-              onValueChange={(value) => {
-                setPageSize(Number(value));
-                setPage(0);
-              }}
-            >
-              <SelectTrigger aria-label="Linhas por página">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {[10, 25, 50].map((size) => (
-                  <SelectItem key={size} value={String(size)}>
-                    {size}
-                  </SelectItem>
                 ))}
-              </SelectContent>
-            </Select>
-            <Button
-              size="icon-sm"
-              variant="outline"
-              aria-label="Página anterior"
-              disabled={currentPage === 0}
-              onClick={() => setPage(currentPage - 1)}
-            >
-              <ChevronLeft className="size-4" />
-            </Button>
-            <span aria-live="polite">
-              Página {currentPage + 1} de {pageCount}
-            </span>
-            <Button
-              size="icon-sm"
-              variant="outline"
-              aria-label="Próxima página"
-              disabled={currentPage + 1 >= pageCount}
-              onClick={() => setPage(currentPage + 1)}
-            >
-              <ChevronRight className="size-4" />
-            </Button>
-          </div>
+                <TableCell>
+                  <span
+                    className={
+                      dirty
+                        ? "text-amber-700 dark:text-amber-300"
+                        : "text-muted-foreground"
+                    }
+                  >
+                    {error
+                      ? "Revisar"
+                      : dirty
+                        ? "Não salvo"
+                        : row.id
+                          ? "Salvo"
+                          : "Sem contribuição"}
+                  </span>
+                </TableCell>
+                <TableCell>
+                  {row.id ? (
+                    <ConfirmButton
+                      size="icon-sm"
+                      variant="ghost"
+                      aria-label={`Excluir ${row.draft.name}`}
+                      disabled={busy}
+                      title={`Excluir a contribuição ${row.draft.name}?`}
+                      description="Esta contribuição deixará de compor as vazões do projeto. Recalcule o dimensionamento após a exclusão."
+                      confirmLabel="Excluir contribuição"
+                      onConfirm={() => remove.mutate(row)}
+                    >
+                      <Trash2 className="size-4" />
+                    </ConfirmButton>
+                  ) : (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      disabled={busy}
+                      onClick={() => clearRow(row.key)}
+                    >
+                      Remover
+                    </Button>
+                  )}
+                </TableCell>
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
+      <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
+        <p className="text-muted-foreground">
+          {rows.length
+            ? `${currentPage * pageSize + 1}–${Math.min((currentPage + 1) * pageSize, rows.length)} de ${rows.length} linhas`
+            : "0 linhas"}
+        </p>
+        <div className="flex flex-wrap items-center gap-2">
+          <span>Linhas por página</span>
+          <Select
+            value={String(pageSize)}
+            onValueChange={(value) => {
+              setPageSize(Number(value));
+              setPage(0);
+            }}
+          >
+            <SelectTrigger aria-label="Linhas por página">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {[10, 25, 50].map((size) => (
+                <SelectItem key={size} value={String(size)}>
+                  {size}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button
+            size="icon-sm"
+            variant="outline"
+            aria-label="Página anterior"
+            disabled={currentPage === 0}
+            onClick={() => setPage(currentPage - 1)}
+          >
+            <ChevronLeft className="size-4" />
+          </Button>
+          <span aria-live="polite">
+            Página {currentPage + 1} de {pageCount}
+          </span>
+          <Button
+            size="icon-sm"
+            variant="outline"
+            aria-label="Próxima página"
+            disabled={currentPage + 1 >= pageCount}
+            onClick={() => setPage(currentPage + 1)}
+          >
+            <ChevronRight className="size-4" />
+          </Button>
         </div>
-        {Object.keys(errors).length > 0 && (
-          <Feedback
-            tone="error"
-            title="Revise as linhas indicadas"
-            description="As alterações foram mantidas. Corrija os dados e clique em Salvar todos."
-          />
-        )}
-        {message && (
-          <p role="status" className="text-sm text-muted-foreground">
-            {message}
-          </p>
-        )}
-        {(save.isError || remove.isError) && (
-          <RequestError
-            title="Não foi possível atualizar as contribuições"
-            error={save.error ?? remove.error}
-          />
-        )}
-      </CardContent>
-    </Card>
+      </div>
+      {Object.keys(errors).length > 0 && (
+        <Feedback
+          tone="error"
+          title="Revise as linhas indicadas"
+          description="As alterações foram mantidas. Corrija os dados e clique em Salvar todos."
+        />
+      )}
+      {message && (
+        <p role="status" className="text-sm text-muted-foreground">
+          {message}
+        </p>
+      )}
+      {(save.isError || remove.isError) && (
+        <RequestError
+          title="Não foi possível atualizar as contribuições"
+          error={save.error ?? remove.error}
+        />
+      )}
+    </div>
   );
 }

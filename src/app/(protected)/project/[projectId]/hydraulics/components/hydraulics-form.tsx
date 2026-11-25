@@ -2,10 +2,10 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { FileText, Lock, Save, Undo2 } from "lucide-react";
+import { ChevronRight, Lock, Save, Undo2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { Controller, type FieldPath, useForm } from "react-hook-form";
+import { Controller, type FieldPath, useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 import {
   invalidateProjectDependents,
@@ -30,7 +30,7 @@ import {
   FieldError,
   FieldLabel,
 } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
+import { FieldHint } from "@/components/ui/field-hint";
 import {
   InputGroup,
   InputGroupAddon,
@@ -83,8 +83,15 @@ type HydraulicsFormProps = {
   projectId: string;
 };
 
+const parameterGroups = [
+  { id: "demand", label: "População e consumo" },
+  { id: "peak", label: "Coeficientes de pico" },
+  { id: "network", label: "Rede" },
+] as const;
+
 type ParameterField = {
   name: FieldPath<HydraulicsFormValues>;
+  group: (typeof parameterGroups)[number]["id"];
   label: string;
   unit: string;
   min: number;
@@ -94,6 +101,7 @@ type ParameterField = {
 const parameterFields = [
   {
     name: "initialPopulation",
+    group: "demand",
     label: "População inicial",
     unit: "hab.",
     min: 0,
@@ -101,6 +109,7 @@ const parameterFields = [
   },
   {
     name: "finalPopulation",
+    group: "demand",
     label: "População final",
     unit: "hab.",
     min: 0,
@@ -108,6 +117,7 @@ const parameterFields = [
   },
   {
     name: "returnCoefficient",
+    group: "demand",
     label: "Coeficiente de retorno",
     unit: "%",
     min: Number.MIN_VALUE,
@@ -115,6 +125,7 @@ const parameterFields = [
   },
   {
     name: "perCapitaFlow",
+    group: "demand",
     label: "Vazão per capita",
     unit: "L/hab.dia",
     min: Number.MIN_VALUE,
@@ -122,6 +133,7 @@ const parameterFields = [
   },
   {
     name: "infiltrationRate",
+    group: "network",
     label: "Taxa de infiltração",
     unit: "L/s por km",
     min: 0,
@@ -129,20 +141,23 @@ const parameterFields = [
   },
   {
     name: "peakDailyFactor",
-    label: "Fator de pico diário (K1)",
+    group: "peak",
+    label: "K1 (Fator de pico diário)",
     unit: "adimensional",
     min: Number.MIN_VALUE,
     step: 0.01,
   },
   {
     name: "peakHourlyFactor",
-    label: "Fator de pico horário (K2)",
+    group: "peak",
+    label: "K2 (Fator de pico horário)",
     unit: "adimensional",
     min: Number.MIN_VALUE,
     step: 0.01,
   },
   {
     name: "manningCoefficient",
+    group: "network",
     label: "Coeficiente de Manning (registro)",
     unit: "adimensional",
     min: Number.MIN_VALUE,
@@ -192,6 +207,19 @@ export function HydraulicsForm({ projectId }: Readonly<HydraulicsFormProps>) {
   } = useForm<HydraulicsFormValues>({
     resolver: zodResolver(hydraulicsFormSchema, portugueseValidation),
   });
+  const [switchFrom, switchTo, switchAbove] = useWatch({
+    control,
+    name: ["switchFromMaterial", "switchToMaterial", "switchAboveDiameterMm"],
+  });
+  const switchSummary =
+    switchFrom && switchTo && switchAbove
+      ? `${switchFrom} → ${switchTo} acima de ${switchAbove} mm`
+      : "Não configurada";
+  const [isSwitchOpen, setSwitchOpen] = useState(false);
+  const switchError = errors.switchAboveDiameterMm;
+  useEffect(() => {
+    if (switchError) setSwitchOpen(true);
+  }, [switchError]);
   const [infiltrationUnit, setInfiltrationUnit] =
     useState<InfiltrationUnit>("km");
   // Read by the reset effect so a refetch after saving keeps the chosen unit without re-running it.
@@ -258,7 +286,7 @@ export function HydraulicsForm({ projectId }: Readonly<HydraulicsFormProps>) {
       await invalidateProjectDependents(queryClient, projectId);
       toast.success("Parâmetros salvos com sucesso!", {
         description:
-          "Os cálculos do projeto serão atualizados no próximo dimensionamento.",
+          "Execute novamente o dimensionamento para atualizar os resultados do projeto.",
         duration: 4000,
       });
     },
@@ -329,9 +357,7 @@ export function HydraulicsForm({ projectId }: Readonly<HydraulicsFormProps>) {
             Parâmetros globais do sistema
           </CardTitle>
           <CardDescription>
-            Parâmetros da rede usados no dimensionamento. O coeficiente de
-            Manning é mantido apenas como registro; o cálculo define a
-            rugosidade pelo material.
+            Parâmetros da rede usados no dimensionamento.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-x-3 gap-y-5 md:grid-cols-3">
@@ -339,9 +365,21 @@ export function HydraulicsForm({ projectId }: Readonly<HydraulicsFormProps>) {
             data-invalid={Boolean(errors.defaultNetworkMaterial)}
             className="md:col-span-3"
           >
-            <FieldLabel htmlFor="defaultNetworkMaterial">
-              Material padrão da rede
-            </FieldLabel>
+            <div className="flex items-center gap-1">
+              <FieldLabel htmlFor="defaultNetworkMaterial">
+                Material padrão da rede
+              </FieldLabel>
+              <FieldHint
+                id="defaultNetworkMaterial-description"
+                label="Material padrão da rede"
+              >
+                <p>
+                  Vale para todos os trechos sem material próprio e pode ser
+                  alterado em cada trecho. Pode ficar em branco durante o
+                  cadastro, mas é necessário para dimensionar a rede.
+                </p>
+              </FieldHint>
+            </div>
             <Controller
               control={control}
               name="defaultNetworkMaterial"
@@ -370,11 +408,6 @@ export function HydraulicsForm({ projectId }: Readonly<HydraulicsFormProps>) {
                 </Select>
               )}
             />
-            <FieldDescription id="defaultNetworkMaterial-description">
-              Padrão do projeto: vale para todos os trechos sem material próprio
-              e pode ser alterado em cada trecho. Pode ficar em branco durante o
-              cadastro, mas é necessário para dimensionar a rede.
-            </FieldDescription>
             {errors.defaultNetworkMaterial && (
               <FieldError
                 id="defaultNetworkMaterial-error"
@@ -383,207 +416,243 @@ export function HydraulicsForm({ projectId }: Readonly<HydraulicsFormProps>) {
               />
             )}
           </Field>
-          <fieldset className="grid gap-3 md:col-span-3 md:grid-cols-3">
-            <legend className="mb-2 text-sm font-medium">
-              Troca de material por diâmetro (opcional)
-            </legend>
-            <Input
-              aria-label="Material de origem da troca"
-              placeholder="De (ex.: PVC JEI)"
-              maxLength={100}
-              {...register("switchFromMaterial", {
-                setValueAs: (value: string | null) => value?.trim() || null,
-              })}
-            />
-            <Input
-              aria-label="Material de destino da troca"
-              placeholder="Para (ex.: Concreto)"
-              maxLength={100}
-              {...register("switchToMaterial", {
-                setValueAs: (value: string | null) => value?.trim() || null,
-              })}
-            />
-            <InputGroup>
-              <InputGroupInput
-                aria-label="Trocar acima do diâmetro"
-                type="number"
-                min={1}
-                step={1}
-                placeholder="Acima de"
-                aria-invalid={Boolean(errors.switchAboveDiameterMm)}
-                {...register("switchAboveDiameterMm", {
-                  setValueAs: (value: string | null) =>
-                    value === "" || value === null ? null : Number(value),
-                })}
+          <details
+            open={isSwitchOpen}
+            onToggle={(event) => setSwitchOpen(event.currentTarget.open)}
+            className="group rounded-lg border border-border/80 md:col-span-3"
+          >
+            <summary className="flex cursor-pointer list-none items-center gap-2 rounded-lg px-3 py-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
+              <ChevronRight
+                aria-hidden="true"
+                className="size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-90 motion-reduce:transition-none"
               />
-              <InputGroupAddon align="inline-end">mm</InputGroupAddon>
-            </InputGroup>
-            <FieldDescription className="md:col-span-3">
-              Aplica-se apenas aos trechos sem material próprio. Não há limite
-              padrão: em branco, nenhuma troca é feita.
-            </FieldDescription>
-            {errors.switchAboveDiameterMm && (
-              <FieldError
-                className="md:col-span-3"
-                errors={[errors.switchAboveDiameterMm]}
-                role="alert"
-              />
-            )}
-          </fieldset>
-          {parameterFields.map((field) => {
-            const error = errors[field.name];
-            const errorId = getErrorId(field.name);
-            const baseline = hydraulicData?.defaults[field.name];
-            const descriptionId = `${field.name}-description`;
-
-            return (
-              <Field key={field.name} data-invalid={Boolean(error)}>
-                <FieldLabel htmlFor={field.name}>
-                  {field.label}
-                  {field.name === "infiltrationRate" ||
-                  field.name === "manningCoefficient"
-                    ? " (opcional)"
-                    : ""}
-                </FieldLabel>
-                <InputGroup>
-                  <InputGroupInput
-                    id={field.name}
-                    type="number"
-                    min={field.min}
-                    step={
-                      field.name === "infiltrationRate" &&
-                      infiltrationUnit === "m"
-                        ? "any"
-                        : field.step
-                    }
-                    inputMode="decimal"
-                    aria-invalid={Boolean(error)}
-                    aria-describedby={[
-                      descriptionId,
-                      error ? errorId : undefined,
-                    ]
-                      .filter(Boolean)
-                      .join(" ")}
-                    aria-errormessage={error ? errorId : undefined}
-                    {...register(field.name, {
-                      setValueAs: (value: string | null) =>
-                        value === "" || value === null ? null : Number(value),
-                    })}
-                  />
-                  <InputGroupAddon align="inline-end">
-                    {field.name === "infiltrationRate" ? (
-                      <select
-                        aria-label="Unidade da taxa de infiltração"
-                        value={infiltrationUnit}
-                        // The addon focuses the input on click, which would close the native list.
-                        onClick={(event) => event.stopPropagation()}
-                        onChange={(event) =>
-                          changeInfiltrationUnit(
-                            event.target.value as InfiltrationUnit,
-                          )
-                        }
-                        className="cursor-pointer rounded-sm bg-transparent text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              <span className="font-medium">
+                Troca de material por diâmetro (opcional)
+              </span>
+              <span className="ml-auto truncate text-muted-foreground">
+                {switchSummary}
+              </span>
+            </summary>
+            <fieldset className="grid gap-3 border-t border-border/80 p-3 md:grid-cols-3">
+              <legend className="sr-only">
+                Troca de material por diâmetro
+              </legend>
+              {(
+                [
+                  ["switchFromMaterial", "Material de origem da troca", "De"],
+                  ["switchToMaterial", "Material de destino da troca", "Para"],
+                ] as const
+              ).map(([name, label, placeholder]) => (
+                <Controller
+                  key={name}
+                  control={control}
+                  name={name}
+                  render={({ field }) => (
+                    <Select
+                      value={field.value ?? ""}
+                      onValueChange={(value) =>
+                        field.onChange(value === "unset" ? null : value)
+                      }
+                    >
+                      <SelectTrigger
+                        ref={field.ref}
+                        onBlur={field.onBlur}
+                        aria-label={label}
+                        className="w-full bg-background"
                       >
-                        <option value="km">L/s por km</option>
-                        <option value="m">L/s por m</option>
-                      </select>
-                    ) : (
-                      field.unit
-                    )}
-                  </InputGroupAddon>
-                </InputGroup>
-                <div id={descriptionId} className="space-y-1">
-                  {field.name === "initialPopulation" && (
-                    <FieldDescription>
-                      População atendida no início do plano, conforme o
-                      levantamento do projeto; sem valor normativo fixo.
-                    </FieldDescription>
+                        <SelectValue
+                          placeholder={`${placeholder} (material)`}
+                        />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="unset">Não informado</SelectItem>
+                        {networkMaterialOptions(field.value).map((material) => (
+                          <SelectItem key={material} value={material}>
+                            {material}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   )}
-                  {field.name === "finalPopulation" && (
-                    <FieldDescription>
-                      População prevista para o horizonte do projeto, conforme o
-                      estudo populacional; sem valor normativo fixo.
-                    </FieldDescription>
-                  )}
-                  {field.name === "perCapitaFlow" && (
-                    <FieldDescription>
-                      Consumo de água por habitante, definido com dados locais
-                      ou diretrizes da prestadora; sem valor normativo fixo no
-                      perfil atual.
-                    </FieldDescription>
-                  )}
-                  {field.name === "infiltrationRate" && (
-                    <>
-                      {hydraulicData?.normativeProfile.standards.includes(
-                        "NBR 9649:1986",
-                      ) && (
-                        <FieldDescription>
-                          Referência normativa:{" "}
-                          {infiltrationUnit === "km"
-                            ? "0,05 a 1,0 L/s por km"
-                            : "0,00005 a 0,001 L/s por m"}{" "}
-                          (NBR 9649:1986)
-                        </FieldDescription>
+                />
+              ))}
+              <InputGroup>
+                <InputGroupInput
+                  aria-label="Trocar acima do diâmetro"
+                  type="number"
+                  min={1}
+                  step={1}
+                  placeholder="Acima de"
+                  aria-invalid={Boolean(errors.switchAboveDiameterMm)}
+                  {...register("switchAboveDiameterMm", {
+                    setValueAs: (value: string | null) =>
+                      value === "" || value === null ? null : Number(value),
+                  })}
+                />
+                <InputGroupAddon align="inline-end">mm</InputGroupAddon>
+              </InputGroup>
+              <FieldDescription className="md:col-span-3">
+                Aplica-se apenas aos trechos sem material próprio. Não há limite
+                padrão: em branco, nenhuma troca é feita.
+              </FieldDescription>
+              {errors.switchAboveDiameterMm && (
+                <FieldError
+                  className="md:col-span-3"
+                  errors={[errors.switchAboveDiameterMm]}
+                  role="alert"
+                />
+              )}
+            </fieldset>
+          </details>
+          {parameterGroups.map((group) => (
+            <fieldset
+              key={group.id}
+              className="grid gap-x-3 gap-y-5 border-t border-border/80 pt-5 md:col-span-3 md:grid-cols-3"
+            >
+              <legend className="mb-3 text-sm font-semibold">
+                {group.label}
+              </legend>
+              {parameterFields
+                .filter((field) => field.group === group.id)
+                .map((field) => {
+                  const error = errors[field.name];
+                  const errorId = getErrorId(field.name);
+                  const baseline = hydraulicData?.defaults[field.name];
+                  const descriptionId = `${field.name}-description`;
+                  const standards =
+                    hydraulicData?.normativeProfile.standards ?? [];
+                  const hintLines = [
+                    field.name === "initialPopulation" &&
+                      "População atendida no início do plano, conforme o levantamento do projeto; sem valor normativo fixo.",
+                    field.name === "finalPopulation" &&
+                      "População prevista para o horizonte do projeto, conforme o estudo populacional; sem valor normativo fixo.",
+                    field.name === "perCapitaFlow" &&
+                      "Consumo de água por habitante, definido com dados locais ou diretrizes da prestadora; sem valor normativo fixo no perfil atual.",
+                    field.name === "infiltrationRate" &&
+                      standards.includes("NBR 9649:1986") &&
+                      `Referência normativa: ${
+                        infiltrationUnit === "km"
+                          ? "0,05 a 1,0 L/s por km"
+                          : "0,00005 a 0,001 L/s por m"
+                      } (NBR 9649:1986)`,
+                    field.name === "infiltrationRate" &&
+                      standards.includes("NBR 7367:1988") &&
+                      `Referência normativa: 0 L/s por ${infiltrationUnit} em rede 100% PVC com junta elástica (NBR 7367:1988)`,
+                    field.name === "infiltrationRate" &&
+                      "Em branco: conforme o material. Redes mistas exigem taxa informada.",
+                    field.name === "manningCoefficient" &&
+                      standards.includes("NBR 9649:1986") &&
+                      "Referência normativa: 0,013 (NBR 9649:1986)",
+                    field.name === "manningCoefficient" &&
+                      standards.includes("NBR 7367:1988") &&
+                      "Referência normativa: 0,010 para PVC com h/D de 0,20 a 0,75 (NBR 7367:1988); fora da faixa: 0,013.",
+                    field.name === "manningCoefficient" &&
+                      "Apenas registro; coeficiente calculado por trecho.",
+                    baseline?.value != null &&
+                      `Referência normativa: ${
+                        field.name === "returnCoefficient"
+                          ? `${returnCoefficientToPercent(baseline.value).toLocaleString("pt-BR")}%`
+                          : baseline.value.toLocaleString("pt-BR")
+                      }${baseline.source ? ` (${baseline.source})` : ""}`,
+                  ].filter((line): line is string => Boolean(line));
+                  const reference = hintLines
+                    .find((line) => line.startsWith("Referência normativa:"))
+                    ?.replace("Referência normativa:", "Ref.:");
+
+                  return (
+                    <Field key={field.name} data-invalid={Boolean(error)}>
+                      <div className="flex items-center gap-1">
+                        <FieldLabel htmlFor={field.name}>
+                          {field.label}
+                          {field.name === "infiltrationRate" ||
+                          field.name === "manningCoefficient"
+                            ? " (opcional)"
+                            : ""}
+                        </FieldLabel>
+                        {hintLines.length > 0 && (
+                          <FieldHint id={descriptionId} label={field.label}>
+                            {hintLines.map((line) => (
+                              <p key={line}>{line}</p>
+                            ))}
+                          </FieldHint>
+                        )}
+                      </div>
+                      <InputGroup>
+                        <InputGroupInput
+                          id={field.name}
+                          type="number"
+                          min={field.min}
+                          step={
+                            field.name === "infiltrationRate" &&
+                            infiltrationUnit === "m"
+                              ? "any"
+                              : field.step
+                          }
+                          inputMode="decimal"
+                          aria-invalid={Boolean(error)}
+                          aria-describedby={[
+                            hintLines.length > 0 ? descriptionId : undefined,
+                            error ? errorId : undefined,
+                          ]
+                            .filter(Boolean)
+                            .join(" ")}
+                          aria-errormessage={error ? errorId : undefined}
+                          {...register(field.name, {
+                            setValueAs: (value: string | null) =>
+                              value === "" || value === null
+                                ? null
+                                : Number(value),
+                          })}
+                        />
+                        <InputGroupAddon align="inline-end">
+                          {field.name === "infiltrationRate" ? (
+                            <select
+                              aria-label="Unidade da taxa de infiltração"
+                              value={infiltrationUnit}
+                              // The addon focuses the input on click, which would close the native list.
+                              onClick={(event) => event.stopPropagation()}
+                              onChange={(event) =>
+                                changeInfiltrationUnit(
+                                  event.target.value as InfiltrationUnit,
+                                )
+                              }
+                              className="cursor-pointer rounded-sm bg-transparent text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                            >
+                              <option value="km">L/s por km</option>
+                              <option value="m">L/s por m</option>
+                            </select>
+                          ) : (
+                            field.unit
+                          )}
+                        </InputGroupAddon>
+                      </InputGroup>
+                      {reference && (
+                        <p
+                          aria-hidden="true"
+                          className="text-xs text-muted-foreground"
+                        >
+                          {reference}
+                        </p>
                       )}
-                      {hydraulicData?.normativeProfile.standards.includes(
-                        "NBR 7367:1988",
-                      ) && (
-                        <FieldDescription>
-                          Referência normativa: 0 L/s por {infiltrationUnit} em
-                          rede 100% PVC com junta elástica (NBR 7367:1988)
-                        </FieldDescription>
+                      {error && (
+                        <FieldError
+                          id={errorId}
+                          errors={[error]}
+                          role="alert"
+                        />
                       )}
-                      <FieldDescription>
-                        Em branco: conforme o material. Redes mistas exigem taxa
-                        informada.
-                      </FieldDescription>
-                    </>
-                  )}
-                  {field.name === "manningCoefficient" && (
-                    <>
-                      {hydraulicData?.normativeProfile.standards.includes(
-                        "NBR 9649:1986",
-                      ) && (
-                        <FieldDescription>
-                          Referência normativa: 0,013 (NBR 9649:1986)
-                        </FieldDescription>
-                      )}
-                      {hydraulicData?.normativeProfile.standards.includes(
-                        "NBR 7367:1988",
-                      ) && (
-                        <FieldDescription>
-                          Referência normativa: 0,010 para PVC com h/D de 0,20 a
-                          0,75 (NBR 7367:1988); fora da faixa: 0,013.
-                        </FieldDescription>
-                      )}
-                      <FieldDescription>
-                        Apenas registro; coeficiente calculado por trecho.
-                      </FieldDescription>
-                    </>
-                  )}
-                  {baseline?.value != null && (
-                    <FieldDescription>
-                      Referência normativa:{" "}
-                      {field.name === "returnCoefficient"
-                        ? `${returnCoefficientToPercent(baseline.value).toLocaleString("pt-BR")}%`
-                        : baseline.value.toLocaleString("pt-BR")}
-                      {baseline.source ? ` (${baseline.source})` : ""}
-                    </FieldDescription>
-                  )}
-                </div>
-                {error && (
-                  <FieldError id={errorId} errors={[error]} role="alert" />
-                )}
-              </Field>
-            );
-          })}
+                    </Field>
+                  );
+                })}
+            </fieldset>
+          ))}
           <Field className="md:col-span-3">
             <FieldLabel htmlFor="justification">
               Justificativa técnica (opcional)
             </FieldLabel>
             <Textarea
               id="justification"
-              className="min-h-32 bg-background"
+              className="max-h-80 bg-background"
               maxLength={5000}
               placeholder="Explique os critérios utilizados para definição dos parâmetros..."
               {...register("justification", {
@@ -596,14 +665,6 @@ export function HydraulicsForm({ projectId }: Readonly<HydraulicsFormProps>) {
           </Field>
         </CardContent>
       </Card>
-
-      <div className="flex gap-3.5 rounded-lg border border-blue-200/50 bg-blue-50/20 p-4 text-sm dark:border-blue-900/20 dark:bg-blue-950/10">
-        <FileText className="mt-0.5 size-5 shrink-0 text-blue-600 dark:text-blue-400" />
-        <p className="leading-relaxed text-blue-800/85 dark:text-blue-300/80">
-          Após salvar, execute novamente o dimensionamento para atualizar os
-          resultados do projeto.
-        </p>
-      </div>
 
       <Card className="rounded-lg border border-border/80 bg-card/40 shadow-none ring-0">
         <CardHeader>

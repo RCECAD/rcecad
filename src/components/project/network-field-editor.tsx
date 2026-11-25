@@ -870,12 +870,14 @@ function SegmentRow({
 export function NetworkFieldEditor({
   projectId,
   mode = "survey",
+  view,
   onDirtyChange,
   projectMaterial = null,
 }: {
   projectId: string;
   mode?: Mode;
-  onDirtyChange?: (dirty: boolean) => void;
+  view?: "nodes" | "segments";
+  onDirtyChange?: (dirty: boolean, pending: Record<RowKind, number>) => void;
   projectMaterial?: string | null;
 }) {
   const { setHasUnsavedChanges } = useUnsavedChanges();
@@ -1030,10 +1032,18 @@ export function NetworkFieldEditor({
       ),
     [],
   );
+  const pendingNodes = dirtyCount("node");
+  const pendingSegments = dirtyCount("segment");
   useEffect(() => {
     setHasUnsavedChanges(isDirty);
-    onDirtyChange?.(isDirty);
-  }, [isDirty, onDirtyChange, setHasUnsavedChanges]);
+    onDirtyChange?.(isDirty, { node: pendingNodes, segment: pendingSegments });
+  }, [
+    isDirty,
+    pendingNodes,
+    pendingSegments,
+    onDirtyChange,
+    setHasUnsavedChanges,
+  ]);
   useEffect(() => () => setHasUnsavedChanges(false), [setHasUnsavedChanges]);
   const network = useQuery({
     queryKey: projectQueryKeys.network(projectId),
@@ -1178,7 +1188,7 @@ export function NetworkFieldEditor({
         descarte as alterações.
       </p>
       {mode === "survey" && (
-        <Card>
+        <Card hidden={view === "segments"}>
           <CardHeader>
             <CardTitle>Cotas de terreno dos nós</CardTitle>
             <CardDescription>
@@ -1238,7 +1248,10 @@ export function NetworkFieldEditor({
           </CardContent>
         </Card>
       )}
-      <Card className="rounded-lg border border-border/80 bg-card/40 shadow-none ring-0">
+      <Card
+        hidden={view === "nodes"}
+        className="rounded-lg border border-border/80 bg-card/40 shadow-none ring-0"
+      >
         <CardHeader>
           <CardTitle>
             {mode === "survey"
