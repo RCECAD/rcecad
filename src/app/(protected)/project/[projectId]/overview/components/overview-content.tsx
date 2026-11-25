@@ -4,6 +4,7 @@ import {
   Download,
   Droplets,
   FileText,
+  Info,
   RefreshCw,
   Siren,
   Sparkles,
@@ -11,7 +12,37 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Feedback, FeedbackActions } from "@/components/ui/feedback";
+import {
+  Feedback,
+  FeedbackActions,
+  RequestError,
+} from "@/components/ui/feedback";
+import { InlineListSkeleton } from "@/components/ui/loading-skeletons";
+import type { OverviewAlert } from "@/lib/overview-alerts";
+
+const alertStyles = {
+  CRITICAL: {
+    label: "Erro crítico",
+    Icon: CircleX,
+    icon: "text-rose-600 dark:text-rose-400",
+    style:
+      "border-rose-200 bg-rose-50 dark:border-rose-900 dark:bg-rose-950/30",
+  },
+  ALERT: {
+    label: "Alerta",
+    Icon: TriangleAlert,
+    icon: "text-amber-500",
+    style:
+      "border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30",
+  },
+  INFO: {
+    label: "Informação",
+    Icon: Info,
+    icon: "text-blue-500",
+    style:
+      "border-blue-200 bg-blue-50 dark:border-blue-900 dark:bg-blue-950/30",
+  },
+};
 
 const quickActions = [
   { label: "Completar dados gerais", icon: FileText, route: "general-data" },
@@ -29,6 +60,8 @@ export function OverviewContent({
   projectDetails,
   stages,
   alerts,
+  alertsLoading,
+  alertsError,
   recentActions,
   onRefresh,
   refreshing,
@@ -48,7 +81,9 @@ export function OverviewContent({
     complete: boolean;
     href: string;
   }[];
-  alerts: { title: string; href: string }[];
+  alerts: OverviewAlert[];
+  alertsLoading: boolean;
+  alertsError: unknown;
   recentActions: {
     id: string;
     title: string;
@@ -223,17 +258,32 @@ export function OverviewContent({
             />
             Pendências e alertas
           </h2>
-          <p className="mt-2 text-xs text-muted-foreground">
-            {alerts.length}{" "}
-            {alerts.length === 1 ? "item requer" : "itens requerem"} sua
-            atenção.
-          </p>
-          {alerts.length === 0 && (
+          {alerts.length > 0 && (
+            <p className="mt-2 text-xs text-muted-foreground">
+              {alerts.length}{" "}
+              {alerts.length === 1 ? "item requer" : "itens requerem"} sua
+              atenção.
+            </p>
+          )}
+          {alertsError != null && (
+            <div className="mt-3">
+              <RequestError
+                title="Não foi possível carregar os alertas da validação"
+                error={alertsError}
+              />
+            </div>
+          )}
+          {alertsLoading && (
+            <div className="mt-3">
+              <InlineListSkeleton label="Carregando alertas" rows={2} />
+            </div>
+          )}
+          {!alertsLoading && alertsError == null && alerts.length === 0 && (
             <Feedback
               className="mt-3"
               tone="success"
-              title="Nenhuma pendência de cadastro"
-              description="Execute a validação para conferir também as regras do dimensionamento."
+              title="Nenhuma pendência ou alerta em aberto"
+              description="Execute a validação para conferir as regras do dimensionamento."
               actions={[
                 {
                   label: "Ir para validação",
@@ -242,25 +292,41 @@ export function OverviewContent({
               ]}
             />
           )}
-          <ul className="mt-5 flex max-h-80 flex-col gap-2 overflow-y-auto overscroll-contain pr-1">
-            {alerts.map((alert) => (
-              <li
-                key={`${alert.href}-${alert.title}`}
-                className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-2.5 py-3 text-xs leading-5 dark:border-amber-800 dark:bg-amber-950/30"
-              >
-                <TriangleAlert
-                  aria-hidden="true"
-                  className="mt-0.5 size-4 shrink-0 text-amber-500"
-                />
-                <div className="flex min-w-0 flex-1 flex-col gap-2">
-                  <p>{alert.title}</p>
-                  <FeedbackActions
-                    actions={[{ label: "Ir para correção", href: alert.href }]}
-                  />
-                </div>
-              </li>
-            ))}
-          </ul>
+          {alerts.length > 0 && (
+            <ul className="mt-4 flex max-h-96 flex-col gap-2 overflow-y-auto overscroll-contain pr-1">
+              {alerts.map((alert) => {
+                const { Icon, label, style, icon } =
+                  alertStyles[alert.severity];
+                return (
+                  <li
+                    key={alert.key}
+                    className={`flex min-w-0 items-start gap-2 rounded-md border px-2.5 py-3 text-xs leading-5 ${style}`}
+                  >
+                    <Icon
+                      aria-hidden="true"
+                      className={`mt-0.5 size-4 shrink-0 ${icon}`}
+                    />
+                    <div className="flex min-w-0 flex-1 flex-col gap-2">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="font-medium">{label}</span>
+                        {alert.target && (
+                          <span className="rounded border border-border bg-background px-1.5 font-medium text-foreground">
+                            {alert.target}
+                          </span>
+                        )}
+                      </div>
+                      <p className="break-words">{alert.title}</p>
+                      <FeedbackActions
+                        actions={[
+                          { label: alert.actionLabel, href: alert.href },
+                        ]}
+                      />
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
           <div className="mt-5 flex justify-end">
             <Button
               type="button"
