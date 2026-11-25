@@ -26,6 +26,8 @@ export const projectQueryKeys = {
     [...projectQueryKeys.all, "audit", projectId, filters] as const,
   contributions: (projectId: string) =>
     [...projectQueryKeys.all, "contributions", projectId] as const,
+  flows: (projectId: string) =>
+    [...projectQueryKeys.all, "flows", projectId] as const,
   nonconformities: (projectId: string) =>
     [...projectQueryKeys.all, "nonconformities", projectId] as const,
   waivers: (projectId: string) =>
@@ -68,6 +70,7 @@ export async function invalidateProjectDependents(
   await Promise.all(
     [
       projectQueryKeys.calculations(projectId),
+      projectQueryKeys.flows(projectId),
       projectQueryKeys.validation(projectId),
       projectQueryKeys.memorial(projectId),
       projectQueryKeys.executiveSummary(projectId),

@@ -86,6 +86,31 @@ export const singularContributionSchema = z.object({
   targetCode: z.string(),
 });
 
+export const dischargeOverrideRequestSchema = z.object({
+  initialLps: lps.nullable(),
+  finalLps: lps.nullable(),
+});
+export const segmentFlowSchema = z.object({
+  segmentId: uuid,
+  code: z.string(),
+  calculatedInitialLps: finite,
+  calculatedFinalLps: finite,
+  initialLps: finite,
+  finalLps: finite,
+  informedInitialLps: lps.nullable(),
+  informedFinalLps: lps.nullable(),
+});
+export const projectFlowsSchema = z.object({
+  availability: z.enum(["AVAILABLE", "NO_PARAMETERS", "NO_NETWORK"]),
+  minimumDesignDischargeLps: finite,
+  segments: z.array(segmentFlowSchema),
+});
+export type DischargeOverrideRequest = z.infer<
+  typeof dischargeOverrideRequestSchema
+>;
+export type SegmentFlow = z.infer<typeof segmentFlowSchema>;
+export type ProjectFlows = z.infer<typeof projectFlowsSchema>;
+
 const severitySchema = z.enum(["CRITICAL", "WARNING", "INFO"]);
 export const nonconformityStatusSchema = z.enum([
   "OPEN",

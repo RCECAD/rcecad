@@ -7,8 +7,10 @@ import {
 } from "@/api/contracts/design";
 import {
   calculationMemorialSchema,
+  type DischargeOverrideRequest,
   designSnapshotDetailSchema,
   designSnapshotSchema,
+  dischargeOverrideRequestSchema,
   type ExportDocument,
   executiveSummarySchema,
   type NodeRequest,
@@ -18,6 +20,7 @@ import {
   nonconformityDecisionSchema,
   nonconformityStatusSchema,
   projectExportSchema,
+  projectFlowsSchema,
   type SegmentRequest,
   type SingularContributionRequest,
   segmentRequestSchema,
@@ -106,6 +109,23 @@ export const deleteSegment = (id: string, segmentId: string) =>
     child(id, "segments", segmentId),
     { method: "DELETE" },
     { schema: noContent },
+  );
+
+export const getFlows = (id: string) =>
+  springRequestWithRefresh(
+    child(id, "flows"),
+    {},
+    { schema: projectFlowsSchema },
+  );
+export const informDischarge = (
+  id: string,
+  segmentId: string,
+  input: DischargeOverrideRequest,
+) =>
+  springRequestWithRefresh(
+    child(id, "flows", "segments", segmentId),
+    json("PUT", dischargeOverrideRequestSchema.parse(input)),
+    { schema: projectFlowsSchema },
   );
 
 export const listContributions = (id: string) =>
