@@ -3,7 +3,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { CircleX, Info, TriangleAlert } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { projectQueryKeys } from "@/api/client/query-keys";
 import { parseClientJson } from "@/api/client/response";
 import {
@@ -187,26 +187,27 @@ export function ProjectValidation({ projectId }: { projectId: string }) {
         projectValidationSchema,
         "Não foi possível validar o projeto.",
       ),
-    enabled: false,
     retry: false,
+    refetchOnWindowFocus: false,
   });
-  async function validate() {
-    const result = await validation.refetch();
-    if (result.isSuccess) {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: projectQueryKeys.lists() }),
-        queryClient.invalidateQueries({
-          queryKey: projectQueryKeys.detail(projectId),
-        }),
-        queryClient.invalidateQueries({
-          queryKey: projectQueryKeys.overview(projectId),
-        }),
-        queryClient.invalidateQueries({
-          queryKey: projectQueryKeys.nonconformities(projectId),
-        }),
-      ]);
-      router.refresh();
-    }
+  const { dataUpdatedAt } = validation;
+  useEffect(() => {
+    if (!dataUpdatedAt) return;
+    void Promise.all([
+      queryClient.invalidateQueries({ queryKey: projectQueryKeys.lists() }),
+      queryClient.invalidateQueries({
+        queryKey: projectQueryKeys.detail(projectId),
+      }),
+      queryClient.invalidateQueries({
+        queryKey: projectQueryKeys.overview(projectId),
+      }),
+      queryClient.invalidateQueries({
+        queryKey: projectQueryKeys.nonconformities(projectId),
+      }),
+    ]).then(() => router.refresh());
+  }, [dataUpdatedAt, projectId, queryClient, router]);
+  function validate() {
+    void validation.refetch();
   }
   return (
     <div id="project-validation" className="flex w-full min-w-0 flex-col gap-6">
@@ -284,7 +285,11 @@ export function ProjectValidation({ projectId }: { projectId: string }) {
             disabled={validation.isFetching}
             onClick={() => void validate()}
           >
-            {validation.isFetching ? "Validando..." : "Validar projeto"}
+            {validation.isFetching
+              ? "Validando..."
+              : validation.data
+                ? "Validar novamente"
+                : "Validar projeto"}
           </Button>
         </CardContent>
       </Card>
