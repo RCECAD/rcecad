@@ -7,6 +7,8 @@ export const quantityLabels: Record<string, string> = {
   finalDepthRatio: "Lâmina final (Y/D)",
   initialWaterLevel: "Nível d'água inicial",
   finalWaterLevel: "Nível d'água final",
+  upstreamDepth: "Profundidade a montante",
+  downstreamDepth: "Profundidade a jusante",
   tractiveTension: "Tensão trativa (τ)",
   referenceTractiveTension: "Tensão trativa de referência",
   peakConveyance: "Capacidade de condução",

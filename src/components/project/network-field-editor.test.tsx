@@ -441,6 +441,19 @@ describe("network field data", () => {
     expect(screen.getByLabelText("Material T-01")).toHaveTextContent("PEAD");
   });
 
+  it("previews the node depth against the imported invert from the typed ground elevation", async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json(detail)));
+    setup();
+    expect(
+      await screen.findByLabelText("Profundidade PV-01"),
+    ).toHaveTextContent("—");
+    await user.type(screen.getByLabelText("Cota de terreno PV-01"), "101.25");
+    expect(screen.getByLabelText("Profundidade PV-01")).toHaveTextContent(
+      "1,25",
+    );
+  });
+
   it("keeps missing ground elevation and dry-weather answers undecided", async () => {
     const fetchMock = vi.fn().mockResolvedValue(Response.json(detail));
     vi.stubGlobal("fetch", fetchMock);

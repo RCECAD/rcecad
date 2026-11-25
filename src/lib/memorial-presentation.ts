@@ -57,6 +57,22 @@ const variables: Record<string, { symbol: string; meaning: string }> = {
   },
   initialWaterLevel: { symbol: "NA_i", meaning: "Nível d’água inicial, em m" },
   finalWaterLevel: { symbol: "NA_f", meaning: "Nível d’água final, em m" },
+  upstreamGroundElevationM: {
+    symbol: "CT_mont",
+    meaning: "Cota do terreno a montante, em m",
+  },
+  downstreamGroundElevationM: {
+    symbol: "CT_jus",
+    meaning: "Cota do terreno a jusante, em m",
+  },
+  upstreamDepth: {
+    symbol: "Prof_mont",
+    meaning: "Profundidade a montante, em m",
+  },
+  downstreamDepth: {
+    symbol: "Prof_jus",
+    meaning: "Profundidade a jusante, em m",
+  },
   initialDepthRatio: {
     symbol: "(Y/D)_i",
     meaning: "Relação entre lâmina e diâmetro no início do plano",
@@ -85,6 +101,8 @@ export function formulaSourceLabel(sourceId: string, reference: string) {
   if (sourceId === "com.cdre.engine") return "Motor de cálculo hidráulico CDRE";
   if (sourceId === "rcecad.water-level")
     return "Cálculo do nível d’água a partir da cota de fundo e da lâmina relativa";
+  if (sourceId === "rcecad.depth")
+    return "Profundidade a partir da cota do terreno e da cota de fundo projetada";
   if (reference === sourceId || reference.includes(sourceId)) return reference;
   return reference || sourceId;
 }

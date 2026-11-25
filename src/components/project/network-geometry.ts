@@ -6,7 +6,7 @@ import type {
 type Network = { nodes: HydraulicNodeResponse[]; segments: SegmentResponse[] };
 
 // Depth = ground − invert, in metres, rounded to the millimetre.
-const depth = (ground: number | null, invert: number) =>
+export const depth = (ground: number | null, invert: number) =>
   ground === null ? null : Math.round((ground - invert) * 1000) / 1000;
 
 export function segmentRows({ nodes, segments }: Network) {

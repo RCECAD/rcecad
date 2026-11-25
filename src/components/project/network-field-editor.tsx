@@ -37,6 +37,7 @@ import {
   projectDetailResponseSchema,
   segmentResponseSchema,
 } from "@/api/contracts/spring";
+import { depth } from "@/components/project/network-geometry";
 import { useUnsavedChanges } from "@/components/project/unsaved-changes-provider";
 import { Button } from "@/components/ui/button";
 import {
@@ -346,11 +347,17 @@ function NodeRow({
     reset,
     trigger,
     getValues,
+    watch,
     formState: { isDirty, errors },
   } = useForm<NodeFieldData>({
     resolver: zodResolver(nodeFieldDataSchema, portugueseValidation),
     defaultValues: { terrainElevation: node.terrainElevation },
   });
+  const terrain = watch("terrainElevation");
+  const nodeDepth = depth(
+    Number.isFinite(terrain) ? terrain : null,
+    node.invertElevation,
+  );
   useEffect(() => {
     reset({ terrainElevation: node.terrainElevation });
   }, [node.terrainElevation, reset]);
@@ -408,6 +415,16 @@ function NodeRow({
           disabled={batchSaving}
           {...register("terrainElevation", { setValueAs: nullableNumber })}
         />
+      </TableCell>
+      <TableCell
+        aria-label={`Profundidade ${node.code}`}
+        className={cn(
+          nodeDepth !== null && nodeDepth < 0 && "text-destructive",
+        )}
+      >
+        {nodeDepth === null
+          ? "—"
+          : nodeDepth.toLocaleString("pt-BR", { maximumFractionDigits: 3 })}
       </TableCell>
       <TableCell>
         <RowStatus dirty={isDirty} saving={save.isPending} />
@@ -1192,8 +1209,11 @@ export function NetworkFieldEditor({
           <CardHeader>
             <CardTitle>Cotas de terreno dos nós</CardTitle>
             <CardDescription>
-              Informe as cotas do levantamento em metros. A cota importada é
-              exibida apenas como referência; não substitui a cota do terreno.
+              Informe as cotas de terreno do levantamento, em metros. A cota de
+              fundo vem do arquivo importado e é a soleira do PV, não o terreno.
+              A profundidade aqui é uma prévia com o fundo importado; a
+              profundidade de projeto, com o fundo dimensionado, aparece nos
+              resultados após calcular.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -1201,8 +1221,9 @@ export function NetworkFieldEditor({
               <TableHeader>
                 <TableRow>
                   <TableHead>Nó</TableHead>
-                  <TableHead>Cota importada (m)</TableHead>
+                  <TableHead>Cota de fundo (importada) (m)</TableHead>
                   <TableHead>Cota de terreno (m)</TableHead>
+                  <TableHead>Profundidade (fundo importado) (m)</TableHead>
                   <TableHead>Status</TableHead>
                 </TableRow>
               </TableHeader>
@@ -1210,7 +1231,7 @@ export function NetworkFieldEditor({
                 {network.data.nodes.filter((node) => matches(node.code))
                   .length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={4}>
+                    <TableCell colSpan={5}>
                       <Feedback
                         title="Nenhum nó corresponde à busca"
                         actions={[

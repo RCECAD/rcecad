@@ -61,6 +61,16 @@ describe("memorial presentation", () => {
     );
   });
 
+  it("presents the designed depth with ground and invert symbols", () => {
+    const shown = presentExpression(
+      "downstreamDepth = downstreamGroundElevationM - (upstreamInvertM - slope * lengthM)",
+    );
+    expect(shown.steps).toEqual(["Prof_jus = CT_jus - (Z_mont - I × L)"]);
+    expect(formulaSourceLabel("rcecad.depth", "")).toBe(
+      "Profundidade a partir da cota do terreno e da cota de fundo projetada",
+    );
+  });
+
   it("splits algorithm steps and translates explanations while preserving conditions and unknown symbols", () => {
     const shown = presentExpression(
       "n = 0.013; Q = A*Rh^(2/3)*I^(1/2); customAlpha = max(0, q); floor = minimumDesignDischarge (0 if absent); floor applied after accumulation per segment, never propagated upstream or downstream",
