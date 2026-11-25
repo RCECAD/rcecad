@@ -104,7 +104,9 @@ test("browser: create, edit, confirm unsaved changes and persist hydraulic value
     .fill("Dados artificiais para teste");
   await page.getByLabel("Bacia", { exact: true }).fill("Bacia de teste");
   await page.getByLabel("Setor", { exact: true }).fill("Setor de teste");
-  await page.getByLabel("Área total (km²)", { exact: true }).fill("2.5");
+  await page
+    .getByLabel("Área total (km²) (opcional)", { exact: true })
+    .fill("2.5");
   await page.getByRole("button", { name: "Voltar", exact: true }).click();
   await expect(
     page.getByRole("dialog", { name: "Descartar alterações?" }),

@@ -353,7 +353,9 @@ export function GeneralDataForm({ projectId }: Readonly<GeneralDataFormProps>) {
             errors={errors}
           />
           <Field>
-            <FieldLabel htmlFor="totalAreaKm2">Área total (km²)</FieldLabel>
+            <FieldLabel htmlFor="totalAreaKm2">
+              Área total (km²) (opcional)
+            </FieldLabel>
             <Input
               id="totalAreaKm2"
               type="number"
