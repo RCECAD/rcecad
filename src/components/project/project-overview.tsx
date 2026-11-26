@@ -1,19 +1,17 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { z } from "zod";
 import { projectQueryKeys } from "@/api/client/query-keys";
 import { getErrorMessage, parseClientJson } from "@/api/client/response";
 import { projectOverviewSchema } from "@/api/contracts/design";
+import { trackedNonconformitySchema } from "@/api/contracts/resources";
 import { projectDetailResponseSchema } from "@/api/contracts/spring";
 import { OverviewContent } from "@/app/(protected)/project/[projectId]/overview/components/overview-content";
 import { ErrorState } from "@/components/ui/error-state";
 import { OverviewSkeleton } from "@/components/ui/loading-skeletons";
-import {
-  actionDetail,
-  correctionPath,
-  progressDescription,
-  validationGuidance,
-} from "@/lib/project-feedback";
+import { overviewAlerts } from "@/lib/overview-alerts";
+import { actionDetail, progressDescription } from "@/lib/project-feedback";
 import { projectStatuses } from "@/schemas/general-data";
 
 const actions: Record<string, string> = {
@@ -53,6 +51,19 @@ export function ProjectOverview({ projectId }: { projectId: string }) {
         await fetch(`/api/projects/${projectId}/network`, { signal }),
         projectDetailResponseSchema,
         "Não foi possível carregar os dados do projeto.",
+      ),
+    retry: false,
+  });
+  const nonconformities = useQuery({
+    // Same key as NonconformityPanel's OPEN filter, so a new validation refreshes it.
+    queryKey: [...projectQueryKeys.nonconformities(projectId), "list", "OPEN"],
+    queryFn: async ({ signal }) =>
+      parseClientJson(
+        await fetch(`/api/projects/${projectId}/nonconformities?status=OPEN`, {
+          signal,
+        }),
+        z.array(trackedNonconformitySchema),
+        "Não foi possível carregar os alertas.",
       ),
     retry: false,
   });
@@ -101,10 +112,13 @@ export function ProjectOverview({ projectId }: { projectId: string }) {
           : undefined
       }
       historyHref={`/project/${projectId}/audit`}
-      alerts={data.pendingItems.items.map((item) => ({
-        title: `${validationGuidance(item).title}${item.target.code ? ` · ${item.target.code}` : ""}`,
-        href: correctionPath(projectId, item),
-      }))}
+      alerts={overviewAlerts(
+        projectId,
+        data.pendingItems.items,
+        nonconformities.data ?? [],
+      )}
+      alertsLoading={nonconformities.isPending}
+      alertsError={nonconformities.isError ? nonconformities.error : null}
       recentActions={data.recentActions.map((action) => ({
         id: action.id,
         title: actions[action.type] ?? "Atividade do projeto",
@@ -114,8 +128,11 @@ export function ProjectOverview({ projectId }: { projectId: string }) {
       onRefresh={() => {
         void overview.refetch();
         void network.refetch();
+        void nonconformities.refetch();
       }}
-      refreshing={overview.isFetching || network.isFetching}
+      refreshing={
+        overview.isFetching || network.isFetching || nonconformities.isFetching
+      }
       status={
         projectStatuses.find((status) => status.value === data.status)?.label ??
         data.status
